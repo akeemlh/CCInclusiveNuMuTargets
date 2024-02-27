@@ -359,13 +359,16 @@ int main(const int argc, const char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
 
-  const double minZ = 5980, maxZ = 8422, apothem = 850; //All in mm
-  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Tracker", minZ, maxZ));
+  const double minZ = 4683, maxZ = 5800, apothem = 850; //All in mm
+  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Targets", minZ, maxZ));
   preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
-  preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(20.));
+  preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
   preCuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
   preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
+  preCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
+  preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
+  preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
                                                                                                                                                    
   signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
