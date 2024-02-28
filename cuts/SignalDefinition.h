@@ -26,3 +26,58 @@ class Q3Limit: public PlotUtils::SignalConstraint<UNIVERSE>
       return trueq3 < fQ3Max;
     }
 };
+
+
+namespace truth
+{
+    
+  template <class UNIVERSE>
+  class MuonEnergyMin: public PlotUtils::SignalConstraint<UNIVERSE>
+  {
+    public:
+      MuonEnergyMin(const double val, const std::string& name): PlotUtils::SignalConstraint<UNIVERSE>(name), fVal(val) {}
+
+    private:
+      bool checkConstraint(const UNIVERSE& univ) const override
+      {
+        return univ.GetTruthMuE() > fVal;
+      }
+      double fVal;
+  };
+
+  template <class UNIVERSE>
+  class MuonEnergyMax: public PlotUtils::SignalConstraint<UNIVERSE>
+  {
+    public:
+      MuonEnergyMax(const double val, const std::string& name): PlotUtils::SignalConstraint<UNIVERSE>(name), fVal(val) {}
+
+    private:
+      bool checkConstraint(const UNIVERSE& univ) const override
+      {
+        return univ.GetTruthMuE() < fVal;
+      }
+      double fVal;
+  };
+}
+
+namespace reco
+{
+
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class ANNConfidenceCut: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      ANNConfidenceCut(const double conf): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("ANN confidence > ") + std::to_string(conf)), fConf(conf) {}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        return univ.GetANNProb() > fConf; 
+      }
+      const double fConf;
+  };
+
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  using MuonEnergyMax = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetEmu, EVENT>;
+
+}
