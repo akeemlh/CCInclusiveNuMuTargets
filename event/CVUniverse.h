@@ -198,6 +198,8 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return GetInt("MasterAnaDev_ANN_targetZ");
   }
 
+  int GetANNTargetID() const {return GetInt("MasterAnaDev_ANN_targetID");}
+
   //Still needed for some systematics to compile, but shouldn't be used for reweighting anymore.
   protected:
   #include "PlotUtils/WeightFunctions.h" // Get*Weight
