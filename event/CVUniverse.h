@@ -187,6 +187,17 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return TMath::Sqrt(pow(nuclMass,2) + 2.0*(Enu-Emu)*nuclMass - Q2);
   }
 
+  double GetANNProb() const { return GetVecElem("ANN_plane_probs", 0); }
+  double GetTruthMuE() const { return GetDouble("truth_muon_E") ; }
+
+  int GetTargetZ() const {
+    return GetInt("MasterAnaDev_targetZ");
+  }
+
+  int GetANNTargetZ() const {
+    return GetInt("MasterAnaDev_ANN_targetZ");
+  }
+
   //Still needed for some systematics to compile, but shouldn't be used for reweighting anymore.
   protected:
   #include "PlotUtils/WeightFunctions.h" // Get*Weight

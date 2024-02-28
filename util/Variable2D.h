@@ -28,8 +28,19 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
 							   GetName().c_str(), BKGLabels,
 							   GetBinVecX(), GetBinVecY(), mc_error_bands);
 
+/*       std::map<int, std::string> MaterialLabels = {{0, "Carbon"},
+					       {1, "Iron"}, {2, "Lead"}, {3, "Plastic"}, {4, "Water"}}
+      m_MaterialHists = new util::Categorized<Hist, int>((GetName() + "_by_material").c_str(),
+							   GetName().c_str(), MaterialLabels,
+							   GetBinVecX(), GetBinVecY(), mc_error_bands); */
+
       efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
+      selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+      CHistMC = new Hist((GetName() + "_C_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+      FeHistMC = new Hist((GetName() + "_Fe_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+      PbHistMC = new Hist((GetName() + "_Pb_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+
     }
 
     //Histograms to be filled
@@ -37,15 +48,56 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
     Hist* dataHist;  
     Hist* efficiencyNumerator;
     Hist* efficiencyDenominator;
+    Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
+
+    Hist* CHistData;  
+    Hist* FeHistData;  
+    Hist* PbHistData;  
+    Hist* CHistMC;  
+    Hist* FeHistMC;  
+    Hist* PbHistMC;
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
         const char* name = GetName().c_str();
   	dataHist = new Hist(Form("_data_%s", name), name, GetBinVecX(), GetBinVecY(), data_error_bands);
- 
+    CHistData = new Hist((GetName() + "_C_data").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
+    FeHistData = new Hist((GetName() + "_Fe_data_").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
+    PbHistData = new Hist((GetName() + "_Pb_data_").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands); 
+    
+/*       std::map<int, std::string> MaterialLabels = {{0, "Carbon"},
+					       {1, "Iron"}, {2, "Lead"}, {3, "Plastic"}, {4, "Water"}}
+      m_MaterialHists = new util::Categorized<Hist, int>((GetName() + "_by_material").c_str(),
+							   GetName().c_str(), MaterialLabels,
+							   GetBinVecX(), GetBinVecY(), data_error_bands); */
+
+    
     }
 
-    void Write(TFile& file)
+    void WriteData(TFile& file)
+    {
+      if (dataHist->hist) {
+        dataHist->hist->SetDirectory(&file);
+        dataHist->hist->Write();
+      }
+
+
+
+      if (CHistData->hist) {
+        CHistData->hist->SetDirectory(&file);
+        CHistData->hist->Write((GetName() + "_C_data").c_str());
+      }
+      if (FeHistData->hist) {
+        FeHistData->hist->SetDirectory(&file);
+        FeHistData->hist->Write((GetName() + "_Fe_data").c_str());
+      }
+      if (PbHistData->hist) {
+        PbHistData->hist->SetDirectory(&file);
+        PbHistData->hist->Write((GetName() + "_Pb_data").c_str());
+      }
+    }
+
+    void WriteMC(TFile& file)
     {
       SyncCVHistos();
       file.cd();
@@ -55,11 +107,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
                                       categ.hist->SetDirectory(&file);
                                       categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                     });
-
-      if (dataHist->hist) {
-		dataHist->hist->SetDirectory(&file);
-		dataHist->hist->Write();
-      }
 
       if(efficiencyNumerator)
       {
@@ -71,6 +118,29 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       {
         efficiencyDenominator->hist->SetDirectory(&file);
         efficiencyDenominator->hist->Write();
+      }
+      if(selectedMCReco)
+      {
+        selectedMCReco->hist->SetDirectory(&file);
+        selectedMCReco->hist->Write((GetName() + "_data").c_str()); //Make this histogram look just like the data for closure tests
+      }
+
+
+
+      if(CHistMC)
+      {
+        CHistMC->hist->SetDirectory(&file);
+        CHistMC->hist->Write((GetName() + "_C_data").c_str()); //Make this histogram look just like the data for closure tests
+      }
+      if(FeHistMC)
+      {
+        FeHistMC->hist->SetDirectory(&file);
+        FeHistMC->hist->Write((GetName() + "_Fe_data").c_str()); //Make this histogram look just like the data for closure tests
+      }
+      if(PbHistMC)
+      {
+        PbHistMC->hist->SetDirectory(&file);
+        PbHistMC->hist->Write((GetName() + "_Pb_data").c_str()); //Make this histogram look just like the data for closure tests
       }
     }
 

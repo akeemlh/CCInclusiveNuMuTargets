@@ -57,6 +57,7 @@ enum ErrorCodes
 #include "cuts/SignalDefinition.h"
 #include "cuts/q3RecoCut.h"
 #include "studies/Study.h"
+#include "studies/PerEventVarByGENIELabel2D.h"
 //#include "Binning.h" //TODO: Fix me
 
 //PlotUtils includes
@@ -131,12 +132,27 @@ void LoopAndFillEventSelection(
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
         for(auto& var: vars) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
 
+        for(auto& var: vars2D) var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+
+        for(auto& var: vars2D)
+        {
+          int targetZ = universe->GetANNTargetZ();
+          switch (targetZ)
+          {
+            case 6: //Carbon
+              var->CHistMC->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+            case 26: //Iron
+              var->FeHistMC->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+            case 82: //Iron
+              var->PbHistMC->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+          }
+        }
         const bool isSignal = michelcuts.isSignal(*universe, weight);
 
         if(isSignal)
         {
           for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
-
+          
           for(auto& var: vars)
           {
             //Cross section components
@@ -173,6 +189,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
 
 {
+  std::cout<<"Len studies: " << studies.size() <<std::endl;
   std::cout << "Starting data loop...\n";
   const int nEntries = data->GetEntries();
   for (int i=0; i<data->GetEntries(); ++i) {
@@ -192,6 +209,19 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       for(auto& var: vars2D)
       {
         var->dataHist->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+      }
+      for(auto& var: vars2D)
+      {
+        int targetZ = universe->GetANNTargetZ();
+        switch (targetZ)
+        {
+          case 6: //Carbon
+            var->CHistData->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
+          case 26: //Iron
+            var->FeHistData->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
+          case 82: //Iron
+            var->PbHistData->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
+        }
       }
     }
   }
@@ -341,10 +371,14 @@ int main(const int argc, const char** argv)
   }
 
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
+  std::cout << "Reached here!-6.\n";
+  std:: cout << reco_tree_name << std::endl;
 
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true);
+    std::cout << "Reached here!-5.\n";
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
+    std::cout << "Reached here!-4.\n";
 
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
@@ -360,22 +394,27 @@ int main(const int argc, const char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
 
-  //const double minZ = 5980, maxZ = 8422, apothem = 850; //All in mm
-  const double minZ = 4305, maxZ = 5980, apothem = 850; //All in mm
-  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Target", minZ, maxZ));
+  const double minZ = 4683, maxZ = 5800, apothem = 850; //All in mm
+  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Targets", minZ, maxZ));
   preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
-  preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(20.));
+  preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
   preCuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
   preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
-                                                                                                                                                   
+  preCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
+  preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
+  preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
+                                                                                                                   
   signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                                                                                                                    
-  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Tracker", minZ, maxZ));
+  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Targets", minZ, maxZ));
   phaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
-  phaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(20.));
-  phaseSpace.emplace_back(new truth::PZMuMin<CVUniverse>(1500.));
+  phaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
+  phaseSpace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
+  phaseSpace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(50000.0, "EMu Max"));
+
+  //phaseSpace.emplace_back(new truth::PZMuMin<CVUniverse>(1500.));
                                                                                                                                                    
   PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
 
@@ -420,7 +459,8 @@ int main(const int argc, const char** argv)
   };
 
   std::vector<Variable2D*> vars2D;
-  if(doCCQENuValidation)
+
+  if(true)
   {
     std::cerr << "Detected that tree name is CCQENu.  Making validation histograms.\n";
     vars.push_back(new Variable("pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
@@ -428,8 +468,17 @@ int main(const int argc, const char** argv)
     vars.push_back(new Variable("Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
     vars2D.push_back(new Variable2D(*vars[1], *vars[0]));
   }
-
+  std::cout<<"Len Vars: " << vars.size() <<std::endl;
   std::vector<Study*> studies;
+  std::function<double(const CVUniverse&, const MichelEvent&)> ptmu = [](const CVUniverse& univ, const MichelEvent& evt) { return univ.GetMuonPT();};
+  std::function<double(const CVUniverse&, const MichelEvent&)> pzmu = [](const CVUniverse& univ, const MichelEvent& evt) { return univ.GetMuonPz();};
+
+  studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, error_bands));
+  //studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, error_bands));
+
+  //data_studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu2"), std::string("GeV/c"), dansPTBins, dansPzBins, error_bands));
+
+
 
   CVUniverse* data_universe = new CVUniverse(options.m_data);
   std::vector<CVUniverse*> data_band = {data_universe};
@@ -437,6 +486,7 @@ int main(const int argc, const char** argv)
   data_error_bands["cv"] = data_band;
   
   std::vector<Study*> data_studies;
+  data_studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, data_error_bands));
 
   for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
   for(auto& var: vars) var->InitializeDATAHists(data_band);
@@ -469,7 +519,8 @@ int main(const int argc, const char** argv)
 
     for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
     for(auto& var: vars) var->WriteMC(*mcOutDir);
-    for(auto& var: vars2D) var->Write(*mcOutDir);
+    for(auto& var: vars2D) var->WriteMC(*mcOutDir);
+    for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
@@ -496,6 +547,10 @@ int main(const int argc, const char** argv)
     }
 
     for(auto& var: vars) var->WriteData(*dataOutDir);
+
+    for(auto& var: vars2D) var->WriteData(*dataOutDir);
+
+    for(auto& study: data_studies) study->SaveOrDraw(*dataOutDir);
 
     //Protons On Target
     auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
