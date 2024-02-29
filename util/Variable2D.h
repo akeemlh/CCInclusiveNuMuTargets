@@ -28,10 +28,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
 							   GetName().c_str(), BKGLabels,
 							   GetBinVecX(), GetBinVecY(), mc_error_bands);
       
-      m_backgroundHists = new util::Categorized<Hist, int>((GetName() + "_by_BKG_Label").c_str(),
-							   GetName().c_str(), BKGLabels,
-							   GetBinVecX(), GetBinVecY(), mc_error_bands);
-
       m_HistsByTgtZMC = new util::Categorized<Hist, int>((GetName() + "_by_TargetZ_MC").c_str(),
         GetName().c_str(), TargetZLabels,
         GetBinVecX(), GetBinVecY(), mc_error_bands);
