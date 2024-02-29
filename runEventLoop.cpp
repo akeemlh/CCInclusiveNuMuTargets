@@ -508,7 +508,6 @@ int main(const int argc, const char** argv)
     for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
     for(auto& var: vars) var->WriteMC(*mcOutDir);
     for(auto& var: vars2D) var->WriteMC(*mcOutDir);
-    for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
