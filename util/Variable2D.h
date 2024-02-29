@@ -27,51 +27,56 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       m_backgroundHists = new util::Categorized<Hist, int>((GetName() + "_by_BKG_Label").c_str(),
 							   GetName().c_str(), BKGLabels,
 							   GetBinVecX(), GetBinVecY(), mc_error_bands);
+      
+      m_backgroundHists = new util::Categorized<Hist, int>((GetName() + "_by_BKG_Label").c_str(),
+							   GetName().c_str(), BKGLabels,
+							   GetBinVecX(), GetBinVecY(), mc_error_bands);
 
-/*       std::map<int, std::string> MaterialLabels = {{0, "Carbon"},
-					       {1, "Iron"}, {2, "Lead"}, {3, "Plastic"}, {4, "Water"}}
-      m_MaterialHists = new util::Categorized<Hist, int>((GetName() + "_by_material").c_str(),
-							   GetName().c_str(), MaterialLabels,
-							   GetBinVecX(), GetBinVecY(), mc_error_bands); */
+      m_HistsByTgtZMC = new util::Categorized<Hist, int>((GetName() + "_by_TargetZ_MC").c_str(),
+        GetName().c_str(), TargetZLabels,
+        GetBinVecX(), GetBinVecY(), mc_error_bands);
+
+      m_HistsByTgtIDMC = new util::Categorized<Hist, int>((GetName() + "_by_TargetID_MC").c_str(),
+        GetName().c_str(), TargetIDLabels,
+        GetBinVecX(), GetBinVecY(), mc_error_bands);
 
       efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
       selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-      CHistMC = new Hist((GetName() + "_C_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-      FeHistMC = new Hist((GetName() + "_Fe_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-      PbHistMC = new Hist((GetName() + "_Pb_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-
     }
 
     //Histograms to be filled
     util::Categorized<Hist, int>* m_backgroundHists;
+    util::Categorized<Hist, int>* m_HistsByTgtZMC;
+    util::Categorized<Hist, int>* m_HistsByTgtZData;
+
+    util::Categorized<Hist, int>* m_HistsByTgtIDMC;
+    util::Categorized<Hist, int>* m_HistsByTgtIDData;
+
+    util::Categorized<Hist, int>* m_sidebandHists;
+
     Hist* dataHist;  
     Hist* efficiencyNumerator;
     Hist* efficiencyDenominator;
     Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
 
-    Hist* CHistData;  
-    Hist* FeHistData;  
-    Hist* PbHistData;  
-    Hist* CHistMC;  
-    Hist* FeHistMC;  
-    Hist* PbHistMC;
+    //Format: "(Material*100)ID" ie 
+    std::map<int, std::string> TargetZLabels = {{-1, "Water"}, {6, "Carbon"}, {26, "Iron"}, {82, "Lead"}, {3, "Plastic"}};
+
+    std::map<int, std::string> TargetIDLabels = {{0, "0"}, {1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
         const char* name = GetName().c_str();
-  	dataHist = new Hist(Form("_data_%s", name), name, GetBinVecX(), GetBinVecY(), data_error_bands);
-    CHistData = new Hist((GetName() + "_C_data").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
-    FeHistData = new Hist((GetName() + "_Fe_data_").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
-    PbHistData = new Hist((GetName() + "_Pb_data_").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands); 
-    
-/*       std::map<int, std::string> MaterialLabels = {{0, "Carbon"},
-					       {1, "Iron"}, {2, "Lead"}, {3, "Plastic"}, {4, "Water"}}
-      m_MaterialHists = new util::Categorized<Hist, int>((GetName() + "_by_material").c_str(),
-							   GetName().c_str(), MaterialLabels,
-							   GetBinVecX(), GetBinVecY(), data_error_bands); */
+      dataHist = new Hist(Form("_data_%s", name), name, GetBinVecX(), GetBinVecY(), data_error_bands);
+      
+      m_HistsByTgtZData = new util::Categorized<Hist, int>((GetName() + "_by_targetZ_data").c_str(),
+        GetName().c_str(), TargetZLabels,
+        GetBinVecX(), GetBinVecY(), data_error_bands);
 
-    
+      m_HistsByTgtIDData = new util::Categorized<Hist, int>((GetName() + "_by_targetID_data").c_str(),
+        GetName().c_str(), TargetIDLabels,
+        GetBinVecX(), GetBinVecY(), data_error_bands);
     }
 
     void WriteData(TFile& file)
@@ -82,19 +87,18 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       }
 
 
+      m_HistsByTgtZData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
 
-      if (CHistData->hist) {
-        CHistData->hist->SetDirectory(&file);
-        CHistData->hist->Write((GetName() + "_C_data").c_str());
-      }
-      if (FeHistData->hist) {
-        FeHistData->hist->SetDirectory(&file);
-        FeHistData->hist->Write((GetName() + "_Fe_data").c_str());
-      }
-      if (PbHistData->hist) {
-        PbHistData->hist->SetDirectory(&file);
-        PbHistData->hist->Write((GetName() + "_Pb_data").c_str());
-      }
+      m_HistsByTgtIDData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+
     }
 
     void WriteMC(TFile& file)
@@ -125,23 +129,17 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
         selectedMCReco->hist->Write((GetName() + "_data").c_str()); //Make this histogram look just like the data for closure tests
       }
 
+      m_HistsByTgtZMC->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
 
-
-      if(CHistMC)
-      {
-        CHistMC->hist->SetDirectory(&file);
-        CHistMC->hist->Write((GetName() + "_C_data").c_str()); //Make this histogram look just like the data for closure tests
-      }
-      if(FeHistMC)
-      {
-        FeHistMC->hist->SetDirectory(&file);
-        FeHistMC->hist->Write((GetName() + "_Fe_data").c_str()); //Make this histogram look just like the data for closure tests
-      }
-      if(PbHistMC)
-      {
-        PbHistMC->hist->SetDirectory(&file);
-        PbHistMC->hist->Write((GetName() + "_Pb_data").c_str()); //Make this histogram look just like the data for closure tests
-      }
+      m_HistsByTgtIDMC->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
     }
 
     //Only call this manually if you Draw(), Add(), or Divide() plots in this

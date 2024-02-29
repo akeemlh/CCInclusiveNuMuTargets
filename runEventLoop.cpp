@@ -137,15 +137,9 @@ void LoopAndFillEventSelection(
         for(auto& var: vars2D)
         {
           int targetZ = universe->GetANNTargetZ();
-          switch (targetZ)
-          {
-            case 6: //Carbon
-              var->CHistMC->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
-            case 26: //Iron
-              var->FeHistMC->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
-            case 82: //Iron
-              var->PbHistMC->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
-          }
+          int targetID = universe->GetANNTargetID();
+          (*var->m_HistsByTgtZMC)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          (*var->m_HistsByTgtIDMC)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
         const bool isSignal = michelcuts.isSignal(*universe, weight);
 
@@ -213,15 +207,9 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       for(auto& var: vars2D)
       {
         int targetZ = universe->GetANNTargetZ();
-        switch (targetZ)
-        {
-          case 6: //Carbon
-            var->CHistData->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
-          case 26: //Iron
-            var->FeHistData->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
-          case 82: //Iron
-            var->PbHistData->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
-        }
+        int targetID = universe->GetANNTargetID();
+        (*var->m_HistsByTgtZData)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+        (*var->m_HistsByTgtIDData)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
       }
     }
   }
@@ -568,3 +556,5 @@ int main(const int argc, const char** argv)
 
   return success;
 }
+
+//To Do: Also add a categorized set for targetID and save hists
