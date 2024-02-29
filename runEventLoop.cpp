@@ -461,12 +461,7 @@ int main(const int argc, const char** argv)
   std::function<double(const CVUniverse&, const MichelEvent&)> ptmu = [](const CVUniverse& univ, const MichelEvent& evt) { return univ.GetMuonPT();};
   std::function<double(const CVUniverse&, const MichelEvent&)> pzmu = [](const CVUniverse& univ, const MichelEvent& evt) { return univ.GetMuonPz();};
 
-  studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, error_bands));
-  //studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, error_bands));
-
-  //data_studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu2"), std::string("GeV/c"), dansPTBins, dansPzBins, error_bands));
-
-
+  studies.push_back(new PerEventVarByGENIELabel2D(pzmu, ptmu, std::string("p_{||, #mu} vs p_{t, #mu}"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
 
   CVUniverse* data_universe = new CVUniverse(options.m_data);
   std::vector<CVUniverse*> data_band = {data_universe};
@@ -474,7 +469,8 @@ int main(const int argc, const char** argv)
   data_error_bands["cv"] = data_band;
   
   std::vector<Study*> data_studies;
-  data_studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, data_error_bands));
+  //data_studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, data_error_bands));
+  //Wouldn't make sense to do a PerEventVarByGENIELabel2D study for data since data wont have the GENIE simulation labels
 
   for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
   for(auto& var: vars) var->InitializeDATAHists(data_band);
@@ -556,4 +552,4 @@ int main(const int argc, const char** argv)
   return success;
 }
 
-//To Do: Also add a categorized set for targetID and save hists
+//To Do: Run this twice but also for tracker producing an separate root file

@@ -54,7 +54,9 @@ class PerEventVarByGENIELabel2D: public Study
 
     //Overriding base class functions
     //Do nothing for now...  Good place for data comparisons in the future. 
-    void fillSelected(const CVUniverse& univ, const MichelEvent& evt, const double weight) {}
+    void fillSelected(const CVUniverse& univ, const MichelEvent& evt, const double weight) {
+        (*m_VarToGENIELabel)[univ.GetInteractionType()].FillUniverse(&univ, fReco_x(univ, evt), fReco_y(univ, evt), 1);
+    }
 
     //All of your plots happen here so far.
     void fillSelectedSignal(const CVUniverse& univ, const MichelEvent& evt, const double weight)
