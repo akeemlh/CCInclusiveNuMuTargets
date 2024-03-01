@@ -86,16 +86,23 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 
+typedef struct {
+    std::vector<Variable*> variables;
+    std::vector<Variable2D*> variables2D;
+    PlotUtils::Cutter<CVUniverse, MichelEvent>* cuts;
+} cutVarSet;
+//Used because we have a different set of cuts for the tracker and target
+//I want to keep tracker and target separate for later in the analysis
+//We use different Variable and Variable2D objects to store the sets of histograms
+
 //==============================================================================
 // Loop and Fill
 //==============================================================================
 void LoopAndFillEventSelection(
     PlotUtils::ChainWrapper* chain,
     std::map<std::string, std::vector<CVUniverse*> > error_bands,
-    std::vector<Variable*> vars,
-    std::vector<Variable2D*> vars2D,
+    std::map<std::string, cutVarSet> setMap,
     std::vector<Study*> studies,
-    PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
     PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
   assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
@@ -124,50 +131,53 @@ void LoopAndFillEventSelection(
     
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
-         
-        // This is where you would Access/create a Michel
 
-        //weight is ignored in isMCSelected() for all but the CV Universe.
-        if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
-        const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        for(auto& var: vars) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
-
-        for(auto& var: vars2D) var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
-
-        for(auto& var: vars2D)
+        for(auto& set: setMap)
         {
-          int targetZ = universe->GetANNTargetZ();
-          int targetID = universe->GetANNTargetID();
-          (*var->m_HistsByTgtZMC)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          (*var->m_HistsByTgtIDMC)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-        }
-        const bool isSignal = michelcuts.isSignal(*universe, weight);
+          // This is where you would Access/create a Michel
 
-        if(isSignal)
-        {
-          for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
-          
-          for(auto& var: vars)
+          //weight is ignored in isMCSelected() for all but the CV Universe.
+          if (!set.second.cuts->isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
+          const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
+          for(auto& var: set.second.variables) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+
+          for(auto& var: set.second.variables2D) var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+
+          for(auto& var: set.second.variables2D)
           {
-            //Cross section components
-            var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
-            var->migration->FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
-            var->selectedSignalReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //Efficiency numerator in reco variables.  Useful for warping studies.
+            int targetZ = universe->GetANNTargetZ();
+            int targetID = universe->GetANNTargetID();
+            (*var->m_HistsByTgtZMC)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            (*var->m_HistsByTgtIDMC)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           }
+          const bool isSignal = set.second.cuts->isSignal(*universe, weight);
 
-          for(auto& var: vars2D)
+          if(isSignal)
           {
-            var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
-          }
-        }
-        else
-        {
-          int bkgd_ID = -1;
-          if (universe->GetCurrent()==2)bkgd_ID=0;
-          else bkgd_ID=1;
+            for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
+            
+            for(auto& var: set.second.variables)
+            {
+              //Cross section components
+              var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+              var->migration->FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
+              var->selectedSignalReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //Efficiency numerator in reco variables.  Useful for warping studies.
+            }
 
-          for(auto& var: vars) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-          for(auto& var: vars2D) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            for(auto& var: set.second.variables2D)
+            {
+              var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+            }
+          }
+          else
+          {
+            int bkgd_ID = -1;
+            if (universe->GetCurrent()==2)bkgd_ID=0;
+            else bkgd_ID=1;
+
+            for(auto& var: set.second.variables) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            for(auto& var: set.second.variables2D) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          }
         }
       } // End band's universe loop
     } // End Band loop
@@ -177,10 +187,8 @@ void LoopAndFillEventSelection(
 
 void LoopAndFillData( PlotUtils::ChainWrapper* data,
 			        std::vector<CVUniverse*> data_band,
-				std::vector<Variable*> vars,
-                                std::vector<Variable2D*> vars2D,
-                                std::vector<Study*> studies,
-				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
+              std::map<std::string, cutVarSet> setMap,
+              std::vector<Study*> studies)
 
 {
   std::cout<<"Len studies: " << studies.size() <<std::endl;
@@ -191,25 +199,28 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       universe->SetEntry(i);
       if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
       MichelEvent myevent; 
-      if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
-
-      for(auto& study: studies) study->Selected(*universe, myevent, 1); 
-
-      for(auto& var: vars)
+      for(auto& set: setMap)
       {
-        var->dataHist->FillUniverse(universe, var->GetRecoValue(*universe, myevent.m_idx), 1);
-      }
+        if (!set.second.cuts->isDataSelected(*universe, myevent).all()) continue;
 
-      for(auto& var: vars2D)
-      {
-        var->dataHist->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
-      }
-      for(auto& var: vars2D)
-      {
-        int targetZ = universe->GetANNTargetZ();
-        int targetID = universe->GetANNTargetID();
-        (*var->m_HistsByTgtZData)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
-        (*var->m_HistsByTgtIDData)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+        for(auto& study: studies) study->Selected(*universe, myevent, 1); 
+
+        for(auto& var: set.second.variables)
+        {
+          var->dataHist->FillUniverse(universe, var->GetRecoValue(*universe, myevent.m_idx), 1);
+        }
+
+        for(auto& var: set.second.variables2D)
+        {
+          var->dataHist->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+        }
+        for(auto& var: set.second.variables2D)
+        {
+          int targetZ = universe->GetANNTargetZ();
+          int targetID = universe->GetANNTargetID();
+          (*var->m_HistsByTgtZData)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+          (*var->m_HistsByTgtIDData)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+        }
       }
     }
   }
@@ -218,10 +229,8 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 
 void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
     				std::map<std::string, std::vector<CVUniverse*> > truth_bands,
-    				std::vector<Variable*> vars,
-                                std::vector<Variable2D*> vars2D,
-    				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-                                PlotUtils::Model<CVUniverse, MichelEvent>& model)
+            std::map<std::string, cutVarSet> setMap,
+            PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
   assert(!truth_bands["cv"].empty() && "\"cv\" error band is empty!  Could not set Model entry.");
   auto& cvUniv = truth_bands["cv"].front();
@@ -249,19 +258,21 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
-
-        if (!michelcuts.isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
-        const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
-
-        //Fill efficiency denominator now: 
-        for(auto var: vars)
+        for(auto& set: setMap)
         {
-          var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
-        }
+          if (!set.second.cuts->isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
+          const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
 
-        for(auto var: vars2D)
-        {
-          var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          //Fill efficiency denominator now: 
+          for(auto var: set.second.variables)
+          {
+            var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          }
+
+          for(auto var: set.second.variables2D)
+          {
+            var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          }
         }
       }
     }
@@ -379,32 +390,53 @@ int main(const int argc, const char** argv)
 
   //Now that we've defined what a cross section is, decide which sample and model
   //we're extracting a cross section for.
-  PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
-  PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
+  PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t nukeSidebands, targetSidebands, nukePreCut, targetPreCuts;
+  PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, nukePhaseSpace, targetPhaseSpace;
 
-  const double minZ = 4683, maxZ = 5800, apothem = 850; //All in mm
-  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Targets", minZ, maxZ));
-  preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
-  preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
-  preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
-  preCuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
-  preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
-  preCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
-  preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
-  preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
+  const double apothem = 850; //All in mm
+  nukePreCut.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Nuclear Targets Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
+  nukePreCut.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
+  nukePreCut.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
+  nukePreCut.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
+  nukePreCut.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
+  nukePreCut.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
+  nukePreCut.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
+  nukePreCut.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
+  nukePreCut.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
+
+  targetPreCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  targetPreCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
+  targetPreCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
+  targetPreCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
+  targetPreCuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
+  targetPreCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
+  targetPreCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
+  targetPreCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
+  targetPreCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
+
+  nukeSidebands.emplace_back(new reco::USScintillator<CVUniverse, MichelEvent>());
+  nukeSidebands.emplace_back(new reco::DSScintillator<CVUniverse, MichelEvent>());
+
                                                                                                                    
   signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
-                                                                                                                                                   
-  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Targets", minZ, maxZ));
-  phaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
-  phaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
-  phaseSpace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
-  phaseSpace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(50000.0, "EMu Max"));
+                                                        
+  nukePhaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Nuclear Targets Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
+  nukePhaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
+  nukePhaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
+  nukePhaseSpace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
+  nukePhaseSpace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(50000.0, "EMu Max"));
+
+  targetPhaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  targetPhaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
+  targetPhaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
+  targetPhaseSpace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
+  targetPhaseSpace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(50000.0, "EMu Max"));
 
   //phaseSpace.emplace_back(new truth::PZMuMin<CVUniverse>(1500.));
                                                                                                                                                    
-  PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
+  PlotUtils::Cutter<CVUniverse, MichelEvent> nukeCuts(std::move(nukePreCut), std::move(nukeSidebands) , std::move(signalDefinition),std::move(nukePhaseSpace));
+  PlotUtils::Cutter<CVUniverse, MichelEvent> trackerCuts(std::move(targetPreCuts), std::move(nukeSidebands) , std::move(signalDefinition),std::move(targetPhaseSpace));
 
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
   MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
@@ -442,26 +474,42 @@ int main(const int argc, const char** argv)
   const double robsRecoilBinWidth = 50; //MeV
   for(int whichBin = 0; whichBin < 100 + 1; ++whichBin) robsRecoilBins.push_back(robsRecoilBinWidth * whichBin);
 
-  std::vector<Variable*> vars = {
-    new Variable("pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue),
-  };
-
-  std::vector<Variable2D*> vars2D;
+  std::vector<Variable*> nukeVars, trackerVars;
+  std::vector<Variable2D*> nukeVars2D, trackerVars2D;
 
   if(true)
   {
-    std::cerr << "Detected that tree name is CCQENu.  Making validation histograms.\n";
-    vars.push_back(new Variable("pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
-    vars.push_back(new Variable("Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
-    vars.push_back(new Variable("Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
-    vars2D.push_back(new Variable2D(*vars[1], *vars[0]));
-  }
-  std::cout<<"Len Vars: " << vars.size() <<std::endl;
-  std::vector<Study*> studies;
-  std::function<double(const CVUniverse&, const MichelEvent&)> ptmu = [](const CVUniverse& univ, const MichelEvent& evt) { return univ.GetMuonPT();};
-  std::function<double(const CVUniverse&, const MichelEvent&)> pzmu = [](const CVUniverse& univ, const MichelEvent& evt) { return univ.GetMuonPz();};
+    nukeVars.push_back(new Variable("nuke_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
+    nukeVars.push_back(new Variable("nuke_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+    nukeVars.push_back(new Variable("nuke_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
+    nukeVars.push_back(new Variable("nuke_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
+    nukeVars2D.push_back(new Variable2D("nuke_pTmu_vs_pZmu", *nukeVars[1], *nukeVars[0]));
 
-  studies.push_back(new PerEventVarByGENIELabel2D(pzmu, ptmu, std::string("p_{||, #mu} vs p_{t, #mu}"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
+    trackerVars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
+    trackerVars.push_back(new Variable("tracker_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+    trackerVars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
+    trackerVars.push_back(new Variable("tracker_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
+    trackerVars2D.push_back(new Variable2D("tracker_pTmu_vs_pZmu", *trackerVars[1], *trackerVars[0]));
+  }
+
+  cutVarSet nukeSet;
+  nukeSet.variables = nukeVars;
+  nukeSet.variables2D = nukeVars2D;
+  nukeSet.cuts = &nukeCuts;
+
+  cutVarSet trackerSet;
+  trackerSet.variables = trackerVars;
+  trackerSet.variables2D = trackerVars2D;
+  trackerSet.cuts = &trackerCuts;
+
+  std::map<std::string, cutVarSet> detRegionSet = {{"Nuke", nukeSet}, {"Tracker", trackerSet}}; //Set of variables and cuts 
+  //corresponding to this detector region
+
+  std::vector<Study*> studies;
+  std::function<double(const CVUniverse&, const MichelEvent&)> ptmu = [](const CVUniverse& univ, const MichelEvent& /* evt */) { return univ.GetMuonPT();};
+  std::function<double(const CVUniverse&, const MichelEvent&)> pzmu = [](const CVUniverse& univ, const MichelEvent& /* evt */) { return univ.GetMuonPz();};
+
+  studies.push_back(new PerEventVarByGENIELabel2D(pzmu, ptmu, std::string("pzmu_vs_ptmu_study"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
 
   CVUniverse* data_universe = new CVUniverse(options.m_data);
   std::vector<CVUniverse*> data_band = {data_universe};
@@ -472,26 +520,38 @@ int main(const int argc, const char** argv)
   //data_studies.push_back(new PerEventVarByGENIELabel2D(ptmu, pzmu, std::string("ptmu_vs_pzmu"), std::string("GeV/c"), dansPTBins, dansPzBins, data_error_bands));
   //Wouldn't make sense to do a PerEventVarByGENIELabel2D study for data since data wont have the GENIE simulation labels
 
-  for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
-  for(auto& var: vars) var->InitializeDATAHists(data_band);
+  for(auto& set: detRegionSet)
+  {
+    std::vector<Variable*> vars = set.second.variables;
+    std::vector<Variable2D*> vars2D = set.second.variables2D;
+    for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
+    for(auto& var: vars) var->InitializeDATAHists(data_band);
 
-  for(auto& var: vars2D) var->InitializeMCHists(error_bands, truth_bands);
-  for(auto& var: vars2D) var->InitializeDATAHists(data_band);
+    for(auto& var: vars2D) var->InitializeMCHists(error_bands, truth_bands);
+    for(auto& var: vars2D) var->InitializeDATAHists(data_band);
+  }
 
   // Loop entries and fill
   try
   {
     CVUniverse::SetTruth(false);
-    LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model);
+    LoopAndFillEventSelection(options.m_mc, error_bands, detRegionSet, studies, model);
     CVUniverse::SetTruth(true);
-    LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model);
+    LoopAndFillEffDenom(options.m_truth, truth_bands, detRegionSet, model);
     options.PrintMacroConfiguration(argv[0]);
-    std::cout << "MC cut summary:\n" << mycuts << "\n";
-    mycuts.resetStats();
+    
+    std::cout << "Nuclear Target MC cut summary:\n" << *detRegionSet["Nuke"].cuts << "\n";
+    std::cout << "Active Tracker MC cut summary:\n" << *detRegionSet["Tracker"].cuts << "\n";
+    detRegionSet["Nuke"].cuts->resetStats();
+    detRegionSet["Tracker"].cuts->resetStats();
 
     CVUniverse::SetTruth(false);
-    LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts);
-    std::cout << "Data cut summary:\n" << mycuts << "\n";
+    LoopAndFillData(options.m_data, data_band, detRegionSet, data_studies);
+    std::cout << "Nuclear Target Data cut summary:\n" << *detRegionSet["Nuke"].cuts << "\n";
+    std::cout << "Active Tracker Data cut summary:\n" << *detRegionSet["Tracker"].cuts << "\n";
+    detRegionSet["Nuke"].cuts->resetStats();
+    detRegionSet["Tracker"].cuts->resetStats();
+
 
     //Write MC results
     TFile* mcOutDir = TFile::Open(MC_OUT_FILE_NAME, "RECREATE");
@@ -502,8 +562,13 @@ int main(const int argc, const char** argv)
     }
 
     for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
-    for(auto& var: vars) var->WriteMC(*mcOutDir);
-    for(auto& var: vars2D) var->WriteMC(*mcOutDir);
+    for(auto& set: detRegionSet)
+    {
+      std::vector<Variable*> vars = set.second.variables;
+      std::vector<Variable2D*> vars2D = set.second.variables2D;
+      for(auto& var: vars) var->WriteMC(*mcOutDir);
+      for(auto& var: vars2D) var->WriteMC(*mcOutDir);
+    }
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
@@ -512,13 +577,25 @@ int main(const int argc, const char** argv)
     PlotUtils::TargetUtils targetInfo;
     assert(error_bands["cv"].size() == 1 && "List of error bands must contain a universe named \"cv\" for the flux integral.");
 
-    for(const auto& var: vars)
+    for(auto& set: detRegionSet)
     {
-      //Flux integral only if systematics are being done (temporary solution)
-      util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
-      //Always use MC number of nucleons for cross section
-      auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(minZ, maxZ, true, apothem));
-      nNucleons->Write();
+      std::vector<Variable*> vars = set.second.variables;
+      for(auto& var: vars) 
+      {
+        //Flux integral only if systematics are being done (temporary solution)
+        util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
+        //Always use MC number of nucleons for cross section
+        if (set.first=="Nuke")
+        {
+          auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::NukeRegion::Back, PlotUtils::TargetProp::NukeRegion::Face, true, apothem));
+          nNucleons->Write();
+        }
+        else if (set.first=="Tracker")
+        {
+          auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Back, PlotUtils::TargetProp::Tracker::Face, true, apothem));
+          nNucleons->Write();
+        }
+      }
     }
 
     //Write data results
@@ -529,9 +606,17 @@ int main(const int argc, const char** argv)
       return badOutputFile;
     }
 
-    for(auto& var: vars) var->WriteData(*dataOutDir);
+    for(auto& set: detRegionSet)
+    {
+      std::vector<Variable*> vars = set.second.variables;
+      std::vector<Variable2D*> vars2D = set.second.variables2D;
+      for(auto& var: vars) 
+      {
+        for(auto& var: vars) var->WriteData(*dataOutDir);
 
-    for(auto& var: vars2D) var->WriteData(*dataOutDir);
+        for(auto& var: vars2D) var->WriteData(*dataOutDir);
+      }
+    }
 
     for(auto& study: data_studies) study->SaveOrDraw(*dataOutDir);
 

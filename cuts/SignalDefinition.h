@@ -4,6 +4,7 @@ using q3Signal = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetTrueq3>;*/ /
 
 //PlotUtils includes
 #include "PlotUtils/Cut.h"
+#include "util/PlasticSidebands.h"
 
 //Package includes
 #include "event/CVUniverse.h"
@@ -80,4 +81,31 @@ namespace reco
   template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
   using MuonEnergyMax = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetEmu, EVENT>;
 
+  //Is this vertex upstream of a nuclear target
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class USScintillator: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      USScintillator(): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Upstream scintillator sideband")) {}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        return util::isUSPlane(univ.GetANNTargetZ()); 
+      }
+  };
+
+  //Is this vertex downstream of a nuclear target
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class DSScintillator: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      DSScintillator(): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Downstream scintillator sideband")) {}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        return util::isDSPlane(univ.GetANNTargetZ()); 
+      }
+  };
 }
