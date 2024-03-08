@@ -6,47 +6,55 @@
 
 namespace util
 {
+    
     //From https://cdcvs.fnal.gov/redmine/projects/minerva/wiki/Z_Positions_of_Planes_in_the_Full_MINERvA_Detector
     //And https://cdcvs.fnal.gov/redmine/projects/minerva-sw/wiki/MINERvA_Detector
     //And https://cdcvs.fnal.gov/redmine/projects/minerva-ops/wiki/MINERvA_Detector
     //And https://cdcvs.fnal.gov/redmine/projects/minerva/wiki/Z_Positions_of_Planes_in_the_Downstream_Detector -- Not used
-    std::map<int, int> TargetUSPlanes = {{1, 1339555840}, {2, 1211629568}, {3, 1216872448}, {4, 1227358208}, {5, 1230503936}};
-    std::map<int, int> TargetDSPlanes = {{1, 1208221696}, {2, 1213464576}, {3, 1219756032}, {4, 1229193216}, {5, 1500774400}};
+    static std::map<int, int> TargetUSPlanes;
+    static std::map<int, int> TargetDSPlanes;
     
+    static std::map<int, int> TargetUSPlanesFlipped;
+    static std::map<int, int> TargetDSPlanesFlipped;
     //Is this plane upstream of one of the nuclear targets?
-    bool isUSPlane(int planeID)
-    {
-        std::map<int, int>::iterator result = std::find_if(
-            TargetUSPlanes.begin(),
-            TargetUSPlanes.end(),
-        [planeID](const auto& obj) {return obj.second == planeID; });
+    static std::map<int, int> plane1ModIDMap;
 
-        if(result == TargetUSPlanes.end())
+    //Plane2
+    static std::map<int, int> plane2ModIDMap;
+
+    //Verify US and DS planes for water target, i.e tgt 6.
+    //To do: Change from ModPla code to segment system? See MasterAnaDev::GetTargetFromSegment()
+    static std::map<int, int> USModPlaCodeToTgtId {{-18, 1}, {32, 2}, {82, 3}, {182, 4}, {212, 5}, {142, 6}};
+    static std::map<int, int> DSModPlaCodeToTgtId {{1, 1}, {51, 2}, {111, 3}, {201, 4}, {231, 5}, {151, 6}};
+
+    //Is this plane upstream of one of the nuclear targets?
+    //modPlaCode is just modnum*10+plane ; modnum is in range 1-5 and plane is either 1, 2
+    static int isUSPlane(int modPlaCode)
+    {
+        auto USTgtID = USModPlaCodeToTgtId.find(modPlaCode);
+        if (USTgtID != util::USModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
         {
-            return false;
+            return USTgtID->second;
         }
         else
         {
-            return true;
+            return 0;
         }
     }
 
-    //Is this plane downstream of one of the nuclear targets?
-    bool isDSPlane(int planeID)
+    static int isDSPlane(int modPlaCode)
     {
-        std::map<int, int>::iterator result = std::find_if(
-            TargetDSPlanes.begin(),
-            TargetDSPlanes.end(),
-        [planeID](const auto& obj) {return obj.second == planeID; });
-
-        if(result == TargetDSPlanes.end())
+        auto DSTgtID = DSModPlaCodeToTgtId.find(modPlaCode);
+        if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
         {
-            return false;
+            return DSTgtID->second;
         }
         else
         {
-            return true;
+            return 0;
         }
     }
+
+
 }
-#endif
+#endif //UTIL_PLASTICSIDEBANDS_H

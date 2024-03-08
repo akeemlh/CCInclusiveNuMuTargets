@@ -90,6 +90,7 @@ typedef struct {
     std::vector<Variable*> variables;
     std::vector<Variable2D*> variables2D;
     PlotUtils::Cutter<CVUniverse, MichelEvent>* cuts;
+    std::vector<Study*> studies;
 } cutVarSet;
 //Used because we have a different set of cuts for the tracker and target
 //I want to keep tracker and target separate for later in the analysis
@@ -118,7 +119,6 @@ void LoopAndFillEventSelection(
     cvUniv->SetEntry(i);
     model.SetEntry(*cvUniv, cvEvent);
     const double cvWeight = model.GetWeight(*cvUniv, cvEvent);
-
     //=========================================
     // Systematics loop(s)
     //=========================================
@@ -128,34 +128,107 @@ void LoopAndFillEventSelection(
       for (auto universe : error_band_universes)
       {
         MichelEvent myevent; // make sure your event is inside the error band loop. 
-    
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
 
         for(auto& set: setMap)
         {
           // This is where you would Access/create a Michel
-
           //weight is ignored in isMCSelected() for all but the CV Universe.
           if (!set.second.cuts->isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
+          
+          //To do: use universe->hasMLPred()
+          //Nuke Target Study
+          for(auto& var: set.second.variables2D)
+          {
+            if (set.first=="Nuke")
+            {
+              int annTgtCode = universe->GetANNTargetCode();
+              //If this has a segment num 36 it came from water target
+              bool inWaterSegment = (universe->GetANNSegment()==36);
+              //TODO: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260
+              if ((annTgtCode>0 &annTgtCode<6) || inWaterSegment) //If this event occurs inside a nuclear target
+              {
+                int code = inWaterSegment ? -999 : annTgtCode;
+                //Plot events that occur within the nuclear targets grouped by which target they occur in
+                (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                int bkgd_ID = (universe->GetCurrent()==2) ? 0 : 1;
+                (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+              }
+              else
+              {
+                int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
+                auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
+                auto DSTgtID = util::DSModPlaCodeToTgtId.find(tmpModCode);
+                if (USTgtID != util::USModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
+                {
+                  //std::cout<<"Found in US target "<< USTgtID->second<< "\n";
+                  //Check where it really interacted
+                  int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
+                  //Checking if this interaction truthfully originated in an upstream or downstream sideband
+                  //Checking if this interaction truthfully originated in the neigbouring nuclear target
+                  //If this has a non-zero target code then it actually originated in a nuke target
+                  //If this has a segment num 36 it came from water target
+                  int truthTgtID = universe->GetTruthTargetID();
+                  if (truthTgtID > 0 || inWaterSegment) 
+                  {
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                  else if (util::isUSPlane(tmpModCode)>0) //If originated immediately upstream of nuke target
+                  {
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[0].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                  else if (util::isDSPlane(tmpModCode)>0) //If originated immediately downstream of nuke target
+                  {
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                  else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
+                  {
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                }
+                else if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Or is event reconstructed immediately downstream of a nuclear target
+                {
+                  //Check where it really interacted
+                  int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
+                  //Checking if this interaction truthfully originated in an upstream or downstream sideband
+                  //Checking if this interaction truthfully originated in the neigbouring nuclear target
+                  //If this has a non-zero target code then it actually originated in a nuke target
+                  //If this has a segment num 36 it came from water target
+                  int truthTgtID = universe->GetTruthTargetID();
+                  if (truthTgtID > 0 || inWaterSegment) 
+                  {
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                  else if (util::isUSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
+                  {
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[0].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                  else if (util::isDSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
+                  {
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                  else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
+                  {
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                  }
+                }
+              }
+            }
+          }
+          //End - Nuke Target Study
+
           const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
           for(auto& var: set.second.variables) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
 
           for(auto& var: set.second.variables2D) var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
 
-          for(auto& var: set.second.variables2D)
-          {
-            int targetZ = universe->GetANNTargetZ();
-            int targetID = universe->GetANNTargetID();
-            (*var->m_HistsByTgtZMC)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            (*var->m_HistsByTgtIDMC)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          }
           const bool isSignal = set.second.cuts->isSignal(*universe, weight);
 
           if(isSignal)
           {
             for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
-            
             for(auto& var: set.second.variables)
             {
               //Cross section components
@@ -191,7 +264,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
               std::vector<Study*> studies)
 
 {
-  std::cout<<"Len studies: " << studies.size() <<std::endl;
   std::cout << "Starting data loop...\n";
   const int nEntries = data->GetEntries();
   for (int i=0; i<data->GetEntries(); ++i) {
@@ -199,11 +271,45 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       universe->SetEntry(i);
       if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
       MichelEvent myevent; 
+
       for(auto& set: setMap)
       {
         if (!set.second.cuts->isDataSelected(*universe, myevent).all()) continue;
 
         for(auto& study: studies) study->Selected(*universe, myevent, 1); 
+
+        //Nuke Target Study
+        for(auto& var: set.second.variables2D)
+        {
+
+          if (set.first=="Nuke")
+          {
+            int annTgtCode = universe->GetANNTargetCode();
+            //If this has a segment num 36 it came from water target
+            bool inWaterSegment = (universe->GetANNSegment()==36);
+            if ((annTgtCode>0 &annTgtCode<6) || inWaterSegment) //If this event occurs inside a nuclear target
+            {
+              int code = inWaterSegment ? -999 : annTgtCode;
+              //Plot events that occur within the nuclear targets grouped by which target they occur in
+              (*var->m_HistsByTgtCodeData)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+            }
+            else
+            {
+              int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
+              int USModNum = util::isUSPlane(tmpModCode);
+              int DSModNum = util::isDSPlane(tmpModCode);
+              if (USModNum>0) //Is event reconstructed immediately upstream of a nuclear target
+              {
+                (*var->m_sidebandHistsUSData)[USModNum].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+              }
+              else if (DSModNum>0) //Or is event reconstructed immediately downstream of a nuclear target
+              {
+                (*var->m_sidebandHistsDSData)[DSModNum].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+              }
+            }
+          }
+        }
+        //End - Nuke Target Study
 
         for(auto& var: set.second.variables)
         {
@@ -213,13 +319,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
         for(auto& var: set.second.variables2D)
         {
           var->dataHist->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
-        }
-        for(auto& var: set.second.variables2D)
-        {
-          int targetZ = universe->GetANNTargetZ();
-          int targetID = universe->GetANNTargetID();
-          (*var->m_HistsByTgtZData)[targetZ].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
-          (*var->m_HistsByTgtIDData)[targetID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
         }
       }
     }
@@ -391,7 +490,7 @@ int main(const int argc, const char** argv)
   //Now that we've defined what a cross section is, decide which sample and model
   //we're extracting a cross section for.
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t nukeSidebands, targetSidebands, nukePreCut, targetPreCuts;
-  PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, nukePhaseSpace, targetPhaseSpace;
+  PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t nukeSignalDefinition, trackerSignalDefinition, nukePhaseSpace, targetPhaseSpace;
 
   const double apothem = 850; //All in mm
   nukePreCut.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Nuclear Targets Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
@@ -414,12 +513,16 @@ int main(const int argc, const char** argv)
   targetPreCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
   targetPreCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
 
-  nukeSidebands.emplace_back(new reco::USScintillator<CVUniverse, MichelEvent>());
-  nukeSidebands.emplace_back(new reco::DSScintillator<CVUniverse, MichelEvent>());
+  //nukeSidebands.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Test sideband z pos", 0, 1000000000000.0));
+  //nukeSidebands.emplace_back(new reco::USScintillator<CVUniverse, MichelEvent>());
+  //nukeSidebands.emplace_back(new reco::DSScintillator<CVUniverse, MichelEvent>());
 
                                                                                                                    
-  signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
-  signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
+  nukeSignalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
+  nukeSignalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
+
+  trackerSignalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
+  trackerSignalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                         
   nukePhaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Nuclear Targets Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
   nukePhaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
@@ -435,8 +538,8 @@ int main(const int argc, const char** argv)
 
   //phaseSpace.emplace_back(new truth::PZMuMin<CVUniverse>(1500.));
                                                                                                                                                    
-  PlotUtils::Cutter<CVUniverse, MichelEvent> nukeCuts(std::move(nukePreCut), std::move(nukeSidebands) , std::move(signalDefinition),std::move(nukePhaseSpace));
-  PlotUtils::Cutter<CVUniverse, MichelEvent> trackerCuts(std::move(targetPreCuts), std::move(nukeSidebands) , std::move(signalDefinition),std::move(targetPhaseSpace));
+  PlotUtils::Cutter<CVUniverse, MichelEvent> nukeCuts(std::move(nukePreCut), std::move(nukeSidebands) , std::move(nukeSignalDefinition),std::move(nukePhaseSpace));
+  PlotUtils::Cutter<CVUniverse, MichelEvent> trackerCuts(std::move(targetPreCuts), std::move(nukeSidebands) , std::move(trackerSignalDefinition),std::move(targetPhaseSpace));
 
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
   MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
@@ -483,13 +586,13 @@ int main(const int argc, const char** argv)
     nukeVars.push_back(new Variable("nuke_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
     nukeVars.push_back(new Variable("nuke_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
     nukeVars.push_back(new Variable("nuke_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
-    nukeVars2D.push_back(new Variable2D("nuke_pTmu_vs_pZmu", *nukeVars[1], *nukeVars[0]));
+    nukeVars2D.push_back(new Variable2D("nuke_pTmu_pZmu", *nukeVars[1], *nukeVars[0]));
 
     trackerVars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
     trackerVars.push_back(new Variable("tracker_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
     trackerVars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
     trackerVars.push_back(new Variable("tracker_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
-    trackerVars2D.push_back(new Variable2D("tracker_pTmu_vs_pZmu", *trackerVars[1], *trackerVars[0]));
+    trackerVars2D.push_back(new Variable2D("tracker_pTmu_pZmu", *trackerVars[1], *trackerVars[0]));
   }
 
   cutVarSet nukeSet;
@@ -509,7 +612,7 @@ int main(const int argc, const char** argv)
   std::function<double(const CVUniverse&, const MichelEvent&)> ptmu = [](const CVUniverse& univ, const MichelEvent& /* evt */) { return univ.GetMuonPT();};
   std::function<double(const CVUniverse&, const MichelEvent&)> pzmu = [](const CVUniverse& univ, const MichelEvent& /* evt */) { return univ.GetMuonPz();};
 
-  studies.push_back(new PerEventVarByGENIELabel2D(pzmu, ptmu, std::string("pzmu_vs_ptmu_study"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
+  studies.push_back(new PerEventVarByGENIELabel2D(pzmu, ptmu, std::string("pzmu_vs_ptmu_GENIE_labels"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
 
   CVUniverse* data_universe = new CVUniverse(options.m_data);
   std::vector<CVUniverse*> data_band = {data_universe};
@@ -522,13 +625,11 @@ int main(const int argc, const char** argv)
 
   for(auto& set: detRegionSet)
   {
-    std::vector<Variable*> vars = set.second.variables;
-    std::vector<Variable2D*> vars2D = set.second.variables2D;
-    for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
-    for(auto& var: vars) var->InitializeDATAHists(data_band);
+    for(auto& var: set.second.variables) var->InitializeMCHists(error_bands, truth_bands);
+    for(auto& var: set.second.variables) var->InitializeDATAHists(data_band);
 
-    for(auto& var: vars2D) var->InitializeMCHists(error_bands, truth_bands);
-    for(auto& var: vars2D) var->InitializeDATAHists(data_band);
+    for(auto& var: set.second.variables2D) var->InitializeMCHists(error_bands, truth_bands);
+    for(auto& var: set.second.variables2D) var->InitializeDATAHists(data_band);
   }
 
   // Loop entries and fill
@@ -564,10 +665,8 @@ int main(const int argc, const char** argv)
     for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
     for(auto& set: detRegionSet)
     {
-      std::vector<Variable*> vars = set.second.variables;
-      std::vector<Variable2D*> vars2D = set.second.variables2D;
-      for(auto& var: vars) var->WriteMC(*mcOutDir);
-      for(auto& var: vars2D) var->WriteMC(*mcOutDir);
+      for(auto& var: set.second.variables) var->WriteMC(*mcOutDir);
+      for(auto& var: set.second.variables2D) var->WriteMC(*mcOutDir);
     }
 
     //Protons On Target
@@ -579,20 +678,19 @@ int main(const int argc, const char** argv)
 
     for(auto& set: detRegionSet)
     {
-      std::vector<Variable*> vars = set.second.variables;
-      for(auto& var: vars) 
+      for(auto& var: set.second.variables) 
       {
         //Flux integral only if systematics are being done (temporary solution)
         util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
         //Always use MC number of nucleons for cross section
         if (set.first=="Nuke")
         {
-          auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::NukeRegion::Back, PlotUtils::TargetProp::NukeRegion::Face, true, apothem));
+          auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back, true, apothem));
           nNucleons->Write();
         }
         else if (set.first=="Tracker")
         {
-          auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Back, PlotUtils::TargetProp::Tracker::Face, true, apothem));
+          auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, apothem));
           nNucleons->Write();
         }
       }
@@ -608,14 +706,9 @@ int main(const int argc, const char** argv)
 
     for(auto& set: detRegionSet)
     {
-      std::vector<Variable*> vars = set.second.variables;
-      std::vector<Variable2D*> vars2D = set.second.variables2D;
-      for(auto& var: vars) 
-      {
-        for(auto& var: vars) var->WriteData(*dataOutDir);
+      for(auto& var: set.second.variables) var->WriteData(*dataOutDir);
 
-        for(auto& var: vars2D) var->WriteData(*dataOutDir);
-      }
+      for(auto& var: set.second.variables2D) var->WriteData(*dataOutDir);
     }
 
     for(auto& study: data_studies) study->SaveOrDraw(*dataOutDir);

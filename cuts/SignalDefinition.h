@@ -1,3 +1,5 @@
+#ifndef SIGNALDEFINITION_H
+#define SIGNALDEFINITION_H
 //This is what we'll do for reco
 /*template <class UNIVERSE>
 using q3Signal = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetTrueq3>;*/ //TODO: Except I didn't actually write this for SignalConstraints :(
@@ -91,7 +93,7 @@ namespace reco
     private:
       bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
       {
-        return util::isUSPlane(univ.GetANNTargetZ()); 
+        //To do
       }
   };
 
@@ -105,7 +107,8 @@ namespace reco
     private:
       bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
       {
-        return util::isDSPlane(univ.GetANNTargetZ()); 
+        //To do 
       }
   };
 }
+#endif //SIGNALDEFINITION_H

@@ -194,11 +194,32 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return GetInt("MasterAnaDev_targetZ");
   }
 
-  int GetANNTargetZ() const {
-    return GetInt("MasterAnaDev_ANN_targetZ");
-  }
+  int GetANNTargetZ() const { return GetInt("MasterAnaDev_ANN_targetZ"); }
+  int GetTruthTargetZ() const { return GetInt("truth_targetZ");}
 
   int GetANNTargetID() const {return GetInt("MasterAnaDev_ANN_targetID");}
+  int GetTruthTargetID() const {return GetInt("truth_targetID");}
+
+  int GetANNTargetCode() const {return GetInt("MasterAnaDev_ANN_target_code");}
+  int GetTruthTargetCode() const {return GetInt("truth_target_code");}
+
+  int GetANNVtxPlane() const {return GetVecElemInt("ANN_vtx_planes", 0);}
+  int GetTruthVtxPlane() const {return GetInt("truth_vtx_plane");}
+
+  int GetANNVtxModule() const {return GetVecElemInt("ANN_vtx_modules", 0);}
+  int GetTruthVtxModule() const {return GetInt("truth_vtx_module");}
+  
+  double GetANNVertexZ() const
+  {
+    return GetVecElemInt("ANN_vtx", 2);
+  }
+
+  double GetANNSegment() const
+  {
+    return GetVecElemInt("ANN_segments", 0);
+  }
+
+  bool hasMLPred() const {return (GetInt("hasMLPrediction")==1);}
 
   //Still needed for some systematics to compile, but shouldn't be used for reweighting anymore.
   protected:
