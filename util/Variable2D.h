@@ -106,7 +106,7 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
     Hist* efficiencyDenominator;
     Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
 
-    //Format: "(Material*100)ID" ie 
+    //Format: "(Material*1000)ID" ie 
     std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
     std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
     std::map<int, std::string> TgtCodeLabels = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};

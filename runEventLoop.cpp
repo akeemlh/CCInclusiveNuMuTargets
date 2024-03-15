@@ -139,6 +139,7 @@ void LoopAndFillEventSelection(
           
           //To do: use universe->hasMLPred()
           //Nuke Target Study
+          const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
           for(auto& var: set.second.variables2D)
           {
             if (set.first=="Nuke")
@@ -147,14 +148,14 @@ void LoopAndFillEventSelection(
               //If this has a segment num 36 it came from water target
               bool inWaterSegment = (universe->GetANNSegment()==36);
               //TODO: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260
-              if ((annTgtCode>0 &annTgtCode<6) || inWaterSegment) //If this event occurs inside a nuclear target
+              if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
               {
                 int code = inWaterSegment ? -999 : annTgtCode;
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
-                (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
-                (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
+                (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                 int bkgd_ID = (universe->GetCurrent()==2) ? 0 : 1;
-                (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               }
               else
               {
@@ -173,19 +174,19 @@ void LoopAndFillEventSelection(
                   int truthTgtID = universe->GetTruthTargetID();
                   if (truthTgtID > 0 || inWaterSegment) 
                   {
-                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                   else if (util::isUSPlane(tmpModCode)>0) //If originated immediately upstream of nuke target
                   {
-                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[0].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[0].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                   else if (util::isDSPlane(tmpModCode)>0) //If originated immediately downstream of nuke target
                   {
-                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                   else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
                   {
-                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetUSMC[USTgtID->second])[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                 }
                 else if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Or is event reconstructed immediately downstream of a nuclear target
@@ -199,19 +200,19 @@ void LoopAndFillEventSelection(
                   int truthTgtID = universe->GetTruthTargetID();
                   if (truthTgtID > 0 || inWaterSegment) 
                   {
-                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                   else if (util::isUSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
                   {
-                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[0].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[0].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                   else if (util::isDSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
                   {
-                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                   else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
                   {
-                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
+                    (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                   }
                 }
               }
@@ -219,7 +220,6 @@ void LoopAndFillEventSelection(
           }
           //End - Nuke Target Study
 
-          const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
           for(auto& var: set.second.variables) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
 
           for(auto& var: set.second.variables2D) var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
@@ -287,7 +287,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
             int annTgtCode = universe->GetANNTargetCode();
             //If this has a segment num 36 it came from water target
             bool inWaterSegment = (universe->GetANNSegment()==36);
-            if ((annTgtCode>0 &annTgtCode<6) || inWaterSegment) //If this event occurs inside a nuclear target
+            if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
             {
               int code = inWaterSegment ? -999 : annTgtCode;
               //Plot events that occur within the nuclear targets grouped by which target they occur in
