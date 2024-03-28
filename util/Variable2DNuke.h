@@ -6,6 +6,7 @@
 #include "util/Categorized.h"
 #include "PlotUtils/HistWrapper.h"
 #include "PlotUtils/Hist2DWrapper.h"
+#include "util/NukeUtils.h"
 
 class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 {
@@ -17,17 +18,19 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
     {
       if (GetName().find("nuke")!=std::string::npos) //If this is a nuke variable
       {
-        TgtCodeLabels = TgtCodeLabelsNuke;
+        TgtCodeLabels = util::TgtCodeLabelsNuke;
         m_Nuke = false;
       }
       else if (GetName().find("tracker")!=std::string::npos) //If this is a tracker variable
       {
-        TgtCodeLabels = TgtCodeLabelsTracker;
+        TgtCodeLabels = util::TgtCodeLabelsTracker;
         m_Nuke = true;
       }
     }
 
     bool m_Nuke = 1; //0 = Nuclear Targets, 1 = Active Tracker
+    //Map of target codes to investigate, default, all of them
+    std::map<int, std::string> TgtCodeLabels = {{-1, "Tracker"}, {1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
 
     //TODO: It's really silly to have to make 2 sets of error bands just because they point to different trees.
     //      I'd rather the physics of the error bands remain the same and just change which tree they point to.
@@ -39,18 +42,18 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
         GetName().c_str(), TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), mc_error_bands);
 
-      for(auto& target: TargetNums)
+      for(auto& target: util::TargetNums)
       {
         //For each target set the categorised sets of histograms to store the US MC sideband distrubtions
         m_sidebandHistSetUSMC.insert({target.first, 
               new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + target.second + std::string("_US_sideband")).c_str(),
-              GetName().c_str(), SidebandCategories,
+              GetName().c_str(), util::SidebandCategories,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
         //For each target set the categorised sets of histograms to store the DS MC sideband distrubtions
         m_sidebandHistSetDSMC.insert({target.first, 
               new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + target.second + std::string("_DS_sideband")).c_str(),
-              GetName().c_str(), SidebandCategories,
+              GetName().c_str(), util::SidebandCategories,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
       }
@@ -60,7 +63,7 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
         //For each target set the histogram to store the interaction channel
         m_intChannelsByTgtCode.insert({tgtCode.first, 
               new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + tgtCode.second).c_str(),
-              GetName().c_str(), GENIELabels,
+              GetName().c_str(), util::GENIELabels,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
       }
@@ -109,18 +112,6 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
     //Hist* efficiencyDenominator;
     //Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
 
-    //Format: "(Material*1000)ID" ie 
-    std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
-    std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
-    std::map<int, std::string> TgtCodeLabelsTracker = {{-1, "Tracker"}};
-    std::map<int, std::string> TgtCodeLabelsNuke = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
-
-    std::map<int, std::string> TgtCodeLabels = {{-1, "Tracker"}, {1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
-    std::map<int, std::string> GENIELabels = {{1, "QE"},
-                                              {8, "2p2h"},
-                                              {2, "RES"},
-                                              {3, "DIS"}};
-
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
       std::string strName = GetName();
@@ -132,11 +123,11 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
         GetBinVecX(), GetBinVecY(), data_error_bands);
 
       m_sidebandHistsUSData = new util::Categorized<Hist, int>((GetName() + "_US_sideband_by_Target_Data").c_str(),
-        GetName().c_str(), TargetNums,
+        GetName().c_str(), util::TargetNums,
         GetBinVecX(), GetBinVecY(), data_error_bands);
 
       m_sidebandHistsDSData = new util::Categorized<Hist, int>((GetName() + "_DS_sideband_by_Target_Data").c_str(),
-        GetName().c_str(), TargetNums,
+        GetName().c_str(), util::TargetNums,
         GetBinVecX(), GetBinVecY(), data_error_bands);
     }
 
