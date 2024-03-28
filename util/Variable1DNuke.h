@@ -1,5 +1,5 @@
-#ifndef VARIABLE1DNUKE
-#define VARIABLE1DNUKE
+#ifndef VARIABLE1DNUKE_H
+#define VARIABLE1DNUKE_H
 
 //Includes from this package
 #include "event/CVUniverse.h"
@@ -10,28 +10,29 @@
 #include "PlotUtils/VariableBase.h"
 #include "PlotUtils/HistWrapper.h"
 #include "PlotUtils/Hist2DWrapper.h"
-#include "util/Variable.h"
 
-
-class Variable1DNuke: public Variable
+class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
 {
   private:
     typedef PlotUtils::HistWrapper<CVUniverse> Hist;
+    typedef PlotUtils::Hist2DWrapper<CVUniverse> Hist2D;
   public:
     template <class ...ARGS>
-    Variable1DNuke(ARGS... args): Variable(args...)
+    Variable1DNuke(ARGS... args): PlotUtils::VariableBase<CVUniverse>(args...)
     {
+      if (GetName().find("nuke")!=std::string::npos) //If this is a nuke variable
+      {
+        TgtCodeLabels = TgtCodeLabelsNuke;
+        m_Nuke = false;
+      }
+      else if (GetName().find("tracker")!=std::string::npos) //If this is a tracker variable
+      {
+        TgtCodeLabels = TgtCodeLabelsTracker;
+        m_Nuke = true;
+      }
     }
 
-    std::map<int, std::string> BKGLabels = {{0, "NC"},
-                {1, "Wrong_Sign"}};
-    std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
-    std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
-    std::map<int, std::string> TgtCodeLabels = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
-    std::map<int, std::string> GENIELabels = {{1, "QE"},
-                                              {8, "2p2h"},
-                                              {2, "RES"},
-                                              {3, "DIS"}};
+    bool m_Nuke = 1; //0 = Nuclear Targets, 1 = Active Tracker
 
     //TODO: It's really silly to have to make 2 sets of error bands just because they point to different trees.
     //      I'd rather the physics of the error bands remain the same and just change which tree they point to.
@@ -39,20 +40,10 @@ class Variable1DNuke: public Variable
                            std::map<std::string, std::vector<CVUniverse*>>& truth_error_bands)
     {
 
-      //For each target set the histogram to store the interaction channel
-      m_bkgsByTgtCode.insert({tgtCode.first, 
-            new util::Categorized<Hist, int>((GetName() + std::string("_bkg_tgt") + tgtCode.second).c_str(),
-            GetName().c_str(), BKGLabels,
-            GetBinVec(), mc_error_bands)
-      });
+      m_HistsByTgtCodeMC = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_MC").c_str(),
+        GetName().c_str(), TgtCodeLabels,
+        GetBinVec(), mc_error_bands);
 
-
-      efficiencyNumerator = new Hist((GetName() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
-      efficiencyDenominator = new Hist((GetName() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVec(), truth_error_bands);
-      selectedSignalReco = new Hist((GetName() + "_selected_signal_reco").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
-      selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
-      migration = new PlotUtils::Hist2DWrapper<CVUniverse>((GetName() + "_migration").c_str(), GetName().c_str(), GetBinVec(), GetBinVec(), mc_error_bands);
-    
       for(auto& target: TargetNums)
       {
         //For each target set the categorised sets of histograms to store the US MC sideband distrubtions
@@ -79,33 +70,21 @@ class Variable1DNuke: public Variable
           });
       }
 
-      for(auto& tgtCode: TgtCodeLabels)
-      {
-        //For each target set the histogram to store the interaction channel
-        m_bkgsByTgtCode.insert({tgtCode.first, 
-              new util::Categorized<Hist, int>((GetName() + std::string("_bkg_tgt") + tgtCode.second).c_str(),
-              GetName().c_str(), BKGLabels,
-              GetBinVec(), mc_error_bands)
-          });
-      }
+      m_HistsByTgtCodeEfficiencyNumerator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_numerator").c_str(),
+        GetName().c_str(), TgtCodeLabels,
+        GetBinVec(), mc_error_bands);
+      m_HistsByTgtCodeEfficiencyDenominator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator").c_str(),
+        GetName().c_str(), TgtCodeLabels,
+        GetBinVec(), truth_error_bands);
+      m_HistsByTgtCodeMigration  = new util::Categorized<PlotUtils::Hist2DWrapper<CVUniverse>, int>((GetName() + "_migration").c_str(),
+        GetName().c_str(), TgtCodeLabels, GetBinVec(), GetBinVec(), mc_error_bands);
 
+      //efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+      //efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
+      //selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
     }
 
     //Histograms to be filled
-    //These histograms plot the distrubution of background channels per target code 
-    std::map<int, util::Categorized<Hist, int>* > m_backgroundHistsByTgtCode; ////-
-
-    Hist* dataHist;
-    Hist* efficiencyNumerator;
-    Hist* efficiencyDenominator;
-    Hist* selectedSignalReco; //Effectively "true background subtracted" distribution for warping studies.
-                              //Also useful for a bakground breakdown plot that you'd use to start background subtraction studies.
-    Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
-    PlotUtils::Hist2DWrapper<CVUniverse>* migration;
-
-
-
-
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
     util::Categorized<Hist, int>* m_HistsByTgtCodeMC; ////-
     util::Categorized<Hist, int>* m_HistsByTgtCodeData; ////-
@@ -131,12 +110,34 @@ class Variable1DNuke: public Variable
     //No equivalent for MC since we can simply get all the MC upstream and downstream events by summing the m_sidebandHistSetUSMC and m_sidebandHistSetDSMC 
 
 
+    util::Categorized<Hist, int>* m_HistsByTgtCodeEfficiencyNumerator;
+    util::Categorized<Hist, int>* m_HistsByTgtCodeEfficiencyDenominator;
+    util::Categorized<Hist2D, int>* m_HistsByTgtCodeMigration;
+    //Hist* dataHist;  
+    //Hist* efficiencyNumerator;
+    //Hist* efficiencyDenominator;
+    //Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
 
+    //Format: "(Material*1000)ID" ie 
+    std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
+    std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
+    std::map<int, std::string> TgtCodeLabelsTracker = {{-1, "Tracker"}};
+    std::map<int, std::string> TgtCodeLabelsNuke = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
+
+    std::map<int, std::string> TgtCodeLabels = {{-1, "Tracker"}, {1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
+    std::map<int, std::string> GENIELabels = {{1, "QE"},
+                                              {8, "2p2h"},
+                                              {2, "RES"},
+                                              {3, "DIS"}};
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
-      dataHist = new Hist((GetName() + "_data").c_str(), GetName().c_str(), GetBinVec(), data_error_bands);
-          m_HistsByTgtCodeData = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_Data").c_str(),
+
+      std::string strName = GetName();
+      const char* name = strName.c_str();
+      std::cout << "Hist base name: " <<name<< std::endl;
+
+      m_HistsByTgtCodeData = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_Data").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVec(), data_error_bands);
 
@@ -147,23 +148,14 @@ class Variable1DNuke: public Variable
       m_sidebandHistsDSData = new util::Categorized<Hist, int>((GetName() + "_DS_sideband_by_Target_Data").c_str(),
         GetName().c_str(), TargetNums,
         GetBinVec(), data_error_bands);
-
     }
 
     void WriteData(TFile& file)
     {
-      if (dataHist->hist) {
-                dataHist->hist->SetDirectory(&file);
-                dataHist->hist->Write();
-      }
+
       std::size_t found = GetName().find("tracker");
       if (found==std::string::npos) //If this isn't a tracker variable
       {
-        m_HistsByTgtCodeData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
         m_sidebandHistsUSData->visit([&file](Hist& categ)
                                       {
                                         categ.hist->SetDirectory(&file);
@@ -175,6 +167,11 @@ class Variable1DNuke: public Variable
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
       }
+      m_HistsByTgtCodeData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
     }
 
     void WriteMC(TFile& file)
@@ -182,43 +179,8 @@ class Variable1DNuke: public Variable
       SyncCVHistos();
       file.cd();
 
-      if(efficiencyNumerator)
+      if (!m_Nuke) //If this isn't a tracker variable
       {
-        efficiencyNumerator->hist->SetDirectory(&file); //TODO: Can I get around having to call SetDirectory() this many times somehow?
-        efficiencyNumerator->hist->Write();
-      }
-
-      if(efficiencyDenominator)
-      {
-        efficiencyDenominator->hist->SetDirectory(&file);
-        efficiencyDenominator->hist->Write();
-      }
-
-      if(migration)
-      {
-        migration->hist->SetDirectory(&file); 
-        migration->hist->Write();
-      }
-
-      if(selectedSignalReco)
-      {
-        selectedSignalReco->hist->SetDirectory(&file);
-        selectedSignalReco->hist->Write();
-      }
-
-      if(selectedMCReco)
-      {
-        selectedMCReco->hist->SetDirectory(&file);
-        selectedMCReco->hist->Write((GetName() + "_data").c_str()); //Make this histogram look just like the data for closure tests
-      }
-      std::size_t found = GetName().find("tracker");
-      if (found==std::string::npos) //If this isn't a tracker variable
-      {
-        m_HistsByTgtCodeMC->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
         for(auto& histSet: m_sidebandHistSetUSMC)
         {
           histSet.second->visit([&file](Hist& categ)
@@ -235,163 +197,59 @@ class Variable1DNuke: public Variable
                                           categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                         });
         }
-        for(auto& histSet: m_intChannelsByTgtCode)
-        {
-          histSet.second->visit([&file](Hist& categ)
-                                        {
-                                          categ.hist->SetDirectory(&file);
-                                          categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                        });
-        }
-        for(auto& histSet: m_bkgsByTgtCode)
-        {
-          histSet.second->visit([&file](Hist& categ)
-                                        {
-                                          categ.hist->SetDirectory(&file);
-                                          categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                        });
-        }
       }
-    }
+      m_HistsByTgtCodeMC->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
 
+      for(auto& histSet: m_intChannelsByTgtCode)
+      {
+        histSet.second->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
+      }
+      for(auto& histSet: m_bkgsByTgtCode)
+      {
+        histSet.second->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
+      }
+      m_HistsByTgtCodeEfficiencyNumerator->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+      m_HistsByTgtCodeEfficiencyDenominator->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+      m_HistsByTgtCodeMigration->visit([&file](Hist2D& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+    }
     //Only call this manually if you Draw(), Add(), or Divide() plots in this
     //program.
     //Makes sure that all error bands know about the CV.  In the Old Systematics
     //Framework, this was implicitly done by the event loop.
     void SyncCVHistos()
     {
+      /*m_backgroundHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
       if(dataHist) dataHist->SyncCVHistos();
       if(efficiencyNumerator) efficiencyNumerator->SyncCVHistos();
       if(efficiencyDenominator) efficiencyDenominator->SyncCVHistos();
       if(selectedSignalReco) selectedSignalReco->SyncCVHistos();
       if(selectedMCReco) selectedMCReco->SyncCVHistos();
-      if(migration) migration->SyncCVHistos();
+      if(migration) migration->SyncCVHistos();*/
     }
 };
 
-#endif //VARIABLE_H
-
-
-
-
-#ifndef VARIABLE_H
-#define VARIABLE_H
-
-//Includes from this package
-#include "event/CVUniverse.h"
-#include "util/SafeROOTName.h"
-#include "util/Categorized.h"
-
-//PlotUtils includes
-#include "PlotUtils/VariableBase.h"
-#include "PlotUtils/HistWrapper.h"
-#include "PlotUtils/Hist2DWrapper.h"
-
-class Variable1DNuke: public Variable<CVUniverse>
-{
-  private:
-    typedef PlotUtils::HistWrapper<CVUniverse> Hist;
-  public:
-    template <class ...ARGS>
-    Variable1DNuke(ARGS... args): PlotUtils::Variable<CVUniverse>(args...)
-    {
-    }
-
-    std::map<int, std::string> BKGLabels = {{0, "NC"},
-                {1, "Wrong_Sign"}};
-    std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
-    std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
-    std::map<int, std::string> TgtCodeLabels = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
-    std::map<int, std::string> GENIELabels = {{1, "QE"},
-                                              {8, "2p2h"},
-                                              {2, "RES"},
-                                              {3, "DIS"}};
-
-    //TODO: It's really silly to have to make 2 sets of error bands just because they point to different trees.
-    //      I'd rather the physics of the error bands remain the same and just change which tree they point to.
-    void InitializeMCHists(std::map<std::string, std::vector<CVUniverse*>>& mc_error_bands,
-                           std::map<std::string, std::vector<CVUniverse*>>& truth_error_bands)
-    {
-
-      efficiencyNumerator = new Hist((GetName() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
-      efficiencyDenominator = new Hist((GetName() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVec(), truth_error_bands);
-      selectedSignalReco = new Hist((GetName() + "_selected_signal_reco").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
-      selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
-      migration = new PlotUtils::Hist2DWrapper<CVUniverse>((GetName() + "_migration").c_str(), GetName().c_str(), GetBinVec(), GetBinVec(), mc_error_bands);
-    }
-
-    //Histograms to be filled
-    Hist* dataHist;
-    Hist* efficiencyNumerator;
-    Hist* efficiencyDenominator;
-    Hist* selectedSignalReco; //Effectively "true background subtracted" distribution for warping studies.
-                              //Also useful for a bakground breakdown plot that you'd use to start background subtraction studies.
-    Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
-    PlotUtils::Hist2DWrapper<CVUniverse>* migration;
-
-    void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
-    {
-      dataHist = new Hist((GetName() + "_data").c_str(), GetName().c_str(), GetBinVec(), data_error_bands);
-    }
-
-    void WriteData(TFile& file)
-    {
-      if (dataHist->hist) {
-                dataHist->hist->SetDirectory(&file);
-                dataHist->hist->Write();
-      }
-    }
-
-    void WriteMC(TFile& file)
-    {
-      SyncCVHistos();
-      file.cd();
-
-
-      if(efficiencyNumerator)
-      {
-        efficiencyNumerator->hist->SetDirectory(&file); //TODO: Can I get around having to call SetDirectory() this many times somehow?
-        efficiencyNumerator->hist->Write();
-      }
-
-      if(efficiencyDenominator)
-      {
-        efficiencyDenominator->hist->SetDirectory(&file);
-        efficiencyDenominator->hist->Write();
-      }
-
-      if(migration)
-      {
-        migration->hist->SetDirectory(&file); 
-        migration->hist->Write();
-      }
-
-      if(selectedSignalReco)
-      {
-        selectedSignalReco->hist->SetDirectory(&file);
-        selectedSignalReco->hist->Write();
-      }
-
-      if(selectedMCReco)
-      {
-        selectedMCReco->hist->SetDirectory(&file);
-        selectedMCReco->hist->Write((GetName() + "_data").c_str()); //Make this histogram look just like the data for closure tests
-      }
-    }
-
-    //Only call this manually if you Draw(), Add(), or Divide() plots in this
-    //program.
-    //Makes sure that all error bands know about the CV.  In the Old Systematics
-    //Framework, this was implicitly done by the event loop.
-    void SyncCVHistos()
-    {
-      m_backgroundHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
-      if(dataHist) dataHist->SyncCVHistos();
-      if(efficiencyNumerator) efficiencyNumerator->SyncCVHistos();
-      if(efficiencyDenominator) efficiencyDenominator->SyncCVHistos();
-      if(selectedSignalReco) selectedSignalReco->SyncCVHistos();
-      if(selectedMCReco) selectedMCReco->SyncCVHistos();
-      if(migration) migration->SyncCVHistos();
-    }
-};
-#endif //VARIABLE1DNUKE
+#endif //VARIABLE1DNUKE_H

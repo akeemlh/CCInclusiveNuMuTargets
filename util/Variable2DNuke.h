@@ -4,8 +4,10 @@
 #include "util/SafeROOTName.h"
 #include "PlotUtils/Variable2DBase.h"
 #include "util/Categorized.h"
+#include "PlotUtils/HistWrapper.h"
+#include "PlotUtils/Hist2DWrapper.h"
 
-class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
+class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 {
   private:
     typedef PlotUtils::Hist2DWrapper<CVUniverse> Hist;
@@ -13,7 +15,19 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
     template <class ...ARGS>
     Variable2DNuke(ARGS... args): PlotUtils::Variable2DBase<CVUniverse>(args...)
     {
+      if (GetName().find("nuke")!=std::string::npos) //If this is a nuke variable
+      {
+        TgtCodeLabels = TgtCodeLabelsNuke;
+        m_Nuke = false;
+      }
+      else if (GetName().find("tracker")!=std::string::npos) //If this is a tracker variable
+      {
+        TgtCodeLabels = TgtCodeLabelsTracker;
+        m_Nuke = true;
+      }
     }
+
+    bool m_Nuke = 1; //0 = Nuclear Targets, 1 = Active Tracker
 
     //TODO: It's really silly to have to make 2 sets of error bands just because they point to different trees.
     //      I'd rather the physics of the error bands remain the same and just change which tree they point to.
@@ -54,9 +68,9 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       m_HistsByTgtCodeEfficiencyNumerator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_numerator").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), mc_error_bands);
-      m_HistsByTgtCodeEfficiencyDenominator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_numerator").c_str(),
+      m_HistsByTgtCodeEfficiencyDenominator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator").c_str(),
         GetName().c_str(), TgtCodeLabels,
-        GetBinVecX(), GetBinVecY(), mc_error_bands);
+        GetBinVecX(), GetBinVecY(), truth_error_bands);
       //efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       //efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
       //selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
@@ -98,7 +112,10 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
     //Format: "(Material*1000)ID" ie 
     std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
     std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
-    std::map<int, std::string> TgtCodeLabels = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}, {0, "Tracker"}};
+    std::map<int, std::string> TgtCodeLabelsTracker = {{-1, "Tracker"}};
+    std::map<int, std::string> TgtCodeLabelsNuke = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
+
+    std::map<int, std::string> TgtCodeLabels = {{-1, "Tracker"}, {1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
     std::map<int, std::string> GENIELabels = {{1, "QE"},
                                               {8, "2p2h"},
                                               {2, "RES"},
@@ -129,11 +146,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       std::size_t found = GetName().find("tracker");
       if (found==std::string::npos) //If this isn't a tracker variable
       {
-        m_HistsByTgtCodeData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
         m_sidebandHistsUSData->visit([&file](Hist& categ)
                                       {
                                         categ.hist->SetDirectory(&file);
@@ -145,6 +157,11 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
       }
+        m_HistsByTgtCodeData->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
     }
 
     void WriteMC(TFile& file)
@@ -152,14 +169,8 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       SyncCVHistos();
       file.cd();
 
-      std::size_t found = GetName().find("tracker");
-      if (found==std::string::npos) //If this isn't a tracker variable
+      if (!m_Nuke) //If this isn't a tracker variable
       {
-        m_HistsByTgtCodeMC->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
         for(auto& histSet: m_sidebandHistSetUSMC)
         {
           histSet.second->visit([&file](Hist& categ)
@@ -176,6 +187,12 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
                                           categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                         });
         }
+      }
+        m_HistsByTgtCodeMC->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
         for(auto& histSet: m_intChannelsByTgtCode)
         {
           histSet.second->visit([&file](Hist& categ)
@@ -202,7 +219,7 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
                                         categ.hist->SetDirectory(&file);
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
-      }
+
     }
     //Only call this manually if you Draw(), Add(), or Divide() plots in this
     //program.

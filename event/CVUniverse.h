@@ -17,6 +17,8 @@
 #include <iostream>
 
 #include "PlotUtils/MinervaUniverse.h"
+#include "utilities/PhysicsVariables.h"
+#include "Math/Vector3D.h"
 
 class CVUniverse : public PlotUtils::MinervaUniverse {
 
@@ -187,6 +189,27 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return TMath::Sqrt(pow(nuclMass,2) + 2.0*(Enu-Emu)*nuclMass - Q2);
   }
 
+  virtual double GetInclQ2Reco() const{ 
+    double branchval = GetDouble("MasterAnaDev_Q2_Inclusive");
+    double retval = (branchval==-9999) ? 0 : branchval;
+    return retval;
+  }
+
+  virtual double GetANNRecoilE() const {
+    double branchval =  GetDouble("MasterAnaDev_ANN_recoil_E");
+    double retval = (branchval==-1) ? 0 : branchval;
+    return retval;
+  }
+
+  double GetBjorkenX() const //GeV
+  {
+    double q2 = GetInclQ2Reco();
+    double M = (M_p + M_n) /2.0; //Not exact. To do - weight it based on target material p n ratio
+    double r = GetANNRecoilE();
+    double xbj = xBjorken(q2, M, r);
+    return xbj;
+  }
+
   double GetANNProb() const { return GetVecElem("ANN_plane_probs", 0); }
   double GetTruthMuE() const { return GetDouble("truth_muon_E") ; }
 
@@ -209,10 +232,14 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
   int GetANNVtxModule() const {return GetVecElemInt("ANN_vtx_modules", 0);}
   int GetTruthVtxModule() const {return GetInt("truth_vtx_module");}
   
-  double GetANNVertexZ() const
+  ROOT::Math::XYZVector GetANNVertex() const //Dangerous since ANN_vtx doesnt always have a 3-vector in it, calling SetCoordinates without a 3 vector gives a segfault
   {
-    return GetVecElemInt("ANN_vtx", 2);
+    ROOT::Math::XYZVector result;
+    result.SetCoordinates(GetVec<double>("ANN_vtx").data());
+    return result;
   }
+
+  std::vector<double> GetANNVertexVector() const { return GetVecDouble("ANN_vtx");}
 
   double GetANNSegment() const
   {
