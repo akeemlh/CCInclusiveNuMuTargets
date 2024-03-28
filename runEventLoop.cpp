@@ -136,15 +136,10 @@ void LoopAndFillEventSelection(
     if(i%1000==0) std::cout << i << " / " << nEntries << "\n";
     //if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
 
-    //std::cout<<"Test1\n";
     MichelEvent cvEvent;
-    //std::cout<<"Test1.1\n";
     cvUniv->SetEntry(i);
-    //std::cout<<"Test1.2\n";
     model.SetEntry(*cvUniv, cvEvent);
-    //std::cout<<"Test1.3\n";
     const double cvWeight = model.GetWeight(*cvUniv, cvEvent);
-    //std::cout<<"Test2\n";
     //=========================================
     // Systematics loop(s)
     //=========================================
@@ -156,21 +151,13 @@ void LoopAndFillEventSelection(
         MichelEvent myevent; // make sure your event is inside the error band loop. 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
-        //std::cout<<"Test3\n";
         std::vector<double> ANNVtx = universe->GetANNVertexVector();
         ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-        //std::cout<<"Test4\n";
-
-        int setNum = 0;
         for(auto& set: setMap)
         {
-          
-          //std::cout<<"Test5\n";
-
 
           // This is where you would Access/create a Michel
           //weight is ignored in isMCSelected() for all but the CV Universe.
-          //std::cout<<"Test6\n";
           if (!set.second.cuts->isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
           
           //Performing vtx validation check Deborah suggested
@@ -181,25 +168,11 @@ void LoopAndFillEventSelection(
           MLVerticesMC->Fill(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z());
           //End - Performing vtx validation check Deborah suggested
 
-          //std::cout<<"Test7\n";
           int annTgtCode = universe->GetANNTargetCode();
           //If this has a segment num 36 it came from water target
           bool inWaterSegment = (universe->GetANNSegment()==36);
           //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
           int code = inWaterSegment ? -999 : annTgtCode;
-          //std::cout<<"Test8\n";
-
-
-          //End - Continuation of Deborahs suggested validation check
-
-          //std::cout<<"Test9\n";
-
-
-
-
-
-
-          //std::cout<<"Test\n";
 
           //To do: use universe->hasMLPred()
           //Nuke Target Study
@@ -429,7 +402,6 @@ void LoopAndFillEventSelection(
             */
            //What are my backgrounds here? The background given above, from the example would make sense if this we a CC study, where backgrounds would be NC and wrong sign
           }
-          setNum++;
         }
       } // End band's universe loop
     } // End Band loop
@@ -453,7 +425,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       MichelEvent myevent; 
       std::vector<double> ANNVtx = universe->GetANNVertexVector();
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-      int setNum = 0;
       for(auto& set: setMap)
       {
         if (!set.second.cuts->isDataSelected(*universe, myevent).all()) continue;
@@ -465,7 +436,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
         }
         MLVerticesData->Fill(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z());
         //End - Performing vtx validation check Deborah suggested
-
 
 
         int annTgtCode = universe->GetANNTargetCode();
@@ -540,7 +510,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
             (*var->m_HistsByTgtCodeData)[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), 1);
           }
         }
-        setNum++;
       }
     }
   }
