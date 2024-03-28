@@ -58,6 +58,7 @@ enum ErrorCodes
 #include "cuts/q3RecoCut.h"
 #include "studies/Study.h"
 #include "studies/PerEventVarByGENIELabel2D.h"
+#include "util/NukeUtils.h"
 //#include "Binning.h" //TODO: Fix me
 
 //PlotUtils includes
@@ -184,7 +185,7 @@ void LoopAndFillEventSelection(
           int annTgtCode = universe->GetANNTargetCode();
           //If this has a segment num 36 it came from water target
           bool inWaterSegment = (universe->GetANNSegment()==36);
-          //TODO: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260
+          //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
           int code = inWaterSegment ? -999 : annTgtCode;
           //std::cout<<"Test8\n";
 
@@ -211,7 +212,7 @@ void LoopAndFillEventSelection(
               {
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
                 (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-                (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
                 //int bkgd_ID = (universe->GetCurrent()==2) ? 0 : 1;
                 //(*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               }
@@ -292,7 +293,7 @@ void LoopAndFillEventSelection(
                 int code = inWaterSegment ? -999 : annTgtCode;
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
                 (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
-                (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
+                if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                 //int bkgd_ID = (universe->GetCurrent()==2) ? 0 : 1;
                 //(*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               }
@@ -377,7 +378,7 @@ void LoopAndFillEventSelection(
                 int annTgtCode = universe->GetANNTargetCode();
                 //If this has a segment num 36 it came from water target
                 bool inWaterSegment = (universe->GetANNSegment()==36);
-                //TODO: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260
+                //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
                 if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
                 {
                   int code = inWaterSegment ? -999 : annTgtCode;
@@ -402,7 +403,7 @@ void LoopAndFillEventSelection(
                 int annTgtCode = universe->GetANNTargetCode();
                 //If this has a segment num 36 it came from water target
                 bool inWaterSegment = (universe->GetANNSegment()==36);
-                //TODO: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260
+                //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
                 if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
                 {
                   int code = inWaterSegment ? -999 : annTgtCode;
