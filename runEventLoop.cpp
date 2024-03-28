@@ -186,8 +186,6 @@ void LoopAndFillEventSelection(
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
                 (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
                 if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-                //int bkgd_ID = (universe->GetCurrent()==2) ? 0 : 1;
-                //(*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               }
               else
               {
@@ -263,12 +261,9 @@ void LoopAndFillEventSelection(
             {
               if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
               {
-                int code = inWaterSegment ? -999 : annTgtCode;
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
                 (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                 if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
-                //int bkgd_ID = (universe->GetCurrent()==2) ? 0 : 1;
-                //(*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               }
               else
               {
@@ -348,13 +343,8 @@ void LoopAndFillEventSelection(
               //Cross section components
               if (set.first=="Nuke")//Check if in nuke then do target breakdown
               {
-                int annTgtCode = universe->GetANNTargetCode();
-                //If this has a segment num 36 it came from water target
-                bool inWaterSegment = (universe->GetANNSegment()==36);
-                //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
                 if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
                 {
-                  int code = inWaterSegment ? -999 : annTgtCode;
                   //Plot events that occur within the nuclear targets grouped by which target they occur in
                   (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
                   (*var->m_HistsByTgtCodeMigration)[code].FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
@@ -373,10 +363,6 @@ void LoopAndFillEventSelection(
               //Cross section components
               if (set.first=="Nuke")//Check if in nuke then do target breakdown
               {
-                int annTgtCode = universe->GetANNTargetCode();
-                //If this has a segment num 36 it came from water target
-                bool inWaterSegment = (universe->GetANNSegment()==36);
-                //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
                 if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
                 {
                   int code = inWaterSegment ? -999 : annTgtCode;
@@ -480,9 +466,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
         {
           if (set.first=="Nuke")//Check if in nuke then do target breakdown
           {
-            int annTgtCode = universe->GetANNTargetCode();
-            //If this has a segment num 36 it came from water target
-            bool inWaterSegment = (universe->GetANNSegment()==36);
             if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
             {
               int code = inWaterSegment ? -999 : annTgtCode;
