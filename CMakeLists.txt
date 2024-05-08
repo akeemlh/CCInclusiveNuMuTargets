@@ -73,6 +73,18 @@ add_executable(runEventLoop runEventLoop.cpp)
 target_link_libraries(runEventLoop ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
 install(TARGETS runEventLoop DESTINATION bin)
 
+add_executable(runEventLoopTargets runEventLoopTargets.cpp)
+target_link_libraries(runEventLoopTargets ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+install(TARGETS runEventLoopTargets DESTINATION bin)
+
+add_executable(runEventLoopTracker runEventLoopTracker.cpp)
+target_link_libraries(runEventLoopTracker ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+install(TARGETS runEventLoopTracker DESTINATION bin)
+
+add_executable(runEventLoopFullDet runEventLoopFullDet.cpp)
+target_link_libraries(runEventLoopFullDet ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+install(TARGETS runEventLoopFullDet DESTINATION bin)
+
 add_executable(ExtractCrossSection ExtractCrossSection.cpp)
 target_link_libraries(ExtractCrossSection ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS ExtractCrossSection DESTINATION bin)

@@ -14,23 +14,10 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
     typedef PlotUtils::Hist2DWrapper<CVUniverse> Hist;
   public:
     template <class ...ARGS>
-    Variable2DNuke(ARGS... args): PlotUtils::Variable2DBase<CVUniverse>(args...)
-    {
-      if (GetName().find("nuke")!=std::string::npos) //If this is a nuke variable
-      {
-        TgtCodeLabels = util::TgtCodeLabelsNuke;
-        m_Nuke = false;
-      }
-      else if (GetName().find("tracker")!=std::string::npos) //If this is a tracker variable
-      {
-        TgtCodeLabels = util::TgtCodeLabelsTracker;
-        m_Nuke = true;
-      }
-    }
+    Variable2DNuke(ARGS... args): PlotUtils::Variable2DBase<CVUniverse>(args...){}
 
-    bool m_Nuke = 1; //0 = Nuclear Targets, 1 = Active Tracker
     //Map of target codes to investigate, default, all of them
-    std::map<int, std::string> TgtCodeLabels = {{-1, "Tracker"}, {1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}};
+    std::map<int, std::string> TgtCodeLabels = util::TgtCodeLabelsNuke; // = {{-1, "Tracker"}, {1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {-999, "Water"}, {7, "Target7"}, {8, "Target8"}, {9, "Target9"}, {10, "Target10"}, {11, "Target11"}, {12, "Target12"}};
 
     //TODO: It's really silly to have to make 2 sets of error bands just because they point to different trees.
     //      I'd rather the physics of the error bands remain the same and just change which tree they point to.
@@ -114,10 +101,6 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
-      std::string strName = GetName();
-      const char* name = strName.c_str();
-      std::cout << "Hist base name: " <<name<< std::endl;
-
       m_HistsByTgtCodeData = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_Data").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), data_error_bands);
@@ -160,24 +143,21 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       SyncCVHistos();
       file.cd();
 
-      if (!m_Nuke) //If this isn't a tracker variable
+      for(auto& histSet: m_sidebandHistSetUSMC)
       {
-        for(auto& histSet: m_sidebandHistSetUSMC)
-        {
-          histSet.second->visit([&file](Hist& categ)
-                                        {
-                                          categ.hist->SetDirectory(&file);
-                                          categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                        });
-        }
-        for(auto& histSet: m_sidebandHistSetDSMC)
-        {
-          histSet.second->visit([&file](Hist& categ)
-                                        {
-                                          categ.hist->SetDirectory(&file);
-                                          categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                        });
-        }
+        histSet.second->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
+      }
+      for(auto& histSet: m_sidebandHistSetDSMC)
+      {
+        histSet.second->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
       }
         m_HistsByTgtCodeMC->visit([&file](Hist& categ)
                                       {

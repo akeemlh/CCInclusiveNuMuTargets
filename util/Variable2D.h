@@ -30,6 +30,8 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
 
       efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
+      selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+  
     }
 
     //Histograms to be filled
@@ -37,15 +39,24 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
     Hist* dataHist;  
     Hist* efficiencyNumerator;
     Hist* efficiencyDenominator;
+    Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
-        const char* name = GetName().c_str();
-  	dataHist = new Hist(Form("_data_%s", name), name, GetBinVecX(), GetBinVecY(), data_error_bands);
- 
+  	  dataHist = new Hist((std::string("_data_") + GetName()).c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
     }
 
-    void Write(TFile& file)
+    void WriteData(TFile& file)
+    {
+
+      if (dataHist->hist) {
+          dataHist->hist->SetDirectory(&file);
+          dataHist->hist->Write();
+      }
+
+    }
+    
+    void WriteMC(TFile& file)
     {
       SyncCVHistos();
       file.cd();
@@ -55,11 +66,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
                                       categ.hist->SetDirectory(&file);
                                       categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                     });
-
-      if (dataHist->hist) {
-		dataHist->hist->SetDirectory(&file);
-		dataHist->hist->Write();
-      }
 
       if(efficiencyNumerator)
       {
@@ -71,6 +77,12 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       {
         efficiencyDenominator->hist->SetDirectory(&file);
         efficiencyDenominator->hist->Write();
+      }
+
+      if(selectedMCReco)
+      {
+        selectedMCReco->hist->SetDirectory(&file);
+        selectedMCReco->hist->Write((GetName() + "_data").c_str()); //Make this histogram look just like the data for closure tests
       }
     }
 
@@ -84,6 +96,7 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       if(dataHist) dataHist->SyncCVHistos();
       if(efficiencyNumerator) efficiencyNumerator->SyncCVHistos();
       if(efficiencyDenominator) efficiencyDenominator->SyncCVHistos();
+      if(selectedMCReco) selectedMCReco->SyncCVHistos();
     }
 };
 
