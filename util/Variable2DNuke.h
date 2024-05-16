@@ -53,6 +53,13 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
               GetName().c_str(), util::GENIELabels,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
+
+        //For each target set the histogram to store the backgrounds
+        m_bkgsByTgtCode.insert({tgtCode.first, 
+              new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + tgtCode.second).c_str(),
+              GetName().c_str(), util::BKGLabels,
+              GetBinVecX(), GetBinVecY(), mc_error_bands)
+          });
       }
 
       m_HistsByTgtCodeEfficiencyNumerator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_numerator").c_str(),
@@ -117,20 +124,16 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
     void WriteData(TFile& file)
     {
 
-      std::size_t found = GetName().find("tracker");
-      if (found==std::string::npos) //If this isn't a tracker variable
-      {
-        m_sidebandHistsUSData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-        m_sidebandHistsDSData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-      }
+      m_sidebandHistsUSData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+      m_sidebandHistsDSData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
         m_HistsByTgtCodeData->visit([&file](Hist& categ)
                                       {
                                         categ.hist->SetDirectory(&file);

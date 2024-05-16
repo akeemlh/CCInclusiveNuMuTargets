@@ -152,11 +152,11 @@ void LoopAndFillEventSelection(
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetANNVtxModule());
-        int annTgtCode = universe->GetANNTargetCode();
-        int effectiveTgtCode = (pseudoTarget==-1) ? annTgtCode: pseudoTarget;
-        //If this has a segment num 36 it came from water target
-        bool inWaterSegment = (universe->GetANNSegment()==36);
+        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule());
+        int truthTgtCode = universe->GetTruthTargetCode();
+        int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
+        //If this has a module num 6 it came from water target
+        bool inWaterSegment = (universe->GetTruthVtxModule()==6);
         //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
         int code = inWaterSegment ? -999 : effectiveTgtCode;
 
@@ -165,14 +165,13 @@ void LoopAndFillEventSelection(
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
         for(auto& var: vars)
         {
-          if (annTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
           {
-            if (code >=7 && code <=13) std::cout << "Code " << code << std::endl;
             //Plot events that occur within the nuclear targets grouped by which target they occur in
             (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
             if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
           }
-          if (!(annTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
+          if (!(truthTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
           {
             int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
             auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
@@ -234,13 +233,13 @@ void LoopAndFillEventSelection(
         }
         for(auto& var: vars2D)
         {
-          if (annTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
           {
             //Plot events that occur within the nuclear targets grouped by which target they occur in
             (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
             if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           }
-          if (!(annTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
+          if (!(truthTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
           {
             int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
             auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
@@ -308,7 +307,7 @@ void LoopAndFillEventSelection(
           for(auto& var: vars)
           {
             //Cross section components
-            if (annTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+            if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
@@ -319,7 +318,7 @@ void LoopAndFillEventSelection(
           for(auto& var: vars2D)
           {
             //Cross section components
-            if (annTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+            if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
@@ -328,14 +327,29 @@ void LoopAndFillEventSelection(
         }
         else
         {
-          /*int bkgd_ID = -1;
+          int bkgd_ID = -1;
           if (universe->GetCurrent()==2)bkgd_ID=0;
           else bkgd_ID=1;
 
-          for(auto& var: vars) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-          for(auto& var: vars2D) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          */
-          //What are my backgrounds here? The background given above, from the example would make sense if this we a CC study, where backgrounds would be NC and wrong sign
+          //Cross section components
+          int ANNTgtCode = universe->GetANNTargetCode();
+          int TruthTgtCode = universe->GetTruthTargetCode();
+          //std::cout<<"ANNTgt " <<ANNTgtCode << " TruthTgtCode " << TruthTgtCode << std::endl;
+          if (ANNTgtCode!=TruthTgtCode || (universe->GetTruthVtxModule()==6 ^ universe->GetANNSegment()==36))
+          {
+            bkgd_ID=2;
+            //std::cout<<"Wrong material background, ANN target code " << ANNTgtCode << " truth target code " << TruthTgtCode << std::endl;
+          }
+          /* else
+          {
+            std::cout<<"ANN and truth agree on target code " << ANNTgtCode <<std::endl;
+          } */
+
+          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+          {
+            for(auto& var: vars) (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            for(auto& var: vars2D) (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          }
         }
       } // End band's universe loop
     } // End Band loop
@@ -373,7 +387,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       {
         if (annTgtCode>0 || inWaterSegment || code>0 ) //If this event occurs inside a nuclear target
         {
-          if (code >=7 && code <=13) std::cout << "Code " << code << std::endl;
           //Plot events that occur within the nuclear targets grouped by which target they occur in
           (*var->m_HistsByTgtCodeData)[code].FillUniverse(universe, var->GetRecoValue(*universe, myevent.m_idx), 1);
         }

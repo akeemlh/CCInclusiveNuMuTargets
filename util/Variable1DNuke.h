@@ -138,20 +138,16 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
     void WriteData(TFile& file)
     {
 
-      std::size_t found = GetName().find("tracker");
-      if (found==std::string::npos) //If this isn't a tracker variable
-      {
-        m_sidebandHistsUSData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-        m_sidebandHistsDSData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-      }
+      m_sidebandHistsUSData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+      m_sidebandHistsDSData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
       m_HistsByTgtCodeData->visit([&file](Hist& categ)
                                     {
                                       categ.hist->SetDirectory(&file);
