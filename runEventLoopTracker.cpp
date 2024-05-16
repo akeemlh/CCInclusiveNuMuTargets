@@ -52,6 +52,7 @@ enum ErrorCodes
 #include "cuts/MaxPzMu.h"
 #include "util/Variable.h"
 #include "util/Variable2D.h"
+#include "util/Variable2DTracker.h"
 #include "util/GetFluxIntegral.h"
 #include "util/GetPlaylist.h"
 #include "cuts/SignalDefinition.h"
@@ -95,7 +96,7 @@ void LoopAndFillEventSelection(
     PlotUtils::ChainWrapper* chain,
     std::map<std::string, std::vector<CVUniverse*> > error_bands,
     std::vector<Variable*> vars,
-    std::vector<Variable2D*> vars2D,
+    std::vector<Variable2DTracker*> vars2D,
     std::vector<Study*> studies,
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
     PlotUtils::Model<CVUniverse, MichelEvent>& model)
@@ -133,8 +134,11 @@ void LoopAndFillEventSelection(
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
         for(auto& var: vars) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
-        for(auto& var: vars2D) var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
-
+        for(auto& var: vars2D)
+        {
+          var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+          (*var->m_interactionChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+        }
         const bool isSignal = michelcuts.isSignal(*universe, weight);
 
         if(isSignal)
@@ -172,7 +176,7 @@ void LoopAndFillEventSelection(
 void LoopAndFillData( PlotUtils::ChainWrapper* data,
 			        std::vector<CVUniverse*> data_band,
 				std::vector<Variable*> vars,
-                                std::vector<Variable2D*> vars2D,
+                                std::vector<Variable2DTracker*> vars2D,
                                 std::vector<Study*> studies,
 				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
 
@@ -205,7 +209,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
     				std::map<std::string, std::vector<CVUniverse*> > truth_bands,
     				std::vector<Variable*> vars,
-                                std::vector<Variable2D*> vars2D,
+                                std::vector<Variable2DTracker*> vars2D,
     				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
                                 PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
@@ -429,13 +433,13 @@ int main(const int argc, const char** argv)
 
   std::vector<Variable*> vars;
 
-  std::vector<Variable2D*> vars2D;
+  std::vector<Variable2DTracker*> vars2D;
   vars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
   vars.push_back(new Variable("tracker_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
   vars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
   vars.push_back(new Variable("tracker_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
   vars.push_back(new Variable("tracker_bjorken", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  vars2D.push_back(new Variable2D("tracker_pTmu_pZmu", *vars[1], *vars[0]));
+  vars2D.push_back(new Variable2DTracker("tracker_pTmu_pZmu", *vars[1], *vars[0]));
 
   std::vector<Study*> studies;
 

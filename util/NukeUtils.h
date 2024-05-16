@@ -24,6 +24,6 @@ namespace util
                                               {3, "DIS"}};
 
     std::map<int, std::string> BKGLabels = {{0, "NC_Bkg"},
-					       {1, "Bkg_Wrong_Sign"}};
+					       {1, "Wrong_Sign_Bkg"}, {2, "Wrong_Material_Bkg"}};
 }
 #endif //UTIL_NUKEUTILS_H
