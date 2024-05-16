@@ -114,7 +114,7 @@ void LoopAndFillEventSelection(
   const int nEntries = chain->GetEntries();
   for (int i=0; i<nEntries; ++i)
   {
-    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
+    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::endl;
 
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -124,31 +124,22 @@ void LoopAndFillEventSelection(
     //=========================================
     // Systematics loop(s)
     //=========================================
-    for (auto band : error_bands)
+    MichelEvent myevent; // make sure your event is inside the error band loop. 
+
+    std::vector<double> ANNVtx = cvUniv->GetANNVertexVector();
+    ROOT::Math::XYZTVector TrackBasedVtx = cvUniv->GetVertex();
+
+    // This is where you would Access/create a Michel
+
+    //weight is ignored in isMCSelected() for all but the CV Universe.
+    if (!michelcuts.isMCSelected(*cvUniv, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
+
+    //Performing vtx validation check Deborah suggested
+    if(ANNVtx.size()==3)
     {
-      std::vector<CVUniverse*> error_band_universes = band.second;
-      for (auto universe : error_band_universes)
-      {
-        MichelEvent myevent; // make sure your event is inside the error band loop. 
-    
-        // Tell the Event which entry in the TChain it's looking at
-        universe->SetEntry(i);
-        std::vector<double> ANNVtx = universe->GetANNVertexVector();
-        ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-
-        // This is where you would Access/create a Michel
-
-        //weight is ignored in isMCSelected() for all but the CV Universe.
-        if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
-
-        //Performing vtx validation check Deborah suggested
-        if(ANNVtx.size()==3)
-        {
-          ANNVerticesMC->Fill( ANNVtx[2]);
-        }
-        TBVerticesMC->Fill(TrackBasedVtx.Z());
-      } // End band's universe loop
-    } // End Band loop
+      ANNVerticesMC->Fill( ANNVtx[2], cvWeight);
+    }
+    TBVerticesMC->Fill(TrackBasedVtx.Z(), cvWeight);
   } //End entries loop
   std::cout << "Finished MC reco loop.\n";
 }
@@ -166,7 +157,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
   for (int i=0; i<data->GetEntries(); ++i) {
     for (auto universe : data_band) {
       universe->SetEntry(i);
-      if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
+      if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::endl;
       MichelEvent myevent; 
       std::vector<double> ANNVtx = universe->GetANNVertexVector();
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
@@ -378,6 +369,8 @@ int main(const int argc, const char** argv)
   {
     CVUniverse::SetTruth(false);
     LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model);
+    CVUniverse::SetTruth(true);
+    //LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model);
     options.PrintMacroConfiguration(argv[0]);
     std::cout << "MC cut summary:\n" << mycuts << "\n";
     mycuts.resetStats();
@@ -385,7 +378,7 @@ int main(const int argc, const char** argv)
     CVUniverse::SetTruth(false);
     LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts);
     std::cout << "Data cut summary:\n" << mycuts << "\n";
-
+    
     //Write MC results
     TFile* mcOutDir = TFile::Open(MC_OUT_FILE_NAME, "RECREATE");
     if(!mcOutDir)
