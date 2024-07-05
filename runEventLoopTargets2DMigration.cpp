@@ -161,74 +161,6 @@ void LoopAndFillEventSelection(
         //To do: use universe->hasMLPred()
         //Nuke Target Study
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        for(auto& var: vars)
-        {
-          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
-          {
-            //Plot events that occur within the nuclear targets grouped by which target they occur in
-            (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-            if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-          }
-          if (!(truthTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
-          {
-            int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
-            auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
-            auto DSTgtID = util::DSModPlaCodeToTgtId.find(tmpModCode);
-            if (USTgtID != util::USModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
-            {
-              //std::cout<<"Found in US target "<< USTgtID->second<< "\n";
-              //Check where it really interacted
-              int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
-              //Checking if this interaction truthfully originated in an upstream or downstream sideband
-              //Checking if this interaction truthfully originated in the neigbouring nuclear target
-              //If this has a non-zero target code then it actually originated in a nuke target
-              //If this has a segment num 36 it came from water target
-              int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isUSPlane(tmpModCode)>0) //If originated immediately upstream of nuke target
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isDSPlane(tmpModCode)>0) //If originated immediately downstream of nuke target
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-            }
-            else if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Or is event reconstructed immediately downstream of a nuclear target
-            {
-              //Check where it really interacted
-              int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
-              //Checking if this interaction truthfully originated in an upstream or downstream sideband
-              //Checking if this interaction truthfully originated in the neigbouring nuclear target
-              //If this has a non-zero target code then it actually originated in a nuke target
-              //If this has a segment num 36 it came from water target
-              int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isUSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isDSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-            }
-          }
-        }
         for(auto& var: vars2D)
         {
           if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
@@ -320,8 +252,6 @@ void LoopAndFillEventSelection(
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-              (var->m_migration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
-
             }
           }
         }

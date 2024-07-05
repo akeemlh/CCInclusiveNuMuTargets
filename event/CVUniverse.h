@@ -219,6 +219,7 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
 
   int GetANNTargetZ() const { return GetInt("MasterAnaDev_ANN_targetZ"); }
   int GetTruthTargetZ() const { return GetInt("truth_targetZ");}
+  int GetMCTargetZ() const { return GetInt("mc_targetZ");}
 
   int GetANNTargetID() const {return GetInt("MasterAnaDev_ANN_targetID");}
   int GetTruthTargetID() const {return GetInt("truth_targetID");}

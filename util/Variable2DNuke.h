@@ -7,6 +7,8 @@
 #include "PlotUtils/HistWrapper.h"
 #include "PlotUtils/Hist2DWrapper.h"
 #include "util/NukeUtils.h"
+#include "MinervaUnfold/MnvResponse.h"
+#include "utilities/AnaBinning.h"
 
 class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 {
@@ -44,7 +46,15 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
       }
-
+      // Count the number of universes in each band
+      std::map<std::string, int> response_bands;
+      for (auto band : mc_error_bands){ // Using reco_univs since that's what originally was done
+        std::string name = band.first;
+        std::string realname = (band.second)[0]->ShortName();
+        int nuniv = band.second.size();
+        response_bands[realname] = nuniv;
+      }
+      
       for(auto& tgtCode: TgtCodeLabels)
       {
         //For each target set the histogram to store the interaction channel
@@ -60,6 +70,8 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
               GetName().c_str(), util::BKGLabels,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
+        m_migration.insert({tgtCode.first, 
+              new MinervaUnfold::MnvResponse((std::string("migration_")+GetName() + std::string("_tgt") + tgtCode.second).c_str(), GetName().c_str(), GetNBinsX(), &GetBinVecX()[0], GetNBinsY(), &GetBinVecY()[0] ,response_bands) });
       }
 
       m_HistsByTgtCodeEfficiencyNumerator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_numerator").c_str(),
@@ -68,9 +80,12 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       m_HistsByTgtCodeEfficiencyDenominator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), truth_error_bands);
+
       //efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       //efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
       //selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+    
+  
     }
 
     //Histograms to be filled
@@ -101,6 +116,9 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 
     util::Categorized<Hist, int>* m_HistsByTgtCodeEfficiencyNumerator;
     util::Categorized<Hist, int>* m_HistsByTgtCodeEfficiencyDenominator;
+
+    std::map<int, MinervaUnfold::MnvResponse*> m_migration;
+
     //Hist* dataHist;  
     //Hist* efficiencyNumerator;
     //Hist* efficiencyDenominator;
@@ -182,6 +200,26 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                                           categ.hist->SetDirectory(&file);
                                           categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                         });
+        }
+        for(auto& histSet: m_migration)
+        {
+          PlotUtils::MnvH2D* h_migration;
+          PlotUtils::MnvH2D* h_reco;
+          PlotUtils::MnvH2D* h_truth;
+
+          std::cout << " GetMigrationObjects will now complain because I passed it pointers to uninitiated MnvH2D/1D to fill please ignore" << std::endl;
+          // Put the response objects into the hists
+          histSet.second->GetMigrationObjects( h_migration, h_reco, h_truth);
+          std::cout << h_migration << std::endl;
+          // Write hists to file
+          if (h_reco->GetEntries() > 0){
+            h_migration->Write();
+            h_reco->Write();
+            h_truth->Write();
+          }
+          /* auto GetMigrationMatrix = histSet.second;
+          GetMigrationMatrix->SetDirectory(&file);
+          GetMigrationMatrix->Write(); //TODO: Or let the TFile destructor do this the "normal" way?     */                                                                                       
         }
         m_HistsByTgtCodeEfficiencyNumerator->visit([&file](Hist& categ)
                                       {
