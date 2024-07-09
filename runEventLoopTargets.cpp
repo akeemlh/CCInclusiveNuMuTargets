@@ -58,6 +58,7 @@ enum ErrorCodes
 #include "cuts/q3RecoCut.h"
 #include "studies/Study.h"
 #include "studies/PerEventVarByGENIELabel2D.h"
+#include "studies/WaterTargetIntOrigin2D.h"
 #include "util/NukeUtils.h"
 //#include "Binning.h" //TODO: Fix me
 
@@ -91,14 +92,25 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 
-template<typename Base, typename T>
-inline bool instanceof(const T *ptr) {
-   return dynamic_cast<const Base*>(ptr) != nullptr;
-}
+bool PseudoTargetBuffer = false; //To exlclude the plane either end of a nuclear target
 
 //Treat the plastic between planes as though they were nuclear targets themselves
-int getPlasticPseudoTargetCode(int mod)
+int getPlasticPseudoTargetCode(int mod, int plane)
 {
+  if (PseudoTargetBuffer)
+  {
+    if (mod == -2 && plane == 2) return -1;
+    if (mod == 0 && plane == 1) return -1;
+    if (mod == 3 && plane == 2) return -1;
+    if (mod == 5 && plane == 1) return -1;
+    if (mod == 8 && plane == 2) return -1;
+    if (mod == 11 && plane == 1) return -1;
+    if (mod == 14 && plane == 2) return -1;
+    if (mod == 15 && plane == 1) return -1;
+    if (mod == 18 && plane == 2) return -1;
+    if (mod == 20 && plane == 1) return -1;
+    if (mod == 21 && plane == 2) return -1;
+  }
   if (mod >= -5 && mod <= -2)  return 7;
   else if (mod >= 0 && mod <= 3)  return 8;
   else if (mod >= 5 && mod <= 8)  return 9;
@@ -152,11 +164,13 @@ void LoopAndFillEventSelection(
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule());
+        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane());
         int truthTgtCode = universe->GetTruthTargetCode();
         int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
         //If this has a module num 6 it came from water target
         bool inWaterSegment = (universe->GetTruthVtxModule()==6);
+        //if (inWaterSegment) std::cout << "MC says in Water, entry: " << i << std::endl;
+        //if (universe->GetANNSegment()==36 || universe->GetANNVtxModule()==6) std::cout << "Reco says in Water, entry: " << i << std::endl;
         //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
         int code = inWaterSegment ? -999 : effectiveTgtCode;
 
@@ -322,6 +336,8 @@ void LoopAndFillEventSelection(
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+              //(var->m_migration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+
             }
           }
         }
@@ -335,7 +351,7 @@ void LoopAndFillEventSelection(
           int ANNTgtCode = universe->GetANNTargetCode();
           int TruthTgtCode = universe->GetTruthTargetCode();
           //std::cout<<"ANNTgt " <<ANNTgtCode << " TruthTgtCode " << TruthTgtCode << std::endl;
-          if (ANNTgtCode!=TruthTgtCode || (universe->GetTruthVtxModule()==6 ^ universe->GetANNSegment()==36))
+          if (ANNTgtCode!=TruthTgtCode || (universe->GetTruthVtxModule()==6 ^ (universe->GetANNSegment()==36 || universe->GetANNVtxModule()==6)))
           {
             bkgd_ID=2;
             //std::cout<<"Wrong material background, ANN target code " << ANNTgtCode << " truth target code " << TruthTgtCode << std::endl;
@@ -374,13 +390,14 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       MichelEvent myevent; 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
 
-      int pseudoTarget = getPlasticPseudoTargetCode(universe->GetANNVtxModule());
+      int pseudoTarget = getPlasticPseudoTargetCode(universe->GetANNVtxModule(), universe->GetANNVtxPlane());
       int annTgtCode = universe->GetANNTargetCode();
       int effectiveTgtCode = (pseudoTarget==-1) ? annTgtCode: pseudoTarget;
       //If this has a segment num 36 it came from water target
-      bool inWaterSegment = (universe->GetANNSegment()==36);
+      bool inWaterSegment = (universe->GetANNSegment()==36 || universe->GetANNVtxModule()==6);
       //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
       int code = inWaterSegment ? -999 : effectiveTgtCode;
+
 
       for(auto& study: studies) study->Selected(*universe, myevent, 1); 
       for(auto& var: vars)
@@ -470,7 +487,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         if (!michelcuts.isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
 
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule());///Wrong!!!!!!!!!!!!!!!!11
+        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane()); ///Wrong!!!!!!!!!!!!!!!!11
         int truthTgtCode = universe->GetTruthTargetCode();
         int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
         int truthTgtID = universe->GetTruthTargetID();
@@ -683,6 +700,7 @@ int main(const int argc, const char** argv)
   std::function<double(const CVUniverse&, const MichelEvent&)> pzmu = [](const CVUniverse& univ, const MichelEvent& /* evt */) { return univ.GetMuonPz();};
 
   studies.push_back(new PerEventVarByGENIELabel2D(pzmu, ptmu, std::string("pzmu_vs_ptmu_GENIE_labels"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
+  studies.push_back(new WaterTargetIntOrigin2D(pzmu, ptmu, std::string("pzmu_vs_ptmu_water_breakdown"), std::string("GeV/c"), dansPzBins, dansPTBins, error_bands));
 
   CVUniverse* data_universe = new CVUniverse(options.m_data);
   std::vector<CVUniverse*> data_band = {data_universe};
@@ -723,8 +741,9 @@ int main(const int argc, const char** argv)
       std::cerr << "Failed to open a file named " << MC_OUT_FILE_NAME << " in the current directory for writing histograms.\n";
       return badOutputFile;
     }
-
+    std::cout<<"Saving " << studies.size()<< " studies\n";
     for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
+    std::cout<<"Saved studies\n";
 
     for(auto& var: nukeVars) var->WriteMC(*mcOutDir);
     for(auto& var: nukeVars2D) var->WriteMC(*mcOutDir);
@@ -757,30 +776,62 @@ int main(const int argc, const char** argv)
 
 
       //For Pseudotargets
-      //Target 7
-      auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-      nNucleonsTgt7->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
-      //Target 8
-      auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-      nNucleonsTgt8->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
-      //Target 9
-      auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-      nNucleonsTgt9->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
-      //Target 10
-      auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-      nNucleonsTgt10->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
-      //Target 11
-      auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-      nNucleonsTgt11->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
-      //Target 12
-      auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 4, true));
-      nNucleonsTgt12->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
+      if (PseudoTargetBuffer)
+      {
+        //Target 7
+        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 7, true));
+        nNucleonsTgt7->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
+        //Target 8
+        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        nNucleonsTgt8->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
+        //Target 9
+        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        nNucleonsTgt9->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
+        //Target 10
+        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        nNucleonsTgt10->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
+        //Target 11
+        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        nNucleonsTgt11->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
+        //Target 12
+        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 2, true));
+        nNucleonsTgt12->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target12_reweightedflux_integrated").c_str());
+
+      }
+      else
+      {
+        //Target 7
+        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        nNucleonsTgt7->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
+        //Target 8
+        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        nNucleonsTgt8->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
+        //Target 9
+        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        nNucleonsTgt9->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
+        //Target 10
+        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        nNucleonsTgt10->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
+        //Target 11
+        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        nNucleonsTgt11->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
+        //Target 12
+        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 4, true));
+        nNucleonsTgt12->Write();
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target12_reweightedflux_integrated").c_str());
+
+      }
 
 
     }

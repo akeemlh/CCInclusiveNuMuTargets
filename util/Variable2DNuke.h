@@ -44,7 +44,15 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
       }
-
+      // Count the number of universes in each band
+      std::map<std::string, int> response_bands;
+      for (auto band : mc_error_bands){ // Using reco_univs since that's what originally was done
+        std::string name = band.first;
+        std::string realname = (band.second)[0]->ShortName();
+        int nuniv = band.second.size();
+        response_bands[realname] = nuniv;
+      }
+      
       for(auto& tgtCode: TgtCodeLabels)
       {
         //For each target set the histogram to store the interaction channel
@@ -68,9 +76,12 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       m_HistsByTgtCodeEfficiencyDenominator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), truth_error_bands);
+
       //efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       //efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
       //selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+    
+  
     }
 
     //Histograms to be filled
