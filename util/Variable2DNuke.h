@@ -7,6 +7,8 @@
 #include "PlotUtils/HistWrapper.h"
 #include "PlotUtils/Hist2DWrapper.h"
 #include "util/NukeUtils.h"
+#include "MinervaUnfold/MnvResponse.h"
+
 
 class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 {
@@ -44,14 +46,6 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
       }
-      // Count the number of universes in each band
-      std::map<std::string, int> response_bands;
-      for (auto band : mc_error_bands){ // Using reco_univs since that's what originally was done
-        std::string name = band.first;
-        std::string realname = (band.second)[0]->ShortName();
-        int nuniv = band.second.size();
-        response_bands[realname] = nuniv;
-      }
       
       for(auto& tgtCode: TgtCodeLabels)
       {
@@ -75,7 +69,21 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
         GetBinVecX(), GetBinVecY(), mc_error_bands);
       m_HistsByTgtCodeEfficiencyDenominator  = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator").c_str(),
         GetName().c_str(), TgtCodeLabels,
-        GetBinVecX(), GetBinVecY(), truth_error_bands);
+        GetBinVecX(), GetBinVecY(), truth_error_bands);      
+      // taken from Noah
+      // make a temp universe map to make Response happy
+      std::map<const std::string, int> response_bands; // necessary?
+      for (auto band : mc_error_bands){
+        std::string name = band.first;
+        const std::string realname = (band.second)[0]->ShortName();
+        int nuniv = band.second.size();
+
+        response_bands[realname] = nuniv;
+      }
+
+      m_HistsByTgtCodeMigration  = new util::Categorized<MinervaUnfold::MnvResponse, int>(GetName().c_str(),
+        GetName().c_str(), TgtCodeLabels,
+        GetBinVecX(), GetBinVecY(), response_bands);
 
       //efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       //efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
@@ -112,6 +120,7 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 
     util::Categorized<Hist, int>* m_HistsByTgtCodeEfficiencyNumerator;
     util::Categorized<Hist, int>* m_HistsByTgtCodeEfficiencyDenominator;
+    util::Categorized<MinervaUnfold::MnvResponse, int>* m_HistsByTgtCodeMigration;
     //Hist* dataHist;  
     //Hist* efficiencyNumerator;
     //Hist* efficiencyDenominator;
@@ -145,11 +154,11 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                                       categ.hist->SetDirectory(&file);
                                       categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                     });
-        m_HistsByTgtCodeData->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
+      m_HistsByTgtCodeData->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
     }
 
     void WriteMC(TFile& file)
@@ -204,6 +213,20 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                                         categ.hist->SetDirectory(&file);
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
+
+      m_HistsByTgtCodeMigration->visit([&file](MinervaUnfold::MnvResponse& response)
+                                    {
+                                      MnvH2D* migration_hist = NULL;
+                                      MnvH2D* reco_hist = NULL;
+                                      MnvH2D* truth_hist = NULL;
+                                      response.GetMigrationObjects(migration_hist, reco_hist, truth_hist);
+                                      migration_hist->SetDirectory(&file); 
+                                      migration_hist->Write();
+                                      reco_hist->SetDirectory(&file); 
+                                      reco_hist->Write();
+                                      truth_hist->SetDirectory(&file); 
+                                      truth_hist->Write();
+                                    });
 
     }
     //Only call this manually if you Draw(), Add(), or Divide() plots in this

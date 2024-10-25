@@ -5,6 +5,7 @@
 #include "PlotUtils/Variable2DBase.h"
 #include "util/Categorized.h"
 #include "util/NukeUtils.h"
+#include "MinervaUnfold/MnvResponse.h"
 
 class Variable2DTracker: public PlotUtils::Variable2DBase<CVUniverse>
 {
@@ -36,7 +37,21 @@ class Variable2DTracker: public PlotUtils::Variable2DBase<CVUniverse>
       efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
       selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-  
+      
+      // taken from Noah
+      // make a temp universe map to make Response happy
+      std::map<const std::string, int> response_bands; // necessary?
+      for (auto band : mc_error_bands){
+        std::string name = band.first;
+        const std::string realname = (band.second)[0]->ShortName();
+        int nuniv = band.second.size();
+
+        response_bands[realname] = nuniv;
+      }
+
+      migration = new MinervaUnfold::MnvResponse((GetName() + "_migration").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY() , response_bands);
+      
+    
     }
 
     //Histograms to be filled
@@ -46,7 +61,7 @@ class Variable2DTracker: public PlotUtils::Variable2DBase<CVUniverse>
     Hist* efficiencyNumerator;
     Hist* efficiencyDenominator;
     Hist* selectedMCReco; //Treat the MC CV just like data for the closure test
-
+    MinervaUnfold::MnvResponse* migration;
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
   	  dataHist = new Hist((std::string("_data_") + GetName()).c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
@@ -61,7 +76,10 @@ class Variable2DTracker: public PlotUtils::Variable2DBase<CVUniverse>
       }
 
     }
-    
+
+    TH1D* xsamplehist = new TH1D("x", "x", GetBinVecX().size()-1, &GetBinVecX()[0]);
+    TH1D* ysamplehist = new TH1D("y", "y", GetBinVecY().size()-1, &GetBinVecY()[0]);
+
     void WriteMC(TFile& file)
     {
       SyncCVHistos();
@@ -95,6 +113,19 @@ class Variable2DTracker: public PlotUtils::Variable2DBase<CVUniverse>
       {
         selectedMCReco->hist->SetDirectory(&file);
         selectedMCReco->hist->Write((GetName() + "_data").c_str()); //Make this histogram look just like the data for closure tests
+      }
+      if(migration)
+      {
+        MnvH2D* migration_hist;
+        MnvH2D* reco_hist;
+        MnvH2D* truth_hist;
+        migration->GetMigrationObjects(migration_hist, reco_hist, truth_hist);
+        migration_hist->SetDirectory(&file); 
+        migration_hist->Write();
+        reco_hist->SetDirectory(&file); 
+        reco_hist->Write();
+        truth_hist->SetDirectory(&file); 
+        truth_hist->Write();
       }
     }
 

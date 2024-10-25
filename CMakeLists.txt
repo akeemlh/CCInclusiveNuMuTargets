@@ -70,19 +70,27 @@ add_subdirectory(util)
 
 #Build main executables
 add_executable(runEventLoop runEventLoop.cpp)
-target_link_libraries(runEventLoop ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+target_link_libraries(runEventLoop ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoop DESTINATION bin)
 
 add_executable(runEventLoopTargets runEventLoopTargets.cpp)
-target_link_libraries(runEventLoopTargets ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+target_link_libraries(runEventLoopTargets ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopTargets DESTINATION bin)
 
 add_executable(runEventLoopTracker runEventLoopTracker.cpp)
-target_link_libraries(runEventLoopTracker ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+target_link_libraries(runEventLoopTracker ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopTracker DESTINATION bin)
 
+add_executable(runEventLoopTrackerDSWater runEventLoopTrackerDSWater.cpp)
+target_link_libraries(runEventLoopTrackerDSWater ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+install(TARGETS runEventLoopTrackerDSWater DESTINATION bin)
+
+add_executable(runEventLoopTrackerUSWater runEventLoopTrackerUSWater.cpp)
+target_link_libraries(runEventLoopTrackerUSWater ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+install(TARGETS runEventLoopTrackerUSWater DESTINATION bin)
+
 add_executable(runEventLoopFullDet runEventLoopFullDet.cpp)
-target_link_libraries(runEventLoopFullDet ${ROOT_LIBRARIES} util MAT MAT-MINERvA) #event cuts studies systematics)
+target_link_libraries(runEventLoopFullDet ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopFullDet DESTINATION bin)
 
 add_executable(ExtractCrossSection ExtractCrossSection.cpp)
@@ -93,13 +101,34 @@ add_executable(Extract1DCrossSectionTargets Extract1DCrossSectionTargets.cpp)
 target_link_libraries(Extract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTargets DESTINATION bin)
 
+
+add_executable(TempExtract1DCrossSectionTargets TempExtract1DCrossSectionTargets.cpp)
+target_link_libraries(TempExtract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS TempExtract1DCrossSectionTargets DESTINATION bin)
+
+
+add_executable(Extract1DCrossSectionTracker Extract1DCrossSectionTracker.cpp)
+target_link_libraries(Extract1DCrossSectionTracker ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTracker DESTINATION bin)
+
+add_executable(Extract2DCrossSectionTracker Extract2DCrossSectionTracker.cpp)
+target_link_libraries(Extract2DCrossSectionTracker ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract2DCrossSectionTracker DESTINATION bin)
+
+
 add_executable(runXSecLooper runXSecLooper.cpp)
 target_link_libraries(runXSecLooper ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
 install(TARGETS runXSecLooper DESTINATION bin)
 
+add_executable(runXSecLooper1DTracker runXSecLooper1DTracker.cpp)
+target_link_libraries(runXSecLooper1DTracker ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
+install(TARGETS runXSecLooper1DTracker DESTINATION bin)
+
 install(FILES backgroundStack.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
 install(FILES runTransWarp.sh PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
+
+install(FILES histMerge.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
 configure_file(setup.sh.in setup_${PROJECT_NAME}.sh @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/setup_${PROJECT_NAME}.sh DESTINATION bin)

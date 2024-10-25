@@ -110,5 +110,19 @@ namespace reco
         //To do 
       }
   };
+
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class RecoInteractionMaterialCut: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      RecoInteractionMaterialCut(const int mat): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Is in material ") + std::to_string(mat) +std::string("?")), fMat(mat) {}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        return univ.GetANNProb() > fMat; 
+      }
+      const int fMat;
+  };
 }
 #endif //SIGNALDEFINITION_H

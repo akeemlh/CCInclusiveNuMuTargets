@@ -1,5 +1,5 @@
-#define MC_OUT_FILE_NAME "runEventLoopTargetsMC.root"
-#define DATA_OUT_FILE_NAME "runEventLoopTargetsData.root"
+#define MC_OUT_FILE_NAME "runEventLoopMC.root"
+#define DATA_OUT_FILE_NAME "runEventLoopData.root"
 
 #define USAGE \
 "\n*** USAGE ***\n"\
@@ -92,25 +92,9 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 
-bool PseudoTargetBuffer = false; //To exlclude the plane either end of a nuclear target
-
 //Treat the plastic between planes as though they were nuclear targets themselves
-int getPlasticPseudoTargetCode(int mod, int plane)
+int getPlasticPseudoTargetCode(int mod)
 {
-  if (PseudoTargetBuffer)
-  {
-    if (mod == -2 && plane == 2) return -1;
-    if (mod == 0 && plane == 1) return -1;
-    if (mod == 3 && plane == 2) return -1;
-    if (mod == 5 && plane == 1) return -1;
-    if (mod == 8 && plane == 2) return -1;
-    if (mod == 11 && plane == 1) return -1;
-    if (mod == 14 && plane == 2) return -1;
-    if (mod == 15 && plane == 1) return -1;
-    if (mod == 18 && plane == 2) return -1;
-    if (mod == 20 && plane == 1) return -1;
-    if (mod == 21 && plane == 2) return -1;
-  }
   if (mod >= -5 && mod <= -2)  return 7;
   else if (mod >= 0 && mod <= 3)  return 8;
   else if (mod >= 5 && mod <= 8)  return 9;
@@ -154,10 +138,8 @@ void LoopAndFillEventSelection(
     for (auto band : error_bands)
     {
       std::vector<CVUniverse*> error_band_universes = band.second;
-      int univCount = 0;
       for (auto universe : error_band_universes)
       {
-        univCount++; // Put the iterator right at the start so it's executed even in paths that lead to a continue, don't forget to subtract by 1 when we use it
         MichelEvent myevent; // make sure your event is inside the error band loop. 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
@@ -166,7 +148,7 @@ void LoopAndFillEventSelection(
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane());
+        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule());
         int truthTgtCode = universe->GetTruthTargetCode();
         int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
         //If this has a module num 6 it came from water target
@@ -179,74 +161,6 @@ void LoopAndFillEventSelection(
         //To do: use universe->hasMLPred()
         //Nuke Target Study
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        for(auto& var: vars)
-        {
-          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
-          {
-            //Plot events that occur within the nuclear targets grouped by which target they occur in
-            (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-            if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-          }
-          if (!(truthTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
-          {
-            int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
-            auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
-            auto DSTgtID = util::DSModPlaCodeToTgtId.find(tmpModCode);
-            if (USTgtID != util::USModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
-            {
-              //std::cout<<"Found in US target "<< USTgtID->second<< "\n";
-              //Check where it really interacted
-              int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
-              //Checking if this interaction truthfully originated in an upstream or downstream sideband
-              //Checking if this interaction truthfully originated in the neigbouring nuclear target
-              //If this has a non-zero target code then it actually originated in a nuke target
-              //If this has a segment num 36 it came from water target
-              int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isUSPlane(tmpModCode)>0) //If originated immediately upstream of nuke target
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isDSPlane(tmpModCode)>0) //If originated immediately downstream of nuke target
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
-              {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-            }
-            else if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Or is event reconstructed immediately downstream of a nuclear target
-            {
-              //Check where it really interacted
-              int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
-              //Checking if this interaction truthfully originated in an upstream or downstream sideband
-              //Checking if this interaction truthfully originated in the neigbouring nuclear target
-              //If this has a non-zero target code then it actually originated in a nuke target
-              //If this has a segment num 36 it came from water target
-              int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isUSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else if (util::isDSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-              else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
-              {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              }
-            }
-          }
-        }
         for(auto& var: vars2D)
         {
           if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
@@ -338,10 +252,6 @@ void LoopAndFillEventSelection(
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-              //var->FillMigration(universe, code, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-              (*var->m_HistsByTgtCodeMigration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), var->GetTrueValueX(*universe), var->GetTrueValueY(*universe),universe->ShortName(),(univCount-1),weight);
-              //(var->m_migration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
-
             }
           }
         }
@@ -394,7 +304,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       MichelEvent myevent; 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
 
-      int pseudoTarget = getPlasticPseudoTargetCode(universe->GetANNVtxModule(), universe->GetANNVtxPlane());
+      int pseudoTarget = getPlasticPseudoTargetCode(universe->GetANNVtxModule());
       int annTgtCode = universe->GetANNTargetCode();
       int effectiveTgtCode = (pseudoTarget==-1) ? annTgtCode: pseudoTarget;
       //If this has a segment num 36 it came from water target
@@ -491,7 +401,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         if (!michelcuts.isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
 
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane()); ///Wrong!!!!!!!!!!!!!!!!11
+        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule());///Wrong!!!!!!!!!!!!!!!!11
         int truthTgtCode = universe->GetTruthTargetCode();
         int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
         int truthTgtID = universe->GetTruthTargetID();
@@ -780,62 +690,30 @@ int main(const int argc, const char** argv)
 
 
       //For Pseudotargets
-      if (PseudoTargetBuffer)
-      {
-        //Target 7
-        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 7, true));
-        nNucleonsTgt7->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
-        //Target 8
-        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
-        nNucleonsTgt8->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
-        //Target 9
-        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
-        nNucleonsTgt9->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
-        //Target 10
-        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
-        nNucleonsTgt10->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
-        //Target 11
-        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
-        nNucleonsTgt11->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
-        //Target 12
-        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 2, true));
-        nNucleonsTgt12->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target12_reweightedflux_integrated").c_str());
-
-      }
-      else
-      {
-        //Target 7
-        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-        nNucleonsTgt7->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
-        //Target 8
-        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-        nNucleonsTgt8->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
-        //Target 9
-        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-        nNucleonsTgt9->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
-        //Target 10
-        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-        nNucleonsTgt10->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
-        //Target 11
-        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
-        nNucleonsTgt11->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
-        //Target 12
-        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 4, true));
-        nNucleonsTgt12->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target12_reweightedflux_integrated").c_str());
-
-      }
+      //Target 7
+      auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+      nNucleonsTgt7->Write();
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
+      //Target 8
+      auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+      nNucleonsTgt8->Write();
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
+      //Target 9
+      auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+      nNucleonsTgt9->Write();
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
+      //Target 10
+      auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+      nNucleonsTgt10->Write();
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
+      //Target 11
+      auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+      nNucleonsTgt11->Write();
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
+      //Target 12
+      auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 4, true));
+      nNucleonsTgt12->Write();
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
 
 
     }

@@ -1,6 +1,6 @@
-#define MC_OUT_FILE_NAME "runEventLoopTrackerMC.root"
-#define DATA_OUT_FILE_NAME "runEventLoopTrackerData.root"
-
+#define MC_OUT_FILE_NAME "runEventLoopTrackerDSWaterMC.root"
+#define DATA_OUT_FILE_NAME "runEventLoopTrackerDSWaterData.root"
+//This is a speacial event loop specifically to investigate blah blah - fill in later
 #define USAGE \
 "\n*** USAGE ***\n"\
 "runEventLoop <dataPlaylist.txt> <mcPlaylist.txt>\n\n"\
@@ -377,7 +377,7 @@ int main(const int argc, const char** argv)
 
   //const double minZ = 5980, maxZ = 8422, apothem = 850; //All in mm
   const double apothem = 850; //All in mm
-  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::WaterTarget::Back, PlotUtils::TargetProp::Tracker::Back));
   preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
   preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
@@ -392,7 +392,7 @@ int main(const int argc, const char** argv)
   signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                                                                                                                    
-  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Active Tracker Z pos", PlotUtils::TargetProp::WaterTarget::Back, PlotUtils::TargetProp::Tracker::Back));
   phaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
   phaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
   phaseSpace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
@@ -498,14 +498,6 @@ int main(const int argc, const char** argv)
     assert(error_bands["cv"].size() == 1 && "List of error bands must contain a universe named \"cv\" for the flux integral.");
 
     for(const auto& var: vars)
-    {
-      //Flux integral only if systematics are being done (temporary solution)
-      util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
-      //Always use MC number of nucleons for cross section
-      auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, apothem));
-      nNucleons->Write();
-    }
-    for(const auto& var: vars2D)
     {
       //Flux integral only if systematics are being done (temporary solution)
       util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());

@@ -1,5 +1,5 @@
-#define MC_OUT_FILE_NAME "runEventLoopMC.root"
-#define DATA_OUT_FILE_NAME "runEventLoopData.root"
+#define MC_OUT_FILE_NAME "runEventLoopFullDetMC.root"
+#define DATA_OUT_FILE_NAME "runEventLoopFullDetData.root"
 
 #define USAGE \
 "\n*** USAGE ***\n"\
@@ -95,6 +95,18 @@ TH1D *TBVerticesMC = new TH1D ("TBVerticesMC", "TBVerticesMC", vertexBins.size()
 TH1D *ANNVerticesData = new TH1D ("ANNVerticesData", "ANNVerticesData", vertexBins.size()-1, &vertexBins[0]);
 TH1D *TBVerticesData = new TH1D ("TBVerticesData", "TBVerticesData", vertexBins.size()-1, &vertexBins[0]);
 
+TH3D *TBVerticesGranularData = new TH3D ("TBVerticesGranularData", "TBVerticesGranularData", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *TBVerticesGranularMC = new TH3D ("TBVerticesGranularMC", "TBVerticesGranularMC", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *ANNVerticesGranularData = new TH3D ("ANNVerticesGranularData", "ANNVerticesGranularData", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *ANNVerticesGranularMC = new TH3D ("ANNVerticesGranularMC", "ANNVerticesGranularMC", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *TrueVerticesGranular = new TH3D ("TrueVerticesGranular", "TrueVerticesGranular", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+
+TH3D *TrueVtxANNRecoInWater = new TH3D ("TrueVtxANNRecoInWater", "TrueVtxANNRecoInWater", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *TrueVtxTBRecoInWater = new TH3D ("TrueVtxTBRecoInWater", "TrueVtxTBRecoInWater", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *TrueVtxANNRecoOutWater = new TH3D ("TrueVtxANNRecoOutWater", "TrueVtxANNRecoOutWater", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+TH3D *TrueVtxTBRecoOutWater = new TH3D ("TrueVtxTBRecoOutWater", "TrueVtxTBRecoOutWater", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
+
+
 //==============================================================================
 // Loop and Fill
 //==============================================================================
@@ -128,18 +140,42 @@ void LoopAndFillEventSelection(
 
     std::vector<double> ANNVtx = cvUniv->GetANNVertexVector();
     ROOT::Math::XYZTVector TrackBasedVtx = cvUniv->GetVertex();
+    ROOT::Math::XYZTVector TrueVtx = cvUniv->GetTrueVertex();
 
     // This is where you would Access/create a Michel
 
     //weight is ignored in isMCSelected() for all but the CV Universe.
     if (!michelcuts.isMCSelected(*cvUniv, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
-
+    PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
     //Performing vtx validation check Deborah suggested
     if(ANNVtx.size()==3)
     {
       ANNVerticesMC->Fill( ANNVtx[2], cvWeight);
+      ANNVerticesGranularMC->Fill( ANNVtx[0], ANNVtx[1], ANNVtx[2], cvWeight);
+      if (m_TargetUtils->InWaterTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+      {
+        TrueVtxANNRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+      }
+      else
+      {
+        TrueVtxANNRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+      }
     }
     TBVerticesMC->Fill(TrackBasedVtx.Z(), cvWeight);
+    TBVerticesGranularMC->Fill( TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), cvWeight);
+    TrueVerticesGranular->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+    if (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+    {
+      TrueVtxTBRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+    }
+    else
+    {
+      std::cout<<"TB: X: " << TrackBasedVtx.X() <<" Y: " << TrackBasedVtx.Y() <<" Z: "<< TrackBasedVtx.Z() <<std::endl;
+      TrueVtxTBRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+    }
+    std::cout<<"Here6\n";
+
+
   } //End entries loop
   std::cout << "Finished MC reco loop.\n";
 }
@@ -166,7 +202,9 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       if(ANNVtx.size()==3)
       {
         ANNVerticesData->Fill(ANNVtx[2]);
+        ANNVerticesGranularData->Fill(ANNVtx[0], ANNVtx[1], ANNVtx[2]);
       }
+      TBVerticesGranularData->Fill(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z());
       TBVerticesData->Fill(TrackBasedVtx.Z());
     }
   }
@@ -401,6 +439,22 @@ int main(const int argc, const char** argv)
     ANNVerticesMC->Write();
     TBVerticesMC->Write();
 
+    ANNVerticesGranularMC->SetDirectory(mcOutDir);
+    TBVerticesGranularMC->SetDirectory(mcOutDir);
+    ANNVerticesGranularMC->Write();
+    TBVerticesGranularMC->Write();
+
+    TrueVerticesGranular->SetDirectory(mcOutDir);
+    TrueVerticesGranular->Write();
+    TrueVtxANNRecoInWater->SetDirectory(mcOutDir);
+    TrueVtxANNRecoInWater->Write();
+    TrueVtxTBRecoInWater->SetDirectory(mcOutDir);
+    TrueVtxTBRecoInWater->Write();
+    TrueVtxANNRecoOutWater->SetDirectory(mcOutDir);
+    TrueVtxANNRecoOutWater->Write();
+    TrueVtxTBRecoOutWater->SetDirectory(mcOutDir);
+    TrueVtxTBRecoOutWater->Write();
+
     //Write data results
     TFile* dataOutDir = TFile::Open(DATA_OUT_FILE_NAME, "RECREATE");
     if(!dataOutDir)
@@ -420,6 +474,11 @@ int main(const int argc, const char** argv)
     TBVerticesData->SetDirectory(dataOutDir);
     ANNVerticesData->Write();
     TBVerticesData->Write();
+
+    ANNVerticesGranularData->SetDirectory(dataOutDir);
+    TBVerticesGranularData->SetDirectory(dataOutDir);
+    ANNVerticesGranularData->Write();
+    TBVerticesGranularData->Write();
 
     std::cout << "Success" << std::endl;
   }
