@@ -141,12 +141,14 @@ int main(const int argc, const char** argv)
 
   TH1::AddDirectory(kFALSE); //Needed so that MnvH1D gets to clean up its own MnvLatErrorBands (which are TH1Ds).
 
-  if(argc != 4)
+  if(argc != 4 && argc != 5 )
   {
-    std::cerr << "Expected 3 arguments, but I got " << argc-1 << ".\n"
-              << "USAGE: ExtractCrossSection <unfolding iterations> <data.root> <mc.root>\n";
+    std::cerr << "Expected 3 or 4 arguments, but I got " << argc-1 << ".\n"
+              << "USAGE: ExtractCrossSection <unfolding iterations> <data.root> <mc.root> <OPTIONAL:numPlaylists>\n"
+              << "Where <numPlaylists> is the number of playlists merged to make <data.root> and <mc.root>. If empty, it will be assumed to be 1.\n";
     return 1;
   }
+  int numMergedPlaylists = 1;
 
   const int nIterations = std::stoi(argv[1]);
   auto dataFile = TFile::Open(argv[2], "READ");
@@ -163,8 +165,29 @@ int main(const int argc, const char** argv)
     return 3;
   }
 
-  std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu", "nuke_pzmu", "nuke_bjorken", "nuke_Erecoil", "nuke_Emu"};
+  if (argc == 5)
+  {
+    numMergedPlaylists = std::stoi(argv[4]);
+  }
 
+  std::vector<std::string> crossSectionPrefixes;// = {"nuke_pTmu", "nuke_pZmu", "nuke_bjorken", "nuke_Erecoil", "nuke_Emu"};
+
+  for(auto key: *dataFile->GetListOfKeys())
+  {
+    const std::string keyName = key->GetName();
+    if (keyName == "POTUsed") continue;
+    std::cout << "keyName " << keyName <<std::endl;
+    const size_t endOfPrefix = keyName.find("_data");
+    std::string prefix = keyName.substr(0, endOfPrefix);
+    std::cout << "prefix " << prefix <<std::endl;
+    //This counts the number of '_' in the prefix, which should match the dimension, eg 2D would be nuke_pTmu_pZmu, which has 2 underscores
+    bool twoDimension = (keyName == "_data_nuke_pTmu_pZmu");
+
+    bool alreadyInVector = std::find(crossSectionPrefixes.begin(), crossSectionPrefixes.end(), prefix) != crossSectionPrefixes.end();
+    std::cout << "twoDimension " << twoDimension <<std::endl;
+    std::cout << "alreadyInVector " << alreadyInVector <<std::endl;
+    if(endOfPrefix != std::string::npos && !alreadyInVector && !twoDimension) crossSectionPrefixes.push_back(prefix);
+  }
   const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
                dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
   std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
@@ -175,6 +198,7 @@ int main(const int argc, const char** argv)
 
       std::cout<< "Current working on prefix: " << prefix << std::endl;
       auto flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "target7_reweightedflux_integrated", prefix);
+      flux->Scale(1.0/numMergedPlaylists);
       auto folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "by_TargetCode_Data_Target7", prefix);
       Plot(*folded, "data", prefix);
       auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration_Target7", prefix);
@@ -190,20 +214,9 @@ int main(const int argc, const char** argv)
       backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "tgtTarget7_Wrong_Sign_Bkg", prefix));
       backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "tgtTarget7_NC_Bkg", prefix));
 
-      for(auto key: *mcFile->GetListOfKeys())
-      {
-        if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
-        {
-          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
-        }
-      }
-
       for(int tgtnum = 8; tgtnum <13; tgtnum++)
       //if (false)
       {
-
-
-
 
         //flux->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("target")+std::to_string(tgtnum)+std::string("_reweightedflux_integrated")), prefix));
         folded->Add( util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_Target")+std::to_string(tgtnum)), prefix));
@@ -245,7 +258,7 @@ int main(const int argc, const char** argv)
                                            });
       Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
 
-      auto outFile = TFile::Open((prefix + "_crossSection.root").c_str(), "CREATE");
+      auto outFile = TFile::Open((prefix + "_PseudoTargetsSummed_crossSection.root").c_str(), "CREATE");
       if(!outFile)
       {
         std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
@@ -268,7 +281,7 @@ int main(const int argc, const char** argv)
       unfolded->Divide(unfolded, effNum);
       Plot(*unfolded, "efficiencyCorrected", prefix);
 
-      auto crossSection = normalize(unfolded, flux, nNucleonsVal, dataPOT);
+      auto crossSection = normalize(unfolded, flux, nNucleons->GetVal()/numMergedPlaylists, dataPOT);
       Plot(*crossSection, "crossSection", prefix);
       crossSection->Clone()->Write("crossSection");
       simEventRate->Write("simulatedEventRate");
@@ -276,7 +289,7 @@ int main(const int argc, const char** argv)
       //Write a "simulated cross section" to compare to the data I just extracted.
       //If this analysis passed its closure test, this should be the same cross section as
       //what GENIEXSecExtract would produce.
-      normalize(simEventRate, flux, nNucleonsVal, mcPOT);
+      normalize(simEventRate, flux, nNucleons->GetVal()/numMergedPlaylists, mcPOT);
       
       Plot(*simEventRate, "simulatedCrossSection", prefix);
       simEventRate->Write("simulatedCrossSection");

@@ -27,6 +27,7 @@
 #include "TKey.h"
 #include "TParameter.h"
 #include "TCanvas.h"
+#include "string.h"
 
 //Cintex is only needed for older ROOT versions like the GPVMs.
 ////Let CMake decide whether it's needed.
@@ -147,8 +148,8 @@ int main(const int argc, const char** argv)
               << "Where <numPlaylists> is the number of playlists merged to make <data.root> and <mc.root>. If empty, it will be assumed to be 1.\n";
     return 1;
   }
-
   int numMergedPlaylists = 1;
+
   const int nIterations = std::stoi(argv[1]);
   auto dataFile = TFile::Open(argv[2], "READ");
   if(!dataFile)
@@ -163,12 +164,16 @@ int main(const int argc, const char** argv)
     std::cerr << "Failed to open MC file " << argv[3] << ".\n";
     return 3;
   }
+
   if (argc == 5)
   {
     numMergedPlaylists = std::stoi(argv[4]);
   }
 
-  std::vector<std::string> crossSectionPrefixes;
+  std::vector<std::string> crossSectionPrefixes;// = {"nuke_pTmu", "nuke_pZmu", "nuke_bjorken", "nuke_Erecoil", "nuke_Emu"};
+
+  std::vector<std::string> targets = {"Target7", "Target8", "Target9", "Target10", "Target11", "Target12", "1026", "1082", "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "Water"}; //Is there any benefit to getting this programatically like above for the 1D prefixes?
+
   for(auto key: *dataFile->GetListOfKeys())
   {
     const std::string keyName = key->GetName();
@@ -178,117 +183,114 @@ int main(const int argc, const char** argv)
     std::string prefix = keyName.substr(0, endOfPrefix);
     std::cout << "prefix " << prefix <<std::endl;
     //This counts the number of '_' in the prefix, which should match the dimension, eg 2D would be nuke_pTmu_pZmu, which has 2 underscores
-    bool twoDimension = (keyName == "_data_tracker_pTmu_pZmu");
+    bool twoDimension = (keyName == "_data_nuke_pTmu_pZmu");
 
     bool alreadyInVector = std::find(crossSectionPrefixes.begin(), crossSectionPrefixes.end(), prefix) != crossSectionPrefixes.end();
     std::cout << "twoDimension " << twoDimension <<std::endl;
     std::cout << "alreadyInVector " << alreadyInVector <<std::endl;
     if(endOfPrefix != std::string::npos && !alreadyInVector && !twoDimension) crossSectionPrefixes.push_back(prefix);
   }
-
   const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
                dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
   std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
   for(const auto& prefix: crossSectionPrefixes)
   {
-    try
+    for (std::string& tgt : targets)
     {
-      std::cout<< "Current working on prefix: " << prefix << std::endl;
-      auto flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
-      flux->Scale(1.0/numMergedPlaylists);
-      auto folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix);
-      Plot(*folded, "data", prefix);
-      auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix);
-      auto effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix);
-      auto effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix);
-      auto simEventRate = effDenom->Clone(); //Make a copy for later
-
-      const auto fiducialFound = std::find_if(mcFile->GetListOfKeys()->begin(), mcFile->GetListOfKeys()->end(),
-                                              [&prefix](const auto key)
-                                              {
-                                                const std::string keyName = key->GetName();
-                                                const size_t fiducialEnd = keyName.find("_fiducial_nucleons");
-                                                return (fiducialEnd != std::string::npos) && (prefix.find(keyName.substr(0, fiducialEnd)) != std::string::npos);
-                                              });
-      if(fiducialFound == mcFile->GetListOfKeys()->end()) throw std::runtime_error("Failed to find a number of nucleons that matches prefix " + prefix);
-
-      auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (*fiducialFound)->GetName()); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-
-      //Look for backgrounds with <prefix>_<analysis>_Background_<name>
-      std::vector<PlotUtils::MnvH1D*> backgrounds;
-      for(auto key: *mcFile->GetListOfKeys())
+      try
       {
-        if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
+
+        std::cout<< "Current working on prefix: " << prefix << std::endl;
+        auto flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix);
+        flux->Scale(1.0/numMergedPlaylists);
+        auto folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix);
+        Plot(*folded, "data", prefix);
+        auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix);
+        auto effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix);
+        auto effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_")+tgt), prefix);
+
+
+        auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (tgt+std::string("_fiducial_nucleons")), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
+        double nNucleonsVal = nNucleons->GetVal();
+        std::vector<PlotUtils::MnvH1D*> backgrounds;
+        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, std::string("tgt")+tgt+std::string("_Wrong_Material_Bkg"), prefix));
+        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, std::string("tgt")+tgt+std::string("_Wrong_Sign_Bkg"), prefix));
+        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, std::string("tgt")+tgt+std::string("_NC_Bkg"), prefix));
+
+        for(auto key: *mcFile->GetListOfKeys())
         {
-          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
+          if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
+          {
+            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
+          }
         }
+
+        auto simEventRate = effDenom->Clone(); //Make a copy for later
+        //There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
+        folded->AddMissingErrorBandsAndFillWithCV(*migration);
+
+        //Basing my unfolding procedure for a differential cross section on Alex's MINERvA 101 talk at https://minerva-docdb.fnal.gov/cgi-bin/private/RetrieveFile?docid=27438&filename=whatsACrossSection.pdf&version=1
+
+        //TODO: Remove these debugging plots when done
+        auto toSubtract = std::accumulate(std::next(backgrounds.begin()), backgrounds.end(), (*backgrounds.begin())->Clone(),
+                                          [](auto sum, const auto hist)
+                                          {
+                                            sum->Add(hist);
+                                            return sum;
+                                          });
+        Plot(*toSubtract, "BackgroundSum", prefix);
+
+        auto bkgSubtracted = std::accumulate(backgrounds.begin(), backgrounds.end(), folded->Clone(),
+                                            [mcPOT, dataPOT](auto sum, const auto hist)
+                                            {
+                                              std::cout << "Subtracting " << hist->GetName() << " scaled by " << -dataPOT/mcPOT << " from " << sum->GetName() << "\n";
+                                              sum->Add(hist, -dataPOT/mcPOT);
+                                              return sum;
+                                            });
+        Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
+
+        auto outFile = TFile::Open((tgt+prefix + "_crossSection.root").c_str(), "CREATE");
+        if(!outFile)
+        {
+          std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
+          return 5;
+        }
+
+        bkgSubtracted->Write("backgroundSubtracted");
+
+        //d'Aogstini unfolding
+        auto unfolded = UnfoldHist(bkgSubtracted, migration, nIterations);
+        if(!unfolded) throw std::runtime_error(std::string("Failed to unfold ") + folded->GetName() + " using " + migration->GetName());
+        Plot(*unfolded, "unfolded", prefix);
+        unfolded->Clone()->Write("unfolded"); //TODO: Seg fault first appears when I uncomment this line
+        std::cout << "Survived writing the unfolded histogram.\n" << std::flush; //This is evidence that the problem is on the final file Write() and not unfolded->Clone()->Write().
+
+        effNum->Divide(effNum, effDenom); //Only the 2 parameter version of MnvH1D::Divide()
+                                          //handles systematics correctly.
+        Plot(*effNum, "efficiency", prefix);
+
+        unfolded->Divide(unfolded, effNum);
+        Plot(*unfolded, "efficiencyCorrected", prefix);
+
+        auto crossSection = normalize(unfolded, flux, nNucleons->GetVal()/numMergedPlaylists, dataPOT);
+        Plot(*crossSection, "crossSection", prefix);
+        crossSection->Clone()->Write("crossSection");
+        simEventRate->Write("simulatedEventRate");
+        flux->Write("flux_reweighted");
+        //Write a "simulated cross section" to compare to the data I just extracted.
+        //If this analysis passed its closure test, this should be the same cross section as
+        //what GENIEXSecExtract would produce.
+        normalize(simEventRate, flux, nNucleons->GetVal()/numMergedPlaylists, mcPOT);
+        
+        Plot(*simEventRate, "simulatedCrossSection", prefix);
+        simEventRate->Write("simulatedCrossSection");
+        outFile->Close();
       }
-
-      //There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
-      folded->AddMissingErrorBandsAndFillWithCV(*migration);
-
-      //Basing my unfolding procedure for a differential cross section on Alex's MINERvA 101 talk at https://minerva-docdb.fnal.gov/cgi-bin/private/RetrieveFile?docid=27438&filename=whatsACrossSection.pdf&version=1
-
-      //TODO: Remove these debugging plots when done
-      auto toSubtract = std::accumulate(std::next(backgrounds.begin()), backgrounds.end(), (*backgrounds.begin())->Clone(),
-                                        [](auto sum, const auto hist)
-                                        {
-                                          sum->Add(hist);
-                                          return sum;
-                                        });
-      Plot(*toSubtract, "BackgroundSum", prefix);
-
-      auto bkgSubtracted = std::accumulate(backgrounds.begin(), backgrounds.end(), folded->Clone(),
-                                           [mcPOT, dataPOT](auto sum, const auto hist)
-                                           {
-                                             std::cout << "Subtracting " << hist->GetName() << " scaled by " << -dataPOT/mcPOT << " from " << sum->GetName() << "\n";
-                                             sum->Add(hist, -dataPOT/mcPOT);
-                                             return sum;
-                                           });
-      Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
-
-      auto outFile = TFile::Open((prefix + "_crossSection.root").c_str(), "CREATE");
-      if(!outFile)
+      catch(const std::runtime_error& e)
       {
-        std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
-        return 5;
+        std::cerr << "Failed to extract a cross section for prefix " << prefix << ": " << e.what() << "\n";
+        return 4;
       }
-
-      bkgSubtracted->Write("backgroundSubtracted");
-
-      //d'Aogstini unfolding
-      auto unfolded = UnfoldHist(bkgSubtracted, migration, nIterations);
-      if(!unfolded) throw std::runtime_error(std::string("Failed to unfold ") + folded->GetName() + " using " + migration->GetName());
-      Plot(*unfolded, "unfolded", prefix);
-      unfolded->Clone()->Write("unfolded"); //TODO: Seg fault first appears when I uncomment this line
-      std::cout << "Survived writing the unfolded histogram.\n" << std::flush; //This is evidence that the problem is on the final file Write() and not unfolded->Clone()->Write().
-
-      effNum->Divide(effNum, effDenom); //Only the 2 parameter version of MnvH1D::Divide()
-                                        //handles systematics correctly.
-      Plot(*effNum, "efficiency", prefix);
-
-      unfolded->Divide(unfolded, effNum);
-      Plot(*unfolded, "efficiencyCorrected", prefix);
-
-      auto crossSection = normalize(unfolded, flux, nNucleons->GetVal()/numMergedPlaylists, dataPOT);
-      Plot(*crossSection, "crossSection", prefix);
-      crossSection->Clone()->Write("crossSection");
-
-      simEventRate->Write("simulatedEventRate");
-      flux->Write("flux_reweighted");
-      //Write a "simulated cross section" to compare to the data I just extracted.
-      //If this analysis passed its closure test, this should be the same cross section as
-      //what GENIEXSecExtract would produce.
-      normalize(simEventRate, flux, nNucleons->GetVal()/numMergedPlaylists, mcPOT);
-      
-      Plot(*simEventRate, "simulatedCrossSection", prefix);
-      simEventRate->Write("simulatedCrossSection");
-      outFile->Close();
-    }
-    catch(const std::runtime_error& e)
-    {
-      std::cerr << "Failed to extract a cross section for prefix " << prefix << ": " << e.what() << "\n";
-      return 4;
     }
   }
   dataFile->Close();

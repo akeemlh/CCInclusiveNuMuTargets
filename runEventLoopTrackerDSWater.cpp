@@ -386,6 +386,8 @@ int main(const int argc, const char** argv)
   preCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
   preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
   preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
+  preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
+
 
 
                                                                                                                                                    
@@ -442,10 +444,10 @@ int main(const int argc, const char** argv)
 
   std::vector<Variable2DTracker*> vars2D;
   vars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  vars.push_back(new Variable("tracker_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+  vars.push_back(new Variable("tracker_pZmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
   vars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
   vars.push_back(new Variable("tracker_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
-  vars.push_back(new Variable("tracker_bjorken", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
+  vars.push_back(new Variable("tracker_BjorkenX", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
   vars2D.push_back(new Variable2DTracker("tracker_pTmu_pZmu", *vars[1], *vars[0]));
 
   std::vector<Study*> studies;

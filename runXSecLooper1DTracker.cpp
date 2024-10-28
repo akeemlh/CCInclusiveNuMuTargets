@@ -122,7 +122,7 @@ int main(const int argc, const char** argv)
   }
  
   // Flux-integrated over the range 0.0 to 100.0 GeV
-  MinModDepCCQEXSec* ds_dpT = new MinModDepCCQEXSec("pT");
+  MinModDepCCQEXSec* ds_dpT = new MinModDepCCQEXSec("pTmu");
   ds_dpT->setBinEdges(pt_nbins, pt_edges);
   ds_dpT->setVariable(XSec::kPTLep);
   ds_dpT->setIsFluxIntegrated(true);
@@ -132,25 +132,6 @@ int main(const int argc, const char** argv)
   ds_dpT->setUniverses(0); //default value, put 0 if you do not want universes to be included.
   loop.addXSec(ds_dpT);
 
-  MinModDepCCQEXSec* ds_dpT1 = new MinModDepCCQEXSec("pT1");
-  ds_dpT1->setBinEdges(pt_nbins, pt_edges);
-  ds_dpT1->setVariable(XSec::kPTLep);
-  ds_dpT1->setIsFluxIntegrated(true);
-  ds_dpT1->setDimension(1);
-  ds_dpT1->setFluxIntLimits(2, 50.0);
-  ds_dpT1->setNormalizationType(XSec::kPerNucleon);  
-  ds_dpT1->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  loop.addXSec(ds_dpT1);
-
-  MinModDepCCQEXSec* ds_dpT2 = new MinModDepCCQEXSec("pT2");
-  ds_dpT2->setBinEdges(pt_nbins, pt_edges);
-  ds_dpT2->setVariable(XSec::kPTLep);
-  ds_dpT2->setIsFluxIntegrated(true);
-  ds_dpT2->setDimension(1);
-  ds_dpT2->setFluxIntLimits(2, 100.0);
-  ds_dpT2->setNormalizationType(XSec::kPerNucleon);  
-  ds_dpT2->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  loop.addXSec(ds_dpT2);
 
   MinModDepCCQEXSec* ds_dpZ = new MinModDepCCQEXSec("pZ");
   ds_dpZ->setBinEdges(pz_nbins, pz_edges);

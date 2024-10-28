@@ -35,13 +35,13 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       {
         //For each target set the categorised sets of histograms to store the US MC sideband distrubtions
         m_sidebandHistSetUSMC.insert({target.first, 
-              new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + target.second + std::string("_US_sideband")).c_str(),
+              new util::Categorized<Hist, int>((GetName() + std::string("_") + target.second + std::string("_US_sideband")).c_str(),
               GetName().c_str(), util::SidebandCategories,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
         //For each target set the categorised sets of histograms to store the DS MC sideband distrubtions
         m_sidebandHistSetDSMC.insert({target.first, 
-              new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + target.second + std::string("_DS_sideband")).c_str(),
+              new util::Categorized<Hist, int>((GetName() + std::string("_") + target.second + std::string("_DS_sideband")).c_str(),
               GetName().c_str(), util::SidebandCategories,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
@@ -51,14 +51,14 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       {
         //For each target set the histogram to store the interaction channel
         m_intChannelsByTgtCode.insert({tgtCode.first, 
-              new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + tgtCode.second).c_str(),
+              new util::Categorized<Hist, int>((GetName() + std::string("_") + tgtCode.second).c_str(),
               GetName().c_str(), util::GENIELabels,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });
 
         //For each target set the histogram to store the backgrounds
         m_bkgsByTgtCode.insert({tgtCode.first, 
-              new util::Categorized<Hist, int>((GetName() + std::string("_tgt") + tgtCode.second).c_str(),
+              new util::Categorized<Hist, int>((GetName() + std::string("_") + tgtCode.second).c_str(),
               GetName().c_str(), util::BKGLabels,
               GetBinVecX(), GetBinVecY(), mc_error_bands)
           });

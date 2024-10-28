@@ -93,19 +93,21 @@ add_executable(runEventLoopFullDet runEventLoopFullDet.cpp)
 target_link_libraries(runEventLoopFullDet ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopFullDet DESTINATION bin)
 
-add_executable(ExtractCrossSection ExtractCrossSection.cpp)
-target_link_libraries(ExtractCrossSection ${ROOT_LIBRARIES} util MAT UnfoldUtils)
-install(TARGETS ExtractCrossSection DESTINATION bin)
-
 add_executable(Extract1DCrossSectionTargets Extract1DCrossSectionTargets.cpp)
 target_link_libraries(Extract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTargets DESTINATION bin)
 
+add_executable(Extract1DCrossSectionTargets_ByTarget Extract1DCrossSectionTargets_ByTarget.cpp)
+target_link_libraries(Extract1DCrossSectionTargets_ByTarget ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTargets_ByTarget DESTINATION bin)
 
-add_executable(TempExtract1DCrossSectionTargets TempExtract1DCrossSectionTargets.cpp)
-target_link_libraries(TempExtract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
-install(TARGETS TempExtract1DCrossSectionTargets DESTINATION bin)
+add_executable(Extract1DCrossSectionTargets_ByMaterial Extract1DCrossSectionTargets_ByMaterial.cpp)
+target_link_libraries(Extract1DCrossSectionTargets_ByMaterial ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTargets_ByMaterial DESTINATION bin)
 
+add_executable(Extract1DCrossSectionTargets_PseudoTargetsSummed Extract1DCrossSectionTargets_PseudoTargetsSummed.cpp)
+target_link_libraries(Extract1DCrossSectionTargets_PseudoTargetsSummed ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTargets_PseudoTargetsSummed DESTINATION bin)
 
 add_executable(Extract1DCrossSectionTracker Extract1DCrossSectionTracker.cpp)
 target_link_libraries(Extract1DCrossSectionTracker ${ROOT_LIBRARIES} util MAT UnfoldUtils)
@@ -127,8 +129,6 @@ install(TARGETS runXSecLooper1DTracker DESTINATION bin)
 install(FILES backgroundStack.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
 install(FILES runTransWarp.sh PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
-
-install(FILES histMerge.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
 configure_file(setup.sh.in setup_${PROJECT_NAME}.sh @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/setup_${PROJECT_NAME}.sh DESTINATION bin)

@@ -693,10 +693,10 @@ int main(const int argc, const char** argv)
   std::vector<Variable2DNuke*> nukeVars2D;
 
   nukeVars.push_back(new Variable1DNuke("nuke_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  nukeVars.push_back(new Variable1DNuke("nuke_pzmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+  nukeVars.push_back(new Variable1DNuke("nuke_pZmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
   nukeVars.push_back(new Variable1DNuke("nuke_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
   nukeVars.push_back(new Variable1DNuke("nuke_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
-  nukeVars.push_back(new Variable1DNuke("nuke_bjorken", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
+  nukeVars.push_back(new Variable1DNuke("nuke_BjorkenX", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
   nukeVars2D.push_back(new Variable2DNuke("nuke_pTmu_pZmu", *nukeVars[1], *nukeVars[0]));
 
   std::vector<Study*> studies;
@@ -768,72 +768,72 @@ int main(const int argc, const char** argv)
       {
         int tgtZ = code%1000;
         int tgtID = (code-tgtZ)/1000;
-        auto nNucleons = new TParameter<double>((var->GetName() + "_target"+std::to_string(code)+"_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( tgtID, tgtZ, true));
+        auto nNucleons = new TParameter<double>((var->GetName() + "_"+std::to_string(code)+"_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( tgtID, tgtZ, true));
         nNucleons->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].hist)->Write((var->GetName()+ "_target"+std::to_string(code) + "_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].hist)->Write((var->GetName()+ "_Target"+std::to_string(code) + "_reweightedflux_integrated").c_str());
 
       }
       //For water
-      auto nNucleons = new TParameter<double>((var->GetName() + "_targetWater_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( 6, 1, true));
+      auto nNucleons = new TParameter<double>((var->GetName() + "_Water_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( 6, 1, true));
       nNucleons->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[-999].hist)->Write((var->GetName()+ "_targetWater_reweightedflux_integrated").c_str());
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[-999].hist)->Write((var->GetName()+ "_TargetWater_reweightedflux_integrated").c_str());
 
 
       //For Pseudotargets
       if (PseudoTargetBuffer)
       {
         //Target 7
-        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 7, true));
+        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 7, true));
         nNucleonsTgt7->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_TargetTarget7_reweightedflux_integrated").c_str());
         //Target 8
-        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
         nNucleonsTgt8->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_TargetTarget8_reweightedflux_integrated").c_str());
         //Target 9
-        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
         nNucleonsTgt9->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_TargetTarget9_reweightedflux_integrated").c_str());
         //Target 10
-        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
         nNucleonsTgt10->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_TargetTarget10_reweightedflux_integrated").c_str());
         //Target 11
-        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
+        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 6, true));
         nNucleonsTgt11->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_TargetTarget11_reweightedflux_integrated").c_str());
         //Target 12
-        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 2, true));
+        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 2, true));
         nNucleonsTgt12->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target12_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_TargetTarget12_reweightedflux_integrated").c_str());
 
       }
       else
       {
         //Target 7
-        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_target7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        auto nNucleonsTgt7 = new TParameter<double>((var->GetName() + "_7_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
         nNucleonsTgt7->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_target7_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[7].hist)->Write((var->GetName()+ "_TargetTarget7_reweightedflux_integrated").c_str());
         //Target 8
-        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_target8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        auto nNucleonsTgt8 = new TParameter<double>((var->GetName() + "_8_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
         nNucleonsTgt8->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_target8_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[8].hist)->Write((var->GetName()+ "_TargetTarget8_reweightedflux_integrated").c_str());
         //Target 9
-        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_target9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        auto nNucleonsTgt9 = new TParameter<double>((var->GetName() + "_9_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
         nNucleonsTgt9->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_target9_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[9].hist)->Write((var->GetName()+ "_TargetTarget9_reweightedflux_integrated").c_str());
         //Target 10
-        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_target10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        auto nNucleonsTgt10 = new TParameter<double>((var->GetName() + "_10_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
         nNucleonsTgt10->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_target10_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[10].hist)->Write((var->GetName()+ "_TargetTarget10_reweightedflux_integrated").c_str());
         //Target 11
-        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_target11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
+        auto nNucleonsTgt11 = new TParameter<double>((var->GetName() + "_11_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 8, true));
         nNucleonsTgt11->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_target11_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[11].hist)->Write((var->GetName()+ "_TargetTarget11_reweightedflux_integrated").c_str());
         //Target 12
-        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_target12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 4, true));
+        auto nNucleonsTgt12 = new TParameter<double>((var->GetName() + "_12_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons( 4, true));
         nNucleonsTgt12->Write();
-        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_target12_reweightedflux_integrated").c_str());
+        util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[12].hist)->Write((var->GetName()+ "_TargetTarget12_reweightedflux_integrated").c_str());
 
       }
 
