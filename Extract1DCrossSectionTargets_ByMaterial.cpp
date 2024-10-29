@@ -222,7 +222,7 @@ int main(const int argc, const char** argv)
           std::string tgt = targets[c];
           if (c == 0)
           {
-            flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Target")+tgt+std::string("_reweightedflux_integrated")), prefix);
+            flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix);
             folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix);
             migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix);
             effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix);
@@ -230,7 +230,7 @@ int main(const int argc, const char** argv)
           }
           else
           {
-            flux->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Target")+tgt+std::string("_reweightedflux_integrated")), prefix));
+            flux->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix));
             folded->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix));
             migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix));
             effNum->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix));
@@ -242,7 +242,7 @@ int main(const int argc, const char** argv)
           backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Sign_Bkg"), prefix));
           backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_NC_Bkg"), prefix));
         }
-        flux->Scale(1.0/numMergedPlaylists);
+        flux->Scale(1.0/numMergedPlaylists); //Only possible if the integrated flux is constant between playlists 
 
 
         auto simEventRate = effDenom->Clone(); //Make a copy for later
