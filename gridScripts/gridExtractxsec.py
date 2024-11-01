@@ -1,5 +1,4 @@
 import os
-
 memmap = {"Tracker":5000, "Targets":5000}
 lifetime = 24 #hours
 outdir_logs = ""
@@ -69,7 +68,7 @@ for runType in sets:
         my_wrapper.write("echo Copying files back to persistent - DONE\n")
         my_wrapper.write("echo SUCCESS\n")
         my_wrapper.close()
-        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB  -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/%s/%s-runEventLoopDataTracker.root -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/%s/%s-runEventLoopMCTracker.root -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s" % ( lifetime, memory, inputdir, playlist, inputdir, playlist ,wrapper_name )    
+        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/%s/%s-runEventLoopDataTracker.root -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/%s/%s-runEventLoopMCTracker.root -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s" % ( lifetime, memory, inputdir, playlist, inputdir, playlist ,wrapper_name )    
         print(cmd)
         os.system(cmd)
         print("Done")
