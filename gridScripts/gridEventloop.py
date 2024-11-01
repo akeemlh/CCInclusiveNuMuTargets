@@ -10,6 +10,8 @@ outdir_logs = ""
 #dirname  = "output18July0"
 dirname = "output28Oct_2"
 
+playlistDir = "/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists"
+
 #Tarring MAT opts folder
 cmd = "tar -cvzf /exp/minerva/app/users/alhart/opt.tar.gz -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ ."
 os.system(cmd)
@@ -34,7 +36,7 @@ for runType in sets:
     for playlist in playlists:
         # Create wrapper
         wrapper_name = "wrapper-"+runType+playlist+".sh"
-        wrapper_path = "/nashome/a/alhart/gripWrappers/"+wrapper_name
+        wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
         my_wrapper = open(wrapper_path,"w")
         my_wrapper.write("#!/bin/bash\n")
         my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
@@ -63,7 +65,7 @@ for runType in sets:
         my_wrapper.write("echo Copying files back to persistent - DONE\n")
         my_wrapper.write("echo SUCCESS\n")
         my_wrapper.close()
-        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB  -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/me-playlists/Data/%s-Data.txt -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/me-playlists/MC/%s-MC.txt -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s/%s" % ( lifetime, memory, playlist, playlist, os.environ["PWD"] ,wrapper_name )    
+        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB  -f %s/Data/%s-Data.txt -f %s/MC/%s-MC.txt -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s" % ( lifetime, memory, playlistDir, playlist, playlistDir, playlist ,wrapper_path )    
         print(cmd)
         os.system(cmd)
         if os.path.exists(wrapper_path):
