@@ -140,89 +140,93 @@ int main(const int argc, const char** argv)
 
   TH1::AddDirectory(kFALSE); //Needed so that MnvH1D gets to clean up its own MnvLatErrorBands (which are TH1Ds).
 
-  if(argc != 4 && argc != 5 )
+  if(argc < 5 )
   {
-    std::cerr << "Expected 3 or 4 arguments, but I got " << argc-1 << ".\n"
-              << "USAGE: ExtractCrossSection <unfolding iterations> <data.root> <mc.root> <OPTIONAL:numPlaylists>\n"
-              << "Where <numPlaylists> is the number of playlists merged to make <data.root> and <mc.root>. If empty, it will be assumed to be 1.\n";
+    std::cerr << "Expected 4 or more arguments, but I got " << argc-1 << ".\n"
+              << "USAGE: ExtractCrossSection <unfolding iterations> <data_directory> <mc_directory> <playlists>\n"
+              << "EG: ExtractCrossSection 5 /data/files/here/ /mc/files/here/ 1A 1B 1C\n";
     return 1;
   }
+  int numMergedPlaylists = argc - 4;
 
-  int numMergedPlaylists = 1;
   const int nIterations = std::stoi(argv[1]);
-  auto dataFile = TFile::Open(argv[2], "READ");
-  if(!dataFile)
-  {
-    std::cerr << "Failed to open data file " << argv[2] << ".\n";
-    return 2;
-  }
 
-  auto mcFile = TFile::Open(argv[3], "READ");
-  if(!mcFile)
-  {
-    std::cerr << "Failed to open MC file " << argv[3] << ".\n";
-    return 3;
-  }
-  if (argc == 5)
-  {
-    numMergedPlaylists = std::stoi(argv[4]);
-  }
+  std::vector<std::string> crossSectionPrefixes = {"tracker_pTmu", "tracker_pZmu", "tracker_BjorkenX", "tracker_Erecoil", "tracker_Emu"};
 
-  std::vector<std::string> crossSectionPrefixes;
-  for(auto key: *dataFile->GetListOfKeys())
-  {
-    const std::string keyName = key->GetName();
-    if (keyName == "POTUsed") continue;
-    std::cout << "keyName " << keyName <<std::endl;
-    const size_t endOfPrefix = keyName.find("_data");
-    std::string prefix = keyName.substr(0, endOfPrefix);
-    std::cout << "prefix " << prefix <<std::endl;
-    //This counts the number of '_' in the prefix, which should match the dimension, eg 2D would be nuke_pTmu_pZmu, which has 2 underscores
-    bool twoDimension = (keyName == "_data_tracker_pTmu_pZmu");
-
-    bool alreadyInVector = std::find(crossSectionPrefixes.begin(), crossSectionPrefixes.end(), prefix) != crossSectionPrefixes.end();
-    std::cout << "twoDimension " << twoDimension <<std::endl;
-    std::cout << "alreadyInVector " << alreadyInVector <<std::endl;
-    if(endOfPrefix != std::string::npos && !alreadyInVector && !twoDimension) crossSectionPrefixes.push_back(prefix);
-  }
-
-  const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
-               dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-  std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+  double mcPOT = 0;
+  double dataPOT = 0;
+  //std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
   for(const auto& prefix: crossSectionPrefixes)
   {
     try
     {
-      std::cout<< "Current working on prefix: " << prefix << std::endl;
-      auto flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
-      flux->Scale(1.0/numMergedPlaylists);
-      auto folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix);
-      Plot(*folded, "data", prefix);
-      auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix);
-      auto effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix);
-      auto effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix);
-      auto simEventRate = effDenom->Clone(); //Make a copy for later
-
-      const auto fiducialFound = std::find_if(mcFile->GetListOfKeys()->begin(), mcFile->GetListOfKeys()->end(),
-                                              [&prefix](const auto key)
-                                              {
-                                                const std::string keyName = key->GetName();
-                                                const size_t fiducialEnd = keyName.find("_fiducial_nucleons");
-                                                return (fiducialEnd != std::string::npos) && (prefix.find(keyName.substr(0, fiducialEnd)) != std::string::npos);
-                                              });
-      if(fiducialFound == mcFile->GetListOfKeys()->end()) throw std::runtime_error("Failed to find a number of nucleons that matches prefix " + prefix);
-
-      auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (*fiducialFound)->GetName()); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-
-      //Look for backgrounds with <prefix>_<analysis>_Background_<name>
+      
+      PlotUtils::MnvH1D *flux, *folded, *effNum, *effDenom;
+      PlotUtils::MnvH2D* migration;
       std::vector<PlotUtils::MnvH1D*> backgrounds;
-      for(auto key: *mcFile->GetListOfKeys())
+      double nNucleonsVal = 0;
+
+      for (int n = 0; n < numMergedPlaylists; n++)
       {
-        if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
+        std::string dataFileName = std::string(argv[2]) + "/" + std::string(argv[4+n])+"-runEventLoopDataTracker.root";
+        std::string mcFileName = std::string(argv[3]) + "/" + std::string(argv[4+n])+"-runEventLoopMCTracker.root";
+        auto dataFile = TFile::Open(dataFileName.c_str(), "READ");
+        if(!dataFile)
         {
-          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
+          std::cerr << "Failed to open data file " << dataFileName << ".\n";
+          return 2;
         }
+
+        auto mcFile = TFile::Open(mcFileName.c_str(), "READ");
+        if(!mcFile)
+        {
+          std::cerr << "Failed to open MC file " << mcFileName << ".\n";
+          return 3;
+        }
+
+        double fileMCPOT= util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+        double fileDataPOT= util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+        mcPOT += fileMCPOT;
+        dataPOT += fileDataPOT;
+        std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+
+        if ( n == 0)
+        {
+          flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
+          flux->Scale(fileMCPOT);
+          folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix);
+          migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix);
+          effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix);
+          effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix);
+        }
+        else
+        {
+          PlotUtils::MnvH1D* tempFlux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
+          tempFlux->Scale(fileMCPOT);
+          flux->Add(tempFlux);
+          folded->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix));
+          migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix));
+          effNum->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix));
+          effDenom->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix));
+        }
+        auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, ("fiducial_nucleons"), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
+        nNucleonsVal += nNucleons->GetVal();
+        for(auto key: *mcFile->GetListOfKeys())
+        {
+          if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
+          {
+            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
+          }
+        }
+        dataFile->Close();
+        mcFile->Close();
+
       }
+      flux->Scale(1.0/mcPOT); //POT Weighted average flux -- Is this the right way to do it?  
+
+      std::cout<< "Current working on prefix: " << prefix << std::endl;
+      Plot(*folded, "data", prefix);
+      auto simEventRate = effDenom->Clone(); //Make a copy for later
 
       //There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
       folded->AddMissingErrorBandsAndFillWithCV(*migration);
@@ -270,7 +274,7 @@ int main(const int argc, const char** argv)
       unfolded->Divide(unfolded, effNum);
       Plot(*unfolded, "efficiencyCorrected", prefix);
 
-      auto crossSection = normalize(unfolded, flux, nNucleons->GetVal()/numMergedPlaylists, dataPOT);
+      auto crossSection = normalize(unfolded, flux, nNucleonsVal/numMergedPlaylists, dataPOT);
       Plot(*crossSection, "crossSection", prefix);
       crossSection->Clone()->Write("crossSection");
 
@@ -279,7 +283,7 @@ int main(const int argc, const char** argv)
       //Write a "simulated cross section" to compare to the data I just extracted.
       //If this analysis passed its closure test, this should be the same cross section as
       //what GENIEXSecExtract would produce.
-      normalize(simEventRate, flux, nNucleons->GetVal()/numMergedPlaylists, mcPOT);
+      normalize(simEventRate, flux, nNucleonsVal/numMergedPlaylists, mcPOT);
       
       Plot(*simEventRate, "simulatedCrossSection", prefix);
       simEventRate->Write("simulatedCrossSection");
@@ -291,7 +295,6 @@ int main(const int argc, const char** argv)
       return 4;
     }
   }
-  dataFile->Close();
-  mcFile->Close();
+
   return 0;
 }

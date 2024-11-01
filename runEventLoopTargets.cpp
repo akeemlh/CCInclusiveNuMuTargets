@@ -783,7 +783,7 @@ int main(const int argc, const char** argv)
       {
         int tgtZ = code%1000;
         int tgtID = (code-tgtZ)/1000;
-        auto nNucleons = new TParameter<double>((var->GetName() +std::to_string(code)+"_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( tgtID, tgtZ, true));
+        auto nNucleons = new TParameter<double>((var->GetName() +"_"+std::to_string(code)+"_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( tgtID, tgtZ, true));
         nNucleons->Write();
         util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].hist)->Write((var->GetName()+ "_"+std::to_string(code) + "_reweightedflux_integrated").c_str());
 

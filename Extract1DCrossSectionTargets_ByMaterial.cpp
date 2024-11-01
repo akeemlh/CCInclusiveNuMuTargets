@@ -141,34 +141,16 @@ int main(const int argc, const char** argv)
 
   TH1::AddDirectory(kFALSE); //Needed so that MnvH1D gets to clean up its own MnvLatErrorBands (which are TH1Ds).
 
-  if(argc != 4 && argc != 5 )
+  if(argc < 5 )
   {
-    std::cerr << "Expected 3 or 4 arguments, but I got " << argc-1 << ".\n"
-              << "USAGE: ExtractCrossSection <unfolding iterations> <data.root> <mc.root> <OPTIONAL:numPlaylists>\n"
-              << "Where <numPlaylists> is the number of playlists merged to make <data.root> and <mc.root>. If empty, it will be assumed to be 1.\n";
+    std::cerr << "Expected 4 or more arguments, but I got " << argc-1 << ".\n"
+              << "USAGE: ExtractCrossSection <unfolding iterations> <data_directory> <mc_directory> <playlists>\n"
+              << "EG: ExtractCrossSection 5 /data/files/here/ /mc/files/here/ 1A 1B 1C\n";
     return 1;
   }
-  int numMergedPlaylists = 1;
+  int numMergedPlaylists = argc - 4;
 
   const int nIterations = std::stoi(argv[1]);
-  auto dataFile = TFile::Open(argv[2], "READ");
-  if(!dataFile)
-  {
-    std::cerr << "Failed to open data file " << argv[2] << ".\n";
-    return 2;
-  }
-
-  auto mcFile = TFile::Open(argv[3], "READ");
-  if(!mcFile)
-  {
-    std::cerr << "Failed to open MC file " << argv[3] << ".\n";
-    return 3;
-  }
-
-  if (argc == 5)
-  {
-    numMergedPlaylists = std::stoi(argv[4]);
-  }
 
   std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu", "nuke_pZmu", "nuke_BjorkenX", "nuke_Erecoil", "nuke_Emu"};
 
@@ -199,9 +181,8 @@ int main(const int argc, const char** argv)
     std::cout << "alreadyInVector " << alreadyInVector <<std::endl;
     if(endOfPrefix != std::string::npos && !alreadyInVector && !twoDimension) crossSectionPrefixes.push_back(prefix);
   } */
-  const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
-               dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-  std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+  double mcPOT = 0;
+  double dataPOT = 0;
   for(const auto& prefix: crossSectionPrefixes)
   {
     std::cout<< "Current working on prefix: " << prefix << std::endl;
@@ -220,30 +201,62 @@ int main(const int argc, const char** argv)
         for (int c = 0; c < targets.size(); c++)
         {
           std::string tgt = targets[c];
-          if (c == 0)
-          {
-            flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix);
-            folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix);
-            migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix);
-            effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix);
-            effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_")+tgt), prefix);
-          }
-          else
-          {
-            flux->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix));
-            folded->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix));
-            migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix));
-            effNum->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix));
-            effDenom->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_")+tgt), prefix));
-          }
-          auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (tgt+std::string("_fiducial_nucleons")), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-          nNucleonsVal += nNucleons->GetVal();
-          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Material_Bkg"), prefix));
-          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Sign_Bkg"), prefix));
-          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_NC_Bkg"), prefix));
-        }
-        flux->Scale(1.0/numMergedPlaylists); //Only possible if the integrated flux is constant between playlists 
 
+          for (int n = 0; n < numMergedPlaylists; n++)
+          {
+            std::string dataFileName = std::string(argv[2]) + "/" + std::string(argv[4+n])+"-runEventLoopDataTargets.root";
+            std::string mcFileName = std::string(argv[3]) + "/" + std::string(argv[4+n])+"-runEventLoopMCTargets.root";
+            auto dataFile = TFile::Open(dataFileName.c_str(), "READ");
+            if(!dataFile)
+            {
+              std::cerr << "Failed to open data file " << dataFileName << ".\n";
+              return 2;
+            }
+
+            auto mcFile = TFile::Open(mcFileName.c_str(), "READ");
+            if(!mcFile)
+            {
+              std::cerr << "Failed to open MC file " << mcFileName << ".\n";
+              return 3;
+            }
+
+            double fileMCPOT= util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+            double fileDataPOT= util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+            mcPOT += fileMCPOT;
+            dataPOT += fileDataPOT;
+            std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+
+            if (c == 0 && n == 0)
+            {
+              flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix);
+              flux->Scale(fileMCPOT);
+              folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix);
+              migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix);
+              effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix);
+              effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_")+tgt), prefix);
+            }
+            else
+            {
+              PlotUtils::MnvH1D* tempFlux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix);
+              tempFlux->Scale(fileMCPOT);
+              flux->Add(tempFlux);
+              folded->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix));
+              migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration_")+tgt), prefix));
+              effNum->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator_")+tgt), prefix));
+              effDenom->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_")+tgt), prefix));
+            }
+            auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (tgt+std::string("_fiducial_nucleons")), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
+            nNucleonsVal += nNucleons->GetVal();
+            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Material_Bkg"), prefix));
+            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Sign_Bkg"), prefix));
+            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_NC_Bkg"), prefix));
+
+            dataFile->Close();
+            mcFile->Close();
+
+          }
+        }
+        flux->Scale(1.0/mcPOT); //POT Weighted average flux -- Is this the right way to do it?  
 
         auto simEventRate = effDenom->Clone(); //Make a copy for later
         //There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
@@ -327,7 +340,5 @@ int main(const int argc, const char** argv)
 
     }
   }
-  dataFile->Close();
-  mcFile->Close();
   return 0;
 }
