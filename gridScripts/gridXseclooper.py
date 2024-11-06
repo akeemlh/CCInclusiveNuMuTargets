@@ -3,7 +3,7 @@ memmap = {"Tracker":5000, "Targets":5000}
 lifetime = 24 #hours
 outdir_logs = ""
 #dirname  = "output11July0"
-dirname  = "1OctXSecs"
+dirname  = "5Nov/GENIEXSecs"
 
 playlistDir = "/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists"
 
@@ -20,9 +20,9 @@ if (os.path.isfile("/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMAT
 cmd = "cp /exp/minerva/app/users/alhart/opt.tar.gz /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz"
 os.system(cmd)
 
-#playlists = ["1A", "1B", "1C", "1D", "1E", "1F", "1G", "1L", "1M", "1N", "1O", "1P", "Test"]
+playlists = ["1A", "1B", "1C", "1D", "1E", "1F", "1G", "1L", "1M", "1N", "1O", "1P", "Test"]
 #playlists = ["Test1L", "Test1C"] #Used for rapid testing only, 1L is water filled, 1C is unfilled
-playlists = ["Test"]
+#playlists = ["Test"]
 
 #Which event loop(s) to run
 #sets=["Tracker", "Targets"]
