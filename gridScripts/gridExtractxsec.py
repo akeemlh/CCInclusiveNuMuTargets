@@ -39,7 +39,8 @@ for runType in sets:
         os.system(cmd)
         # Create wrapper
         wrapper_name = "wrapper-extractxsec-"+runType+joinedPlaylists+".sh"
-        my_wrapper = open(wrapper_name,"w")
+        wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
+        my_wrapper = open(wrapper_path,"w")
         my_wrapper.write("#!/bin/bash\n")
         my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
         my_wrapper.write("mkdir opt\n")
@@ -73,8 +74,12 @@ for runType in sets:
         for playlist in playlistBatch:
            cmd += " -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/%s/%s-runEventLoopDataTracker.root" % (inputdir, playlist)        
            cmd += " -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/%s/%s-runEventLoopMCTracker.root" % (inputdir, playlist)
-        endStr = " -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s" % ( wrapper_name )
+        endStr = " -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s" % ( wrapper_path )
         cmd+= endStr
         print(cmd)
         os.system(cmd)
+        if os.path.exists(wrapper_path):
+            os.remove(wrapper_path)
+        else:
+            print("Wrapper file not created successfully")
         print("Done")
