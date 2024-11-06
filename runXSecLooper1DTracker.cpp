@@ -142,7 +142,7 @@ int main(const int argc, const char** argv)
   ds_dpZ->setFluxIntLimits(0.0, 100.0);
   ds_dpZ->setNormalizationType(XSec::kPerNucleon);  
   ds_dpZ->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  //loop.addXSec(ds_dpZ);
+  loop.addXSec(ds_dpZ);
 
   MinModDepCCQEXSec* ds_dpEMu = new MinModDepCCQEXSec("Emu");
   ds_dpEMu->setBinEdges(eMu_nbins, eMu_edges);
@@ -152,7 +152,7 @@ int main(const int argc, const char** argv)
   ds_dpEMu->setFluxIntLimits(0.0, 100.0);
   ds_dpEMu->setNormalizationType(XSec::kPerNucleon);  
   ds_dpEMu->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  //loop.addXSec(ds_dpEMu);
+  loop.addXSec(ds_dpEMu);
 
   MinModDepCCQEXSec* ds_dpERecoil = new MinModDepCCQEXSec("Erecoil");
   ds_dpERecoil->setBinEdges(Erecoil_nbins, Erecoil_edges);
@@ -162,7 +162,7 @@ int main(const int argc, const char** argv)
   ds_dpERecoil->setFluxIntLimits(0.0, 100.0);
   ds_dpERecoil->setNormalizationType(XSec::kPerNucleon);  
   ds_dpERecoil->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  //loop.addXSec(ds_dpERecoil);
+  loop.addXSec(ds_dpERecoil);
 
   MinModDepCCQEXSec* ds_dpMeasX = new MinModDepCCQEXSec("measX");
   ds_dpMeasX->setBinEdges(bjorken_nbins, bjorken_edges);
@@ -172,7 +172,7 @@ int main(const int argc, const char** argv)
   ds_dpMeasX->setFluxIntLimits(0.0, 100.0);
   ds_dpMeasX->setNormalizationType(XSec::kPerNucleon);  
   ds_dpMeasX->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  //loop.addXSec(ds_dpMeasX);
+  loop.addXSec(ds_dpMeasX);
 
   MinModDepCCQEXSec* ds_dpX = new MinModDepCCQEXSec("BjorkenX");
   ds_dpX->setBinEdges(bjorken_nbins, bjorken_edges);
@@ -182,20 +182,18 @@ int main(const int argc, const char** argv)
   ds_dpX->setFluxIntLimits(0.0, 100.0);
   ds_dpX->setNormalizationType(XSec::kPerNucleon);  
   ds_dpX->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  //loop.addXSec(ds_dpX);
+  loop.addXSec(ds_dpX);
 
   MinModDepCCQEXSec* ds_dpTdpZ = new MinModDepCCQEXSec("pTpZ");
-  ds_dpTdpZ->setBinEdges(pt_nbins, pt_edges, pz_nbins, pz_edges);
-  ds_dpTdpZ->setVariable(XSec::kPTLep, XSec::kPZLep);
+  ds_dpTdpZ->setBinEdges(pz_nbins, pz_edges, pt_nbins, pt_edges);
+  ds_dpTdpZ->setVariable(XSec::kPZLep, XSec::kPTLep);
   ds_dpTdpZ->setIsFluxIntegrated(true);
   ds_dpTdpZ->setDimension(2);
   ds_dpTdpZ->setFluxIntLimits(0.0, 100.0);
   ds_dpTdpZ->setNormalizationType(XSec::kPerNucleon);  
   ds_dpTdpZ->setUniverses(0); //default value, put 0 if you do not want universes to be included.
-  //loop.addXSec(ds_dpTdpZ);
-  std::cout<<"Here1\n";
+  loop.addXSec(ds_dpTdpZ);
   loop.runLoop();
-  std::cout<<"Here2\n";
 
   // Get the output histograms and save them to file
   std::string geniefilename =  "GENIEXSECEXTRACT_" + playlistFile.substr(playlistFile.rfind("/")+1, playlistFile.find(".")) + ".root";
