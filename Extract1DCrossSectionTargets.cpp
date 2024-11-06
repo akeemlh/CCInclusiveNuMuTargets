@@ -255,8 +255,8 @@ int main(const int argc, const char** argv)
           std::string tgtVal;
           if (TgtCode.first>=7 && TgtCode.first <=12) tgtVal=std::to_string(TgtCode.first);
           else tgtVal=TgtCode.second;
-          if (flux==nullptr) flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "target"+tgtVal+"_reweightedflux_integrated", prefix);
-          else flux->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "target"+tgtVal+"_reweightedflux_integrated", prefix));
+          if (flux==nullptr) flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "Target"+tgtVal+"_reweightedflux_integrated", prefix);
+          else flux->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "Target"+tgtVal+"_reweightedflux_integrated", prefix));
           if (folded==nullptr) folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile,  "by_TargetCode_Data_"+TgtCode.second, prefix);
           else folded->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile,  "by_TargetCode_Data_"+TgtCode.second, prefix));
           Plot(*folded, "data", prefix, TgtCode.second);
@@ -277,8 +277,7 @@ int main(const int argc, const char** argv)
           if(fiducialFound == mcFile->GetListOfKeys()->end()) throw std::runtime_error("Failed to find a number of nucleons that matches prefix " + prefix);
           */
           //auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (*fiducialFound)->GetName()); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-          nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, "target"+tgtVal+"_fiducial_nucleons", prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-
+          nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, "Target"+tgtVal+"_fiducial_nucleons", prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
           //Look for backgrounds with <prefix>_<analysis>_Background_<name>
           /* for(auto key: *mcFile->GetListOfKeys())
           {

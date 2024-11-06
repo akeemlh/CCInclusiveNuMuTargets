@@ -141,68 +141,97 @@ int main(const int argc, const char** argv)
 
   TH1::AddDirectory(kFALSE); //Needed so that MnvH1D gets to clean up its own MnvLatErrorBands (which are TH1Ds).
 
-  if(argc != 4)
+  if(argc < 5 )
   {
-    std::cerr << "Expected 3 arguments, but I got " << argc-1 << ".\n"
-              << "USAGE: ExtractCrossSection <unfolding iterations> <data.root> <mc.root>\n";
+    std::cerr << "Expected 4 or more arguments, but I got " << argc-1 << ".\n"
+              << "USAGE: ExtractCrossSection <unfolding iterations> <data_directory> <mc_directory> <playlists>\n"
+              << "EG: ExtractCrossSection 5 /data/files/here/ /mc/files/here/ 1A 1B 1C\n";
     return 1;
   }
+  int numMergedPlaylists = argc - 4;
 
   const int nIterations = std::stoi(argv[1]);
-  auto dataFile = TFile::Open(argv[2], "READ");
-  if(!dataFile)
-  {
-    std::cerr << "Failed to open data file " << argv[2] << ".\n";
-    return 2;
-  }
 
-  auto mcFile = TFile::Open(argv[3], "READ");
-  if(!mcFile)
-  {
-    std::cerr << "Failed to open MC file " << argv[3] << ".\n";
-    return 3;
-  }
-
-  const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
-               dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-  std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
-
+  double mcPOT = 0;
+  double dataPOT = 0;
   try
   {
-    auto flux = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_reweightedflux_integrated");
-    auto folded = util::GetIngredient<PlotUtils::MnvH2D>(*dataFile, "_data_tracker_pTmu_pZmu");
-    //Plot(*folded, "data", prefix);
-    auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_migration");
-    auto reco = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_reco");
-    auto truth = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_truth");
-    auto effNum = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pzmu_tracker_pTmu_efficiency_numerator");
-    auto effDenom = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pzmu_tracker_pTmu_efficiency_denominator");
-    auto simEventRate = effDenom->Clone(); //Make a copy for later
-
-    std::string prefix = "tracker_pTmu_pZmu";
-    const auto fiducialFound = std::find_if(mcFile->GetListOfKeys()->begin(), mcFile->GetListOfKeys()->end(),
-                                            [&prefix](const auto key)
-                                            {
-                                              const std::string keyName = key->GetName();
-                                              const size_t fiducialEnd = keyName.find("_fiducial_nucleons");
-                                              return (fiducialEnd != std::string::npos) && (prefix.find(keyName.substr(0, fiducialEnd)) != std::string::npos);
-                                            });
-    if(fiducialFound == mcFile->GetListOfKeys()->end()) throw std::runtime_error("Failed to find a number of nucleons that matches prefix " + prefix);
-
-
-
-    auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (*fiducialFound)->GetName()); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-
-    //Look for backgrounds with <prefix>_<analysis>_Background_<name>
+    PlotUtils::MnvH2D *flux, *folded, *effNum, *effDenom, *migration, *reco, *truth;
     std::vector<PlotUtils::MnvH2D*> backgrounds;
-    for(auto key: *mcFile->GetListOfKeys())
-    {
-      if(std::string(key->GetName()).find("tracker_pTmu_pZmu_by_BKG_Label_") != std::string::npos)
-      {
-        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, key->GetName()));
-      }
-    }
+    double nNucleonsVal = 0;
 
+    for (int n = 0; n < numMergedPlaylists; n++)
+    {
+      std::string dataFileName = std::string(argv[2]) + "/" + std::string(argv[4+n])+"-runEventLoopDataTracker.root";
+      std::string mcFileName = std::string(argv[3]) + "/" + std::string(argv[4+n])+"-runEventLoopMCTracker.root";
+      auto dataFile = TFile::Open(dataFileName.c_str(), "READ");
+      if(!dataFile)
+      {
+        std::cerr << "Failed to open data file " << dataFileName << ".\n";
+        return 2;
+      }
+
+      auto mcFile = TFile::Open(mcFileName.c_str(), "READ");
+      if(!mcFile)
+      {
+        std::cerr << "Failed to open MC file " << mcFileName << ".\n";
+        return 3;
+      }
+
+      double fileMCPOT= util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+      double fileDataPOT= util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+      mcPOT += fileMCPOT;
+      dataPOT += fileDataPOT;
+
+      if ( n == 0)
+      {
+        flux = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_reweightedflux_integrated");
+        flux->Scale(fileMCPOT);
+        folded = util::GetIngredient<PlotUtils::MnvH2D>(*dataFile, "_data_tracker_pTmu_pZmu");
+        migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_migration");
+        std::cout<<"Here1\n";
+        effDenom = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pZmu_tracker_pTmu_efficiency_denominator");
+        effNum = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pZmu_tracker_pTmu_efficiency_numerator");
+        std::cout<<"Here2\n";
+        reco = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_reco");
+        truth = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_truth");
+      }
+      else
+      {
+        PlotUtils::MnvH2D* tempFlux = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_reweightedflux_integrated");
+        tempFlux->Scale(fileMCPOT);
+        flux->Add(tempFlux);
+        folded->Add(util::GetIngredient<PlotUtils::MnvH2D>(*dataFile, "_data_tracker_pTmu_pZmu"));
+        migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_migration"));
+        std::cout<<"Here3\n";
+        effNum->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pZmu_tracker_pTmu_efficiency_numerator"));
+        effDenom->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pZmu_tracker_pTmu_efficiency_denominator"));
+        std::cout<<"Here4\n";
+        reco->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_reco"));
+        truth->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "tracker_pTmu_pZmu_migration_truth"));
+      }
+
+      std::cout<<"Here5\n";
+      auto simEventRate = effDenom->Clone(); //Make a copy for later
+
+      auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, "tracker_pTmu_pZmu_fiducial_nucleons"); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
+      nNucleonsVal += nNucleons->GetVal();
+      //Look for backgrounds with <prefix>_<analysis>_Background_<name>
+      for(auto key: *mcFile->GetListOfKeys())
+      {
+        if(std::string(key->GetName()).find("tracker_pTmu_pZmu_by_BKG_Label_") != std::string::npos)
+        {
+          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, key->GetName()));
+        }
+      }
+
+      dataFile->Close();
+      mcFile->Close();
+
+    }
+    flux->Scale(1.0/mcPOT); //POT Weighted average flux -- Is this the right way to do it?  
+
+    auto simEventRate = effDenom->Clone(); //Make a copy for later
     //There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
     folded->AddMissingErrorBandsAndFillWithCV(*migration);
 
@@ -226,10 +255,10 @@ int main(const int argc, const char** argv)
                                           });
     //Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
 
-    auto outFile = TFile::Open(std::string("ptpz_crossSection.root").c_str(), "CREATE");
+    auto outFile = TFile::Open(std::string("tracker_ptpz_crossSection.root").c_str(), "CREATE");
     if(!outFile)
     {
-      std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
+      std::cerr << "Could not create a file called tracker_ptpz_crossSection.root  Does it already exist?\n";
       return 5;
     }
 
@@ -249,7 +278,7 @@ int main(const int argc, const char** argv)
     unfolded->Divide(unfolded, effNum);
     //Plot(*unfolded, "efficiencyCorrected", prefix);
 
-    auto crossSection = normalize(unfolded, flux, nNucleons->GetVal(), dataPOT);
+    auto crossSection = normalize(unfolded, flux, nNucleonsVal, dataPOT);
     //Plot(*crossSection, "crossSection", prefix);
     crossSection->Clone()->Write("crossSection");
 
@@ -258,7 +287,7 @@ int main(const int argc, const char** argv)
     //Write a "simulated cross section" to compare to the data I just extracted.
     //If this analysis passed its closure test, this should be the same cross section as
     //what GENIEXSecExtract would produce.
-    normalize(simEventRate, flux, nNucleons->GetVal(), mcPOT);
+    normalize(simEventRate, flux, nNucleonsVal, mcPOT);
     
     //Plot(*simEventRate, "simulatedCrossSection", prefix);
     simEventRate->Write("simulatedCrossSection");
@@ -269,7 +298,5 @@ int main(const int argc, const char** argv)
     std::cerr << "Failed to extract a 2D ptmu-pzmu cross section : " << e.what() << "\n";
     return 4;
   }
-  dataFile->Close();
-  mcFile->Close();
   return 0;
 }

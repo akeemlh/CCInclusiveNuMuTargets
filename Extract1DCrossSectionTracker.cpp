@@ -151,13 +151,14 @@ int main(const int argc, const char** argv)
 
   const int nIterations = std::stoi(argv[1]);
 
-  std::vector<std::string> crossSectionPrefixes = {"tracker_pTmu", "tracker_pZmu", "tracker_BjorkenX", "tracker_Erecoil", "tracker_Emu"};
+  std::vector<std::string> variables = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
 
   double mcPOT = 0;
   double dataPOT = 0;
   //std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
-  for(const auto& prefix: crossSectionPrefixes)
+  for(const auto& var: variables)
   {
+    std::string prefix = "tracker_" + var;
     try
     {
       
@@ -225,7 +226,7 @@ int main(const int argc, const char** argv)
       flux->Scale(1.0/mcPOT); //POT Weighted average flux -- Is this the right way to do it?  
 
       std::cout<< "Current working on prefix: " << prefix << std::endl;
-      Plot(*folded, "data", prefix);
+      //Plot(*folded, "data", prefix);
       auto simEventRate = effDenom->Clone(); //Make a copy for later
 
       //There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
@@ -240,7 +241,7 @@ int main(const int argc, const char** argv)
                                           sum->Add(hist);
                                           return sum;
                                         });
-      Plot(*toSubtract, "BackgroundSum", prefix);
+      //Plot(*toSubtract, "BackgroundSum", prefix);
 
       auto bkgSubtracted = std::accumulate(backgrounds.begin(), backgrounds.end(), folded->Clone(),
                                            [mcPOT, dataPOT](auto sum, const auto hist)
@@ -249,44 +250,44 @@ int main(const int argc, const char** argv)
                                              sum->Add(hist, -dataPOT/mcPOT);
                                              return sum;
                                            });
-      Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
+      //Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
 
-      auto outFile = TFile::Open((prefix + "_crossSection.root").c_str(), "CREATE");
+      auto outFile = TFile::Open("ExtractedCrossSection.root", "UPDATE");
       if(!outFile)
       {
-        std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
+        std::cerr << "Could not create a file called ExtractedCrossSection.root\n";
         return 5;
       }
 
-      bkgSubtracted->Write("backgroundSubtracted");
+      bkgSubtracted->Write((var+"_backgroundSubtracted").c_str());
 
       //d'Aogstini unfolding
       auto unfolded = UnfoldHist(bkgSubtracted, migration, nIterations);
       if(!unfolded) throw std::runtime_error(std::string("Failed to unfold ") + folded->GetName() + " using " + migration->GetName());
-      Plot(*unfolded, "unfolded", prefix);
-      unfolded->Clone()->Write("unfolded"); //TODO: Seg fault first appears when I uncomment this line
+      //Plot(*unfolded, "unfolded", prefix);
+      unfolded->Clone()->Write((var+"_unfolded").c_str()); //TODO: Seg fault first appears when I uncomment this line
       std::cout << "Survived writing the unfolded histogram.\n" << std::flush; //This is evidence that the problem is on the final file Write() and not unfolded->Clone()->Write().
 
       effNum->Divide(effNum, effDenom); //Only the 2 parameter version of MnvH1D::Divide()
                                         //handles systematics correctly.
-      Plot(*effNum, "efficiency", prefix);
+      //Plot(*effNum, "efficiency", prefix);
 
       unfolded->Divide(unfolded, effNum);
       Plot(*unfolded, "efficiencyCorrected", prefix);
 
       auto crossSection = normalize(unfolded, flux, nNucleonsVal/numMergedPlaylists, dataPOT);
-      Plot(*crossSection, "crossSection", prefix);
-      crossSection->Clone()->Write("crossSection");
+      //Plot(*crossSection, "crossSection", prefix);
+      crossSection->Clone()->Write((var+"_crossSection").c_str());
 
-      simEventRate->Write("simulatedEventRate");
-      flux->Write("flux_reweighted");
+      simEventRate->Write((var+"_simulatedEventRate").c_str());
+      flux->Write((var+"_flux_reweighted").c_str());
       //Write a "simulated cross section" to compare to the data I just extracted.
       //If this analysis passed its closure test, this should be the same cross section as
       //what GENIEXSecExtract would produce.
       normalize(simEventRate, flux, nNucleonsVal/numMergedPlaylists, mcPOT);
       
-      Plot(*simEventRate, "simulatedCrossSection", prefix);
-      simEventRate->Write("simulatedCrossSection");
+      //Plot(*simEventRate, "simulatedCrossSection", prefix);
+      simEventRate->Write((var+"_simulatedCrossSection").c_str());
       outFile->Close();
     }
     catch(const std::runtime_error& e)
