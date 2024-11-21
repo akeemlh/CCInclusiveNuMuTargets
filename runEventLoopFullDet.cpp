@@ -348,7 +348,7 @@ void LoopAndFillEventSelection(
     //Performing vtx validation check Deborah suggested
     //if(cvUniv->hasMLPred() && cvUniv->GetANNProb()>0.2)
     double batchPOT = cvUniv->GetBatchPOT();
-    double efficiency = 0.7953 - (0.01951*batchPOT); //Based on MINERvA-doc-21436
+    double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
     
     //std::cout<<"batchPOT: " << batchPOT << std::endl;
     //std::cout<<"efficiency: " << efficiency << std::endl;
