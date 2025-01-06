@@ -89,9 +89,9 @@ add_executable(runEventLoopTrackerUSWater runEventLoopTrackerUSWater.cpp)
 target_link_libraries(runEventLoopTrackerUSWater ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopTrackerUSWater DESTINATION bin)
 
-add_executable(runEventLoopFullDet runEventLoopFullDet.cpp)
-target_link_libraries(runEventLoopFullDet ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
-install(TARGETS runEventLoopFullDet DESTINATION bin)
+add_executable(runEventLoopValidations runEventLoopValidations.cpp)
+target_link_libraries(runEventLoopValidations ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+install(TARGETS runEventLoopValidations DESTINATION bin)
 
 add_executable(Extract1DCrossSectionTargets Extract1DCrossSectionTargets.cpp)
 target_link_libraries(Extract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)

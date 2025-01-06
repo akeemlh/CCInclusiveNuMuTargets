@@ -1,5 +1,21 @@
-#define MC_OUT_FILE_NAME "runEventLoopFullDetMC.root"
-#define DATA_OUT_FILE_NAME "runEventLoopFullDetData.root"
+#define MC_OUT_FILE_NAME "runEventLoopValidationsMC.root"
+#define DATA_OUT_FILE_NAME "runEventLoopValidationsData.root"
+
+/* 
+To whoever stumbles across this in the future:
+
+This was intially intended to be a one-file-contains-all special event loop just to
+produce validation plots or, more specifically, plots that aren't directly utilised
+in extracting a cross section but are important to check or investigate something.
+
+It has the same cuts and signal definition as the cross section event loops but this 
+allows me to keep those event loops, which I run more often, less bloated so they run
+faster, are easier to maintain/modify and have a lower memory footprint when running,
+so I can make lower grid memory requests and get higher priority.
+
+Consequently, because this event loop is where I just throw *everything* that isn't
+fed into the cross section pipeline, it's possible that it may in the future become
+bloated and require fragmentation. */
 
 #define USAGE \
 "\n*** USAGE ***\n"\
@@ -88,12 +104,52 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 
+//Hadron Energy Specta
+//TH1D *EAvail = new TH1D ("EAvail", "EAvail", 1000, 0, 100);
+TH1D *ERecoil = new TH1D ("ERecoil", "ERecoil", 1000, 0, 50);
+
+
+double erecoil_lim0 = 0.;
+double erecoil_lim1 = 0.31;
+double erecoil_lim2 = 0.67;
+double erecoil_lim3 = 1.57;
+double erecoil_lim4 = 50;
+
+//End - Hadron Energy Specta
+
 std::vector<double> vertexBins = {4293.04, 4337.25, 4381.47, 4425.68, 4514.11, 4558.33, 4602.54, 4646.76, 4735.19, 4779.4, 4823.62, 4867.83, 5000.48, 5044.69, 5088.91, 5133.12, 5456.74, 5500.95, 5545.17, 5589.38, 5677.81, 5722.03, 5810.45, 5855.68, 5900.91, 5946.14, 5991.37, 6036.6, 6081.83, 6127.06, 6172.29, 6217.52, 6262.74, 6307.97, 6353.2, 6398.43, 6443.66, 6488.89, 6534.12, 6579.35, 6624.58, 6669.81, 6715.03, 6760.26, 6805.49, 6850.72, 6895.95, 6941.18, 6986.41, 7031.64, 7076.87, 7122.1, 7167.32, 7212.55, 7257.78, 7303.01, 7348.24, 7393.47, 7438.7, 7483.93, 7529.16, 7574.39, 7619.61, 7664.84, 7710.07, 7755.3, 7800.53, 7845.76, 7890.99, 7936.22, 7981.45, 8026.68, 8071.9, 8117.13, 8162.36, 8207.59, 8252.82, 8298.05, 8343.28, 8388.51, 8433.74, 8478.97, 8524.19, 8569.42, 8614.65};
 
+//Reconstruction Vertex Validations
 TH1D *ANNVerticesMC = new TH1D ("ANNVerticesMC", "ANNVerticesMC", vertexBins.size()-1, &vertexBins[0]);
 TH1D *TBVerticesMC = new TH1D ("TBVerticesMC", "TBVerticesMC", vertexBins.size()-1, &vertexBins[0]);
 TH1D *ANNVerticesData = new TH1D ("ANNVerticesData", "ANNVerticesData", vertexBins.size()-1, &vertexBins[0]);
 TH1D *TBVerticesData = new TH1D ("TBVerticesData", "TBVerticesData", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNVerticesMCHighRes = new TH1D ("ANNVerticesMCHighRes", "ANNVerticesMCHighRes", 3400, 4200, 5900);
+TH1D *TBVerticesMCHighRes = new TH1D ("TBVerticesMCHighRes", "TBVerticesMCHighRes", 3400, 4200, 5900);
+TH1D *ANNVerticesDataHighRes = new TH1D ("ANNVerticesDataHighRes", "ANNVerticesDataHighRes", 3400, 4200, 5900);
+TH1D *TBVerticesDataHighRes = new TH1D ("TBVerticesDataHighRes", "TBVerticesDataHighRes", 3400, 4200, 5900);
+TH1D *TruthVerticesMCHighRes = new TH1D ("TruthVerticesMCHighRes", "TruthVerticesMCHighRes", 3400, 4200, 5900);
+TH1D *ANNVerticesMCHighResQ1 = new TH1D ("ANNVerticesMCHighResQ1", "ANNVerticesMCHighResQ1", 3400, 4200, 5900);
+TH1D *TBVerticesMCHighResQ1 = new TH1D ("TBVerticesMCHighResQ1", "TBVerticesMCHighResQ1", 3400, 4200, 5900);
+TH1D *ANNVerticesDataHighResQ1 = new TH1D ("ANNVerticesDataHighResQ1", "ANNVerticesDataHighResQ1", 3400, 4200, 5900);
+TH1D *TBVerticesDataHighResQ1 = new TH1D ("TBVerticesDataHighResQ1", "TBVerticesDataHighResQ1", 3400, 4200, 5900);
+TH1D *TruthVerticesMCHighResQ1 = new TH1D ("TruthVerticesMCHighResQ1", "TruthVerticesMCHighResQ1", 3400, 4200, 5900);
+TH1D *ANNVerticesMCHighResQ2 = new TH1D ("ANNVerticesMCHighResQ2", "ANNVerticesMCHighResQ2", 3400, 4200, 5900);
+TH1D *TBVerticesMCHighResQ2 = new TH1D ("TBVerticesMCHighResQ2", "TBVerticesMCHighResQ2", 3400, 4200, 5900);
+TH1D *ANNVerticesDataHighResQ2 = new TH1D ("ANNVerticesDataHighResQ2", "ANNVerticesDataHighResQ2", 3400, 4200, 5900);
+TH1D *TBVerticesDataHighResQ2 = new TH1D ("TBVerticesDataHighResQ2", "TBVerticesDataHighResQ2", 3400, 4200, 5900);
+TH1D *TruthVerticesMCHighResQ2 = new TH1D ("TruthVerticesMCHighResQ2", "TruthVerticesMCHighResQ2", 3400, 4200, 5900);
+TH1D *ANNVerticesMCHighResQ3 = new TH1D ("ANNVerticesMCHighResQ3", "ANNVerticesMCHighResQ3", 3400, 4200, 5900);
+TH1D *TBVerticesMCHighResQ3 = new TH1D ("TBVerticesMCHighResQ3", "TBVerticesMCHighResQ3", 3400, 4200, 5900);
+TH1D *ANNVerticesDataHighResQ3 = new TH1D ("ANNVerticesDataHighResQ3", "ANNVerticesDataHighResQ3", 3400, 4200, 5900);
+TH1D *TBVerticesDataHighResQ3 = new TH1D ("TBVerticesDataHighResQ3", "TBVerticesDataHighResQ3", 3400, 4200, 5900);
+TH1D *TruthVerticesMCHighResQ3 = new TH1D ("TruthVerticesMCHighResQ3", "TruthVerticesMCHighResQ3", 3400, 4200, 5900);
+TH1D *ANNVerticesMCHighResQ4 = new TH1D ("ANNVerticesMCHighResQ4", "ANNVerticesMCHighResQ4", 3400, 4200, 5900);
+TH1D *TBVerticesMCHighResQ4 = new TH1D ("TBVerticesMCHighResQ4", "TBVerticesMCHighResQ4", 3400, 4200, 5900);
+TH1D *ANNVerticesDataHighResQ4 = new TH1D ("ANNVerticesDataHighResQ4", "ANNVerticesDataHighResQ4", 3400, 4200, 5900);
+TH1D *TBVerticesDataHighResQ4 = new TH1D ("TBVerticesDataHighResQ4", "TBVerticesDataHighResQ4", 3400, 4200, 5900);
+TH1D *TruthVerticesMCHighResQ4 = new TH1D ("TruthVerticesMCHighResQ4", "TruthVerticesMCHighResQ4", 3400, 4200, 5900);
+
 
 TH3D *TBVerticesGranularData = new TH3D ("TBVerticesGranularData", "TBVerticesGranularData", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
 TH3D *TBVerticesGranularMC = new TH3D ("TBVerticesGranularMC", "TBVerticesGranularMC", 100, -1000, 1000, 100, -1000, 1000, 3400, 4200, 5900);
@@ -202,11 +258,6 @@ TH1D *ANNRecoOutCarbon = new TH1D ("ANNRecoOutCarbon", "ANNRecoOutCarbon", 3400,
 TH1D *TBRecoOutCarbon = new TH1D ("TBRecoOutCarbon", "TBRecoOutCarbon", 3400, 4200, 5900);
 
 
-
-
-
-
-
 TH1D *ANNTruthInWater = new TH1D ("ANNTruthInWater", "ANNTruthInWater", 3400, 4200, 5900);
 TH1D *TBTruthInWater = new TH1D ("TBTruthInWater", "TBTruthInWater", 3400, 4200, 5900);
 TH1D *ANNTruthOutWater = new TH1D ("ANNTruthOutWater", "ANNTruthOutWater", 3400, 4200, 5900);
@@ -302,7 +353,7 @@ TH1D *TBTruthInCarbon = new TH1D ("TBTruthInCarbon", "TBTruthInCarbon", 3400, 42
 TH1D *ANNTruthOutCarbon = new TH1D ("ANNTruthOutCarbon", "ANNTruthOutCarbon", 3400, 4200, 5900);
 TH1D *TBTruthOutCarbon = new TH1D ("TBTruthOutCarbon", "TBTruthOutCarbon", 3400, 4200, 5900);
 
-
+//End - Reconstruction Vertex Validations
 
 
 //==============================================================================
@@ -324,7 +375,7 @@ void LoopAndFillEventSelection(
   const int nEntries = chain->GetEntries();
   for (int i=0; i<nEntries; ++i)
   {
-    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::endl;
+    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
 
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -350,21 +401,40 @@ void LoopAndFillEventSelection(
     double batchPOT = cvUniv->GetBatchPOT();
     double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
     
-    //std::cout<<"batchPOT: " << batchPOT << std::endl;
-    //std::cout<<"efficiency: " << efficiency << std::endl;
+    //Hadron Energy Spectrum plot
+    //EAvail->Fill(cvUniv->GetEavail()/pow(10,3), cvWeight/efficiency);
+    double erecoil = cvUniv->GetRecoilE()/pow(10,3);
+
+    ERecoil->Fill(erecoil, cvWeight/efficiency);
+
+
+    if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))
+    {
+      //These events may be visually interesting - check out in event display
+      //std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
+    }
+    if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TruthVerticesMCHighResQ1->Fill( TrueVtx.Z(), cvWeight);
+    else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TruthVerticesMCHighResQ2->Fill( TrueVtx.Z(), cvWeight);
+    else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TruthVerticesMCHighResQ3->Fill( TrueVtx.Z(), cvWeight);
+    else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TruthVerticesMCHighResQ4->Fill( TrueVtx.Z(), cvWeight);
     if(ANNVtx.size()==3 && cvUniv->GetANNProb()>0.2)
     {
       ANNVerticesMC->Fill( ANNVtx[2], cvWeight);
-      ANNVerticesGranularMC->Fill( ANNVtx[0], ANNVtx[1], ANNVtx[2], cvWeight);
+      if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) ANNVerticesMCHighResQ1->Fill( ANNVtx[2], cvWeight);
+      else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) ANNVerticesMCHighResQ2->Fill( ANNVtx[2], cvWeight);
+      else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) ANNVerticesMCHighResQ3->Fill( ANNVtx[2], cvWeight);
+      else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) ANNVerticesMCHighResQ4->Fill( ANNVtx[2], cvWeight);
+      
+      ANNVerticesGranularMC->Fill( ANNVtx[0], ANNVtx[1], ANNVtx[2], cvWeight/efficiency);
       //Water
       if (m_TargetUtils->InWaterTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
       {
-        TrueVtxANNRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+        TrueVtxANNRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
         ANNRecoInWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
       }
       else
       {
-        TrueVtxANNRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+        TrueVtxANNRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
         ANNRecoOutWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
       }
       //Tgt1
@@ -715,18 +785,24 @@ void LoopAndFillEventSelection(
 
     }
     TBVerticesMC->Fill(TrackBasedVtx.Z(), cvWeight);
-    TBVerticesGranularMC->Fill( TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), cvWeight);
-    TrueVerticesGranular->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+
+    if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TBVerticesMCHighResQ1->Fill( TrackBasedVtx.Z(), cvWeight);
+    else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TBVerticesMCHighResQ2->Fill( TrackBasedVtx.Z(), cvWeight);
+    else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TBVerticesMCHighResQ3->Fill( TrackBasedVtx.Z(), cvWeight);
+    else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TBVerticesMCHighResQ4->Fill( TrackBasedVtx.Z(), cvWeight);
+    
+    TBVerticesGranularMC->Fill( TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), cvWeight/efficiency);
+    TrueVerticesGranular->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
     //Water
     if (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
     {
-      TrueVtxTBRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+      TrueVtxTBRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
       TBRecoInWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
     }
     else
     {
       //std::cout<<"TB: X: " << TrackBasedVtx.X() <<" Y: " << TrackBasedVtx.Y() <<" Z: "<< TrackBasedVtx.Z() <<std::endl;
-      TrueVtxTBRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight);
+      TrueVtxTBRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
       TBRecoOutWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
     }
     //Tgt1
@@ -1076,11 +1152,6 @@ void LoopAndFillEventSelection(
 
 
 
-
-
-
-
-
   } //End entries loop
   std::cout << "Finished MC reco loop.\n";
 }
@@ -1098,19 +1169,31 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
   for (int i=0; i<data->GetEntries(); ++i) {
     for (auto universe : data_band) {
       universe->SetEntry(i);
-      if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::endl;
+      if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
       MichelEvent myevent; 
       std::vector<double> ANNVtx = universe->GetANNVertexVector();
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
+      
+      double erecoil = universe->GetRecoilE()/pow(10,3);
 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
       if(ANNVtx.size()==3)
       {
         ANNVerticesData->Fill(ANNVtx[2]);
+        if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) ANNVerticesDataHighResQ1->Fill( ANNVtx[2]);
+        else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) ANNVerticesDataHighResQ2->Fill( ANNVtx[2]);
+        else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) ANNVerticesDataHighResQ3->Fill( ANNVtx[2]);
+        else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) ANNVerticesDataHighResQ4->Fill( ANNVtx[2]);
+
+
         ANNVerticesGranularData->Fill(ANNVtx[0], ANNVtx[1], ANNVtx[2]);
       }
       TBVerticesGranularData->Fill(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z());
       TBVerticesData->Fill(TrackBasedVtx.Z());
+      if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TBVerticesDataHighResQ1->Fill( TrackBasedVtx.Z());
+      else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TBVerticesDataHighResQ2->Fill( TrackBasedVtx.Z());
+      else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TBVerticesDataHighResQ3->Fill( TrackBasedVtx.Z());
+      else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TBVerticesDataHighResQ4->Fill( TrackBasedVtx.Z());
     }
   }
   std::cout << "Finished data loop.\n";
@@ -1343,6 +1426,41 @@ int main(const int argc, const char** argv)
     TBVerticesMC->SetDirectory(mcOutDir);
     ANNVerticesMC->Write();
     TBVerticesMC->Write();
+
+    ANNVerticesMCHighRes->SetDirectory(mcOutDir);
+    TBVerticesMCHighRes->SetDirectory(mcOutDir);
+    ANNVerticesMCHighRes->Write();
+    TBVerticesMCHighRes->Write();
+    TruthVerticesMCHighRes->SetDirectory(mcOutDir);
+    TruthVerticesMCHighRes->Write();
+
+    ANNVerticesMCHighResQ1->SetDirectory(mcOutDir);
+    TBVerticesMCHighResQ1->SetDirectory(mcOutDir);
+    ANNVerticesMCHighResQ1->Write();
+    TBVerticesMCHighResQ1->Write();
+    TruthVerticesMCHighResQ1->SetDirectory(mcOutDir);
+    TruthVerticesMCHighResQ1->Write();
+
+    ANNVerticesMCHighResQ2->SetDirectory(mcOutDir);
+    TBVerticesMCHighResQ2->SetDirectory(mcOutDir);
+    ANNVerticesMCHighResQ2->Write();
+    TBVerticesMCHighResQ2->Write();
+    TruthVerticesMCHighResQ2->SetDirectory(mcOutDir);
+    TruthVerticesMCHighResQ2->Write();
+
+    ANNVerticesMCHighResQ3->SetDirectory(mcOutDir);
+    TBVerticesMCHighResQ3->SetDirectory(mcOutDir);
+    ANNVerticesMCHighResQ3->Write();
+    TBVerticesMCHighResQ3->Write();
+    TruthVerticesMCHighResQ3->SetDirectory(mcOutDir);
+    TruthVerticesMCHighResQ3->Write();
+
+    ANNVerticesMCHighResQ4->SetDirectory(mcOutDir);
+    TBVerticesMCHighResQ4->SetDirectory(mcOutDir);
+    ANNVerticesMCHighResQ4->Write();
+    TBVerticesMCHighResQ4->Write();
+    TruthVerticesMCHighResQ4->SetDirectory(mcOutDir);
+    TruthVerticesMCHighResQ4->Write();
 
     ANNVerticesGranularMC->SetDirectory(mcOutDir);
     TBVerticesGranularMC->SetDirectory(mcOutDir);
@@ -1712,6 +1830,11 @@ int main(const int argc, const char** argv)
     TBTruthOutCarbon->Write();
 
 
+    //EAvail->SetDirectory(mcOutDir);
+    //EAvail->Write();
+    ERecoil->SetDirectory(mcOutDir);
+    ERecoil->Write();
+
     //Write data results
     TFile* dataOutDir = TFile::Open(DATA_OUT_FILE_NAME, "RECREATE");
     if(!dataOutDir)
@@ -1731,6 +1854,31 @@ int main(const int argc, const char** argv)
     TBVerticesData->SetDirectory(dataOutDir);
     ANNVerticesData->Write();
     TBVerticesData->Write();
+
+    ANNVerticesDataHighRes->SetDirectory(dataOutDir);
+    TBVerticesDataHighRes->SetDirectory(dataOutDir);
+    ANNVerticesDataHighRes->Write();
+    TBVerticesDataHighRes->Write();
+
+    ANNVerticesDataHighResQ1->SetDirectory(dataOutDir);
+    TBVerticesDataHighResQ1->SetDirectory(dataOutDir);
+    ANNVerticesDataHighResQ1->Write();
+    TBVerticesDataHighResQ1->Write();
+
+    ANNVerticesDataHighResQ2->SetDirectory(dataOutDir);
+    TBVerticesDataHighResQ2->SetDirectory(dataOutDir);
+    ANNVerticesDataHighResQ2->Write();
+    TBVerticesDataHighResQ2->Write();
+
+    ANNVerticesDataHighResQ3->SetDirectory(dataOutDir);
+    TBVerticesDataHighResQ3->SetDirectory(dataOutDir);
+    ANNVerticesDataHighResQ3->Write();
+    TBVerticesDataHighResQ3->Write();
+
+    ANNVerticesDataHighResQ4->SetDirectory(dataOutDir);
+    TBVerticesDataHighResQ4->SetDirectory(dataOutDir);
+    ANNVerticesDataHighResQ4->Write();
+    TBVerticesDataHighResQ4->Write();
 
     ANNVerticesGranularData->SetDirectory(dataOutDir);
     TBVerticesGranularData->SetDirectory(dataOutDir);

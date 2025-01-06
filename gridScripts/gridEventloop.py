@@ -1,12 +1,14 @@
 import os
-memmap = {"Tracker":15000, "Targets":15000, "FullDet":15000, "TrackerDSWater":15000, "TrackerUSWater":15000}
+memmap = {"Tracker":15000, "Targets":15000, "Validations":15000, "TrackerDSWater":15000, "TrackerUSWater":15000}
 lifetime = 24 #hours
-outdir_logs = ""
-#dirname  = "output11July0"
-#dirname  = "output18July0"
-dirname = "output28Oct_2"
-
+outputBaseDir = "/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/"
+#dirname = "output28Oct_2"
+#dirname = "output21Nov_5"
+dirname = "output5Dec"
 playlistDir = "/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists"
+
+cmd = "mkdir " + outputBaseDir + dirname
+os.system(cmd)
 
 #Tarring MAT opts folder
 cmd = "tar -cvzf /exp/minerva/app/users/alhart/opt.tar.gz -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ ."
@@ -21,12 +23,12 @@ if (os.path.isfile("/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMAT
 cmd = "cp /exp/minerva/app/users/alhart/opt.tar.gz /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz"
 os.system(cmd)
 
-playlists = ["1A", "1B", "1C", "1D", "1E", "1F", "1G", "1L", "1M", "1N", "1O", "1P", "Test"]
+playlists = ["Test", "1A", "1B", "1C", "1D", "1E", "1F", "1G", "1L", "1M", "1N", "1O", "1P"]
 #playlists = ["Test1L", "Test1C"] #Used for rapid testing only, 1L is water filled, 1C is unfilled
 
 #Which event loop(s) to run
-sets=["Targets"]
-#sets=["Tracker", "Targets", "FullDet", "TrackerDSWater", "TrackerUSWater"]
+sets=["Validations"]
+#sets=["Tracker", "Targets", "Validations", "TrackerDSWater", "TrackerUSWater"]
 for runType in sets:
     memory = memmap[runType]
     for playlist in playlists:
@@ -56,8 +58,8 @@ for runType in sets:
         my_wrapper.write("${MINERVA_PREFIX}/bin/runEventLoop" +runType+" ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt\n")
         my_wrapper.write("echo Running event loop - DONE\n")
         my_wrapper.write("echo Copying files back to persistent\n")
-        my_wrapper.write("ifdh cp ./runEventLoop"+runType+"Data.root //pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/"+dirname+"/"+playlist+"-runEventLoopData"+runType+".root\n")
-        my_wrapper.write("ifdh cp ./runEventLoop"+runType+"MC.root //pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/"+dirname+"/"+playlist+"-runEventLoopMC"+runType+".root\n")
+        my_wrapper.write("ifdh cp ./runEventLoop"+runType+"Data.root "+outputBaseDir+dirname+"/"+playlist+"-runEventLoopData"+runType+".root\n")
+        my_wrapper.write("ifdh cp ./runEventLoop"+runType+"MC.root "+outputBaseDir+dirname+"/"+playlist+"-runEventLoopMC"+runType+".root\n")
         my_wrapper.write("echo Copying files back to persistent - DONE\n")
         my_wrapper.write("echo SUCCESS\n")
         my_wrapper.close()
