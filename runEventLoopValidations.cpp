@@ -1,6 +1,9 @@
 #define MC_OUT_FILE_NAME "runEventLoopValidationsMC.root"
 #define DATA_OUT_FILE_NAME "runEventLoopValidationsData.root"
 
+#define MC_OUTFILE_TXT "runEventLoopValidationsMC.txt"
+#define DATA_OUTFILE_TXT "runEventLoopValidationsData.txt"
+
 /* 
 To whoever stumbles across this in the future:
 
@@ -99,10 +102,13 @@ enum ErrorCodes
 
 #include "Math/Vector3D.h"
 #include "TH3D.h"
+#include "TTree.h"
+
 
 //c++ includes
 #include <iostream>
 #include <cstdlib> //getenv()
+#include <fstream>
 
 //Hadron Energy Specta
 //TH1D *EAvail = new TH1D ("EAvail", "EAvail", 1000, 0, 100);
@@ -120,7 +126,7 @@ double erecoil_lim4 = 50;
 std::vector<double> vertexBins = {4293.04, 4337.25, 4381.47, 4425.68, 4514.11, 4558.33, 4602.54, 4646.76, 4735.19, 4779.4, 4823.62, 4867.83, 5000.48, 5044.69, 5088.91, 5133.12, 5456.74, 5500.95, 5545.17, 5589.38, 5677.81, 5722.03, 5810.45, 5855.68, 5900.91, 5946.14, 5991.37, 6036.6, 6081.83, 6127.06, 6172.29, 6217.52, 6262.74, 6307.97, 6353.2, 6398.43, 6443.66, 6488.89, 6534.12, 6579.35, 6624.58, 6669.81, 6715.03, 6760.26, 6805.49, 6850.72, 6895.95, 6941.18, 6986.41, 7031.64, 7076.87, 7122.1, 7167.32, 7212.55, 7257.78, 7303.01, 7348.24, 7393.47, 7438.7, 7483.93, 7529.16, 7574.39, 7619.61, 7664.84, 7710.07, 7755.3, 7800.53, 7845.76, 7890.99, 7936.22, 7981.45, 8026.68, 8071.9, 8117.13, 8162.36, 8207.59, 8252.82, 8298.05, 8343.28, 8388.51, 8433.74, 8478.97, 8524.19, 8569.42, 8614.65};
 
 //Reconstruction Vertex Validations
-TH1D *ANNVerticesMC = new TH1D ("ANNVerticesMC", "ANNVerticesMC", vertexBins.size()-1, &vertexBins[0]);
+/* TH1D *ANNVerticesMC = new TH1D ("ANNVerticesMC", "ANNVerticesMC", vertexBins.size()-1, &vertexBins[0]);
 TH1D *TBVerticesMC = new TH1D ("TBVerticesMC", "TBVerticesMC", vertexBins.size()-1, &vertexBins[0]);
 TH1D *ANNVerticesData = new TH1D ("ANNVerticesData", "ANNVerticesData", vertexBins.size()-1, &vertexBins[0]);
 TH1D *TBVerticesData = new TH1D ("TBVerticesData", "TBVerticesData", vertexBins.size()-1, &vertexBins[0]);
@@ -351,7 +357,9 @@ TH1D *TBTruthOutLead = new TH1D ("TBTruthOutLead", "TBTruthOutLead", 3400, 4200,
 TH1D *ANNTruthInCarbon = new TH1D ("ANNTruthInCarbon", "ANNTruthInCarbon", 3400, 4200, 5900);
 TH1D *TBTruthInCarbon = new TH1D ("TBTruthInCarbon", "TBTruthInCarbon", 3400, 4200, 5900);
 TH1D *ANNTruthOutCarbon = new TH1D ("ANNTruthOutCarbon", "ANNTruthOutCarbon", 3400, 4200, 5900);
-TH1D *TBTruthOutCarbon = new TH1D ("TBTruthOutCarbon", "TBTruthOutCarbon", 3400, 4200, 5900);
+TH1D *TBTruthOutCarbon = new TH1D ("TBTruthOutCarbon", "TBTruthOutCarbon", 3400, 4200, 5900); */
+
+TTree* MCTree, *DataTree;
 
 //End - Reconstruction Vertex Validations
 
@@ -368,10 +376,41 @@ void LoopAndFillEventSelection(
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
     PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
+
+  //To do: Implement TTree
+  //Was encountering what I think is a ROOT Bug while attempting this
+  //Currently saving to a text file instead
+  MCTree = new TTree("MCTree", "MCTree");
+  Float_t         MCANNX, MCANNY, MCANNZ, MCTBX, MCTBY, MCTBZ, MCTBT, MCTrueX, MCTrueY, MCTrueZ, MCTrueT, MCERecoil, MCWeight, MCBatchPOT, MCANNProb;
+  Int_t           MChasMLPred, MCmultiplicity;
+  MCTree->Branch("ANNX", &MCANNX, "ANNX/D");
+  MCTree->Branch("ANNY", &MCANNY, "ANNY/D");
+  MCTree->Branch("ANNZ", &MCANNZ, "ANNZ/D");
+  MCTree->Branch("TBX", &MCTBX, "TBX/D");
+  MCTree->Branch("TBY", &MCTBY, "TBY/D");
+  MCTree->Branch("TBZ", &MCTBZ, "TBZ/D");
+  MCTree->Branch("TBT", &MCTBT, "TBT/D");
+  MCTree->Branch("TrueX", &MCTrueX, "TrueX/D");
+  MCTree->Branch("TrueY", &MCTrueY, "TrueY/D");
+  MCTree->Branch("TrueZ", &MCTrueZ, "TrueZ/D");
+  MCTree->Branch("TrueT", &MCTrueT, "TrueT/D");
+  MCTree->Branch("ERecoil", &MCERecoil, "ERecoil/D");
+  MCTree->Branch("Weight", &MCWeight, "Weight/D");
+  MCTree->Branch("BatchPOT", &MCBatchPOT, "BatchPOT/D");
+  MCTree->Branch("ANNProb", &MCANNProb, "ANNProb/D");
+  MCTree->Branch("hasMLPred", &MChasMLPred, "hasMLPred/D");
+  MCTree->Branch("multiplicity", &MCmultiplicity, "multiplicity/D");
+
   assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
   auto& cvUniv = error_bands["cv"].front();
 
   std::cout << "Starting MC reco loop...\n";
+
+  std::ofstream outfile;
+  outfile.open(MC_OUTFILE_TXT, std::ios::trunc);
+  outfile << "ANNX,ANNY,ANNZ,TBX,TBY,TBZ,TBT,TrueX,TrueY,TrueZ,TrueT,ERecoil,Weight,BatchPOT,ANNProb,hasMLPred,multiplicity\n";
+  outfile.close();
+
   const int nEntries = chain->GetEntries();
   for (int i=0; i<nEntries; ++i)
   {
@@ -407,12 +446,52 @@ void LoopAndFillEventSelection(
 
     ERecoil->Fill(erecoil, cvWeight/efficiency);
 
-
     if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))
     {
       //These events may be visually interesting - check out in event display
       //std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
     }
+    double ANNProb = cvUniv->GetANNProb();
+    double ANNX, ANNY, ANNZ;
+    if(ANNVtx.size()==3)
+    {
+      ANNX = ANNVtx[0];
+      ANNY = ANNVtx[1];
+      ANNZ = ANNVtx[2];
+    }
+    else
+    {
+      ANNX = -999;
+      ANNY = -999;
+      ANNZ = -999;
+    }
+
+    MCANNX = ANNX;
+    MCANNY = ANNY;
+    MCANNZ = ANNZ;
+    MCTBX = TrackBasedVtx.X();
+    MCTBY = TrackBasedVtx.Y();
+    MCTBZ = TrackBasedVtx.Z();
+    MCTBT = TrackBasedVtx.T();
+    MCTrueX = TrueVtx.X();
+    MCTrueY = TrueVtx.Y();
+    MCTrueZ = TrueVtx.Z();
+    MCTrueT = TrueVtx.T();
+    MCERecoil = erecoil;
+    MCWeight = cvWeight;
+    MCBatchPOT = batchPOT;
+    MCANNProb = ANNProb;
+    MChasMLPred = cvUniv->hasMLPred();
+    MCmultiplicity = cvUniv->GetMultiplicity();
+    //MCTree->Fill();
+
+
+
+    std::ofstream outfile;
+    outfile.open(MC_OUTFILE_TXT, std::ios_base::app);//std::ios_base::app;
+    outfile << ANNX<< "," << ANNY<< "," << ANNZ<< "," << TrackBasedVtx.X()<< "," << TrackBasedVtx.Y()<< "," << TrackBasedVtx.Z()<< "," << TrackBasedVtx.T()<< "," << TrueVtx.X()<< "," << TrueVtx.Y()<< "," << TrueVtx.Z()<< "," << TrueVtx.T()<< "," << erecoil<< "," << cvWeight<< "," << batchPOT<< "," << ANNProb << "," <<cvUniv->hasMLPred() << "," <<cvUniv->GetMultiplicity() << std::endl;
+    outfile.close();
+/* 
     if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TruthVerticesMCHighResQ1->Fill( TrueVtx.Z(), cvWeight);
     else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TruthVerticesMCHighResQ2->Fill( TrueVtx.Z(), cvWeight);
     else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TruthVerticesMCHighResQ3->Fill( TrueVtx.Z(), cvWeight);
@@ -1149,10 +1228,11 @@ void LoopAndFillEventSelection(
       TBTruthOutLead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
     }
     //std::cout<<"Here6\n";
-
+ */
 
 
   } //End entries loop
+
   std::cout << "Finished MC reco loop.\n";
 }
 
@@ -1165,6 +1245,33 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 
 {
   std::cout << "Starting data loop...\n";
+
+  //To do: Implement TTree
+  //Was encountering what I think is a ROOT Bug while attempting this
+  //Currently saving to a text file instead
+  DataTree = new TTree("DataTree", "DataTree");
+
+  Float_t         DataANNX, DataANNY, DataANNZ, DataTBX, DataTBY, DataTBZ, DataTBT, DataERecoil, DatabatchPOT, DataANNProb;
+  Int_t           DatahasMLPred, Datamultiplicity;
+
+  DataTree->Branch("ANNX", &DataANNX, "ANNX/D");
+  DataTree->Branch("ANNY", &DataANNY, "ANNY/D");
+  DataTree->Branch("ANNZ", &DataANNZ, "ANNZ/D");
+  DataTree->Branch("TBX", &DataTBX, "TBX/D");
+  DataTree->Branch("TBY", &DataTBY, "TBY/D");
+  DataTree->Branch("TBZ", &DataTBZ, "TBZ/D");
+  DataTree->Branch("TBT", &DataTBT, "TBT/D");
+  DataTree->Branch("ERecoil", &DataERecoil, "ERecoil/D");
+  DataTree->Branch("BatchPOT", &DatabatchPOT, "BatchPOT/D");
+  DataTree->Branch("ANNProb", &DataANNProb, "ANNProb/D");
+  DataTree->Branch("hasMLPred", &DatahasMLPred, "hasMLPred/D");
+  DataTree->Branch("multiplicity", &Datamultiplicity, "multiplicity/D");
+
+  std::ofstream outfile;
+  outfile.open(DATA_OUTFILE_TXT, std::ios::trunc);
+  outfile << "ANNX,ANNY,ANNZ,TBX,TBY,TBZ,TBT,ERecoil,batchPOT,ANNProb,hasMLPred,multiplicity\n";
+  outfile.close();
+
   const int nEntries = data->GetEntries();
   for (int i=0; i<data->GetEntries(); ++i) {
     for (auto universe : data_band) {
@@ -1173,11 +1280,48 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       MichelEvent myevent; 
       std::vector<double> ANNVtx = universe->GetANNVertexVector();
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-      
+      double batchPOT = universe->GetBatchPOT();
+      //Incorporate batch POT efficiency scaling as applied above
       double erecoil = universe->GetRecoilE()/pow(10,3);
 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
+
+      float_t hasMLPred = universe->hasMLPred() ? 1.0 : 0.0; //There are defintely better ways to do this and integrate it into the line below but I was in a rush and I was getting compiler errors
+      double ANNProb = universe->GetANNProb();
+      double ANNX, ANNY, ANNZ;
       if(ANNVtx.size()==3)
+      {
+        ANNX = ANNVtx[0];
+        ANNY = ANNVtx[1];
+        ANNZ = ANNVtx[2];
+      }
+      else
+      {
+        ANNX = -999;
+        ANNY = -999;
+        ANNZ = -999;
+    }
+      DataANNX = ANNX;
+      DataANNY = ANNY;
+      DataANNZ = ANNZ;
+      DataTBX = TrackBasedVtx.X();
+      DataTBY = TrackBasedVtx.Y();
+      DataTBZ = TrackBasedVtx.Z();
+      DataTBT = TrackBasedVtx.T();
+      DataERecoil = erecoil;
+      DatabatchPOT = batchPOT;
+      DataANNProb = ANNProb;
+      DatahasMLPred = universe->hasMLPred();
+      Datamultiplicity = universe->GetMultiplicity();
+      //DataTree->Fill();
+
+
+      std::ofstream outfile;
+      outfile.open(DATA_OUTFILE_TXT, std::ios_base::app);//std::ios_base::app;
+      outfile << ANNX<< "," << ANNY<< "," << ANNZ<< "," << TrackBasedVtx.X()<< "," << TrackBasedVtx.Y()<< "," << TrackBasedVtx.Z()<< "," << TrackBasedVtx.T()<< "," << erecoil << "," << batchPOT << "," << ANNProb << "," <<universe->hasMLPred()  << "," <<universe->GetMultiplicity() << std::endl;
+      outfile.close();
+
+      /* if(ANNVtx.size()==3)
       {
         ANNVerticesData->Fill(ANNVtx[2]);
         if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) ANNVerticesDataHighResQ1->Fill( ANNVtx[2]);
@@ -1193,7 +1337,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TBVerticesDataHighResQ1->Fill( TrackBasedVtx.Z());
       else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TBVerticesDataHighResQ2->Fill( TrackBasedVtx.Z());
       else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TBVerticesDataHighResQ3->Fill( TrackBasedVtx.Z());
-      else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TBVerticesDataHighResQ4->Fill( TrackBasedVtx.Z());
+      else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TBVerticesDataHighResQ4->Fill( TrackBasedVtx.Z()); */
     }
   }
   std::cout << "Finished data loop.\n";
@@ -1419,10 +1563,14 @@ int main(const int argc, const char** argv)
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
-    mcPOT->Write();
+    //mcPOT->Write(); //Unused while saving to text files instead of ROOT files
+    std::ofstream outfile;
+    outfile.open(MC_OUTFILE_TXT, std::ios::app);
+    outfile << "POTUsed,"<<mcPOT->GetVal();
+    outfile.close();
 
 
-    ANNVerticesMC->SetDirectory(mcOutDir);
+    /* ANNVerticesMC->SetDirectory(mcOutDir);
     TBVerticesMC->SetDirectory(mcOutDir);
     ANNVerticesMC->Write();
     TBVerticesMC->Write();
@@ -1827,14 +1975,17 @@ int main(const int argc, const char** argv)
     ANNTruthOutCarbon->SetDirectory(mcOutDir);
     ANNTruthOutCarbon->Write();
     TBTruthOutCarbon->SetDirectory(mcOutDir);
-    TBTruthOutCarbon->Write();
+    TBTruthOutCarbon->Write(); */
+
 
 
     //EAvail->SetDirectory(mcOutDir);
     //EAvail->Write();
-    ERecoil->SetDirectory(mcOutDir);
-    ERecoil->Write();
+    //ERecoil->SetDirectory(mcOutDir);
+    //ERecoil->Write();
 
+    MCTree->SetDirectory(mcOutDir);
+    MCTree->Write();
     //Write data results
     TFile* dataOutDir = TFile::Open(DATA_OUT_FILE_NAME, "RECREATE");
     if(!dataOutDir)
@@ -1848,9 +1999,13 @@ int main(const int argc, const char** argv)
 
     //Protons On Target
     auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
-    dataPOT->Write();
+    //dataPOT->Write();
+    outfile;
+    outfile.open(DATA_OUTFILE_TXT, std::ios::app);
+    outfile << "POTUsed,"<<dataPOT->GetVal();
+    outfile.close();
     
-    ANNVerticesData->SetDirectory(dataOutDir);
+    /* ANNVerticesData->SetDirectory(dataOutDir);
     TBVerticesData->SetDirectory(dataOutDir);
     ANNVerticesData->Write();
     TBVerticesData->Write();
@@ -1883,7 +2038,10 @@ int main(const int argc, const char** argv)
     ANNVerticesGranularData->SetDirectory(dataOutDir);
     TBVerticesGranularData->SetDirectory(dataOutDir);
     ANNVerticesGranularData->Write();
-    TBVerticesGranularData->Write();
+    TBVerticesGranularData->Write(); */
+
+    //DataTree->SetDirectory(mcOutDir);
+    //DataTree->Write();
 
     std::cout << "Success" << std::endl;
   }
