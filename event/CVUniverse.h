@@ -249,6 +249,8 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
 
   bool hasMLPred() const {return (GetInt("hasMLPrediction")==1);}
 
+  int GetMultiplicity() const {return GetInt("multiplicity");}
+
   //Still needed for some systematics to compile, but shouldn't be used for reweighting anymore.
   protected:
   #include "PlotUtils/WeightFunctions.h" // Get*Weight
