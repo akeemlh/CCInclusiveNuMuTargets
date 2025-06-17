@@ -140,9 +140,7 @@ void LoopAndFillEventSelection(
   //const int nEntries = 10000;
   for (int i=0; i<nEntries; ++i)
   {
-    //std::cout << i << " / " << nEntries << "\n";
-    if(i%1000==0) std::cout << i << " / " << nEntries << "\n";
-    //if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
+    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
 
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -339,7 +337,7 @@ void LoopAndFillEventSelection(
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
               //var->FillMigration(universe, code, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-              (*var->m_HistsByTgtCodeMigration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), var->GetTrueValueX(*universe), var->GetTrueValueY(*universe),universe->ShortName(),(univCount-1),weight);
+              (*var->m_HistsByTgtCodeMigration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), var->GetTrueValueX(*universe), var->GetTrueValueY(*universe),weight);
               //(var->m_migration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
 
             }
@@ -466,7 +464,14 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
 
   std::cout << "Starting efficiency denominator loop...\n";
   //const int nEntries = 10000;
+  //std::map<int,double> weightmap;
   const int nEntries = truth->GetEntries();
+
+  //std::map<int, double> evMap;
+
+  //std::ofstream outfile;
+  //outfile.open("/nashome/a/alhart/pleasedeleteme/actuallydeletepls/eventloop-test.txt", std::ios_base::out);//std::ios_base::app
+
   for (int i=0; i<nEntries; ++i)
   {
     if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
@@ -474,16 +479,45 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
     model.SetEntry(*cvUniv, cvEvent);
+    std::cout << i << " / " << nEntries << "\n";
     const double cvWeight = model.GetWeight(*cvUniv, cvEvent);
+    //std::cout<<"cvWeight: " << cvWeight <<std::endl;
+    //std::cout<<"ALJANLJ NA\n";
+    //for(auto var: vars) std::cout << i << "," <<var->GetRecoValue(*cvUniv) <<std::endl;
 
     //=========================================
     // Systematics loop(s)
     //=========================================
+    //std::cout << "num truth bands" << truth_bands.size() << std::endl;
     for (auto band : truth_bands)
     {
       std::vector<CVUniverse*> truth_band_universes = band.second;
+      //std::cout<<"band: " << band.first << " num universes: " << truth_band_universes.size()<<std::endl;
+      //std::cout << "num truth band  universes " << truth_band_universes.size() << std::endl;
+      //for (auto universe : truth_band_universes) std::cout << universe->GetTreeName()<<std::endl;
       for (auto universe : truth_band_universes)
       {
+
+        if (false)//(band.first == "cv")
+        {
+          std::cout<<"entry: " << i << " issignal: " << michelcuts.isSignal(*universe) << " isPhaseSpace " << michelcuts.isPhaseSpace(*universe) <<std::endl;
+          const auto vertex = universe->GetTrueVertex();
+          double fSlope = -1./sqrt(3.);
+          double fApothem = 850;
+          bool apothem =  (fabs(vertex.y()) < fSlope*fabs(vertex.x()) + 2.*fApothem/sqrt(3.))
+                && (fabs(vertex.x()) < fApothem);
+
+          double zvtx =  universe->GetTrueVertex().z();
+          //std::cout<< "MuonX: " << vertex.x() << std::endl;
+          //std::cout<< "MuonY: " << vertex.y() << std::endl;          
+          //std::cout<< "MuonZ: " << zvtx << std::endl;
+          //std::cout<< "apothem: " << apothem << std::endl;
+          //std::cout<< "MuonAngle: " << universe->GetThetalepTrue() << std::endl;
+          //std::cout<< "MuonEnergy: " << universe->GetTruthMuE() << std::endl;
+          
+        }
+
+
         MichelEvent myevent; //Only used to keep the Model happy
 
         // Tell the Event which entry in the TChain it's looking at
@@ -495,15 +529,38 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         int truthTgtCode = universe->GetTruthTargetCode();
         int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
         int truthTgtID = universe->GetTruthTargetID();
+        ROOT::Math::XYZTVector truthVtx = universe->GetTrueVertex();
+
         //If this has a segment num 36 it came from water target
-        bool inWaterSegment = (truthTgtID==6);
+        bool inWaterSegment = (truthTgtID==6) || PlotUtils::TargetUtils::Get().InWaterTargetVolMC(truthVtx.X(), truthVtx.Y(), truthVtx.Z());
+        //if (inWaterSegment) std::cout << "YAYYY FOUND WATER\n";
         int code = inWaterSegment ? -999 : effectiveTgtCode;
         //Fill efficiency denominator now: 
         for(auto var: vars)
         {
+          //std::cout << "code: " << code << std::endl;
+          //if (code == 2026 && band.first == "cv")
+          //{
+          //  std::cout<<"entry: " << i << " weight: " << weight << " trueval: " << var->GetTrueValue(*universe) << std::endl;
+          //}
+          //std::cout<<"GetTreeName: " <<universe->GetTreeName()<<std::endl;
+          /* if (code == 2026 && band.first == "cv")
+          {
+            //std::cout<<"H2ereahf dalkf aljal\n";
+            std::cout << i << "," <<var->GetTrueValue(*universe)<<","<< weight<<std::endl;
+            outfile << i << "," <<var->GetTrueValue(*universe)<<","<< weight<<std::endl;
+
+            if (evMap[i] == 0)
+            {
+                evMap[i] = weight;
+            }
+            else
+            {
+                evMap[i]+= weight;
+            }
+          } */
           (*var->m_HistsByTgtCodeEfficiencyDenominator)[code].FillUniverse(universe, var->GetTrueValue(*universe), weight);
         }
-
         for(auto var: vars2D)
         {
           (*var->m_HistsByTgtCodeEfficiencyDenominator)[code].FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
@@ -511,6 +568,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
       }
     }
   }
+  //outfile.close();
   std::cout << "Finished efficiency denominator loop.\n";
 }
 
@@ -519,31 +577,40 @@ bool inferRecoTreeNameAndCheckTreeNames(const std::string& mcPlaylistName, const
 {
   const std::vector<std::string> knownTreeNames = {"Truth", "Meta"};
   bool areFilesOK = false;
-
+  std::cout<<"HHere1\n";
+  std::cout<<"mcPlaylistName: " << mcPlaylistName << std::endl;
   std::ifstream playlist(mcPlaylistName);
   std::string firstFile = "";
+  std::cout<<"HHere1.1\n";
   playlist >> firstFile;
+  std::cout<<"HHere2\n";
   auto testFile = TFile::Open(firstFile.c_str());
+  std::cout<<"HHere3\n";
   if(!testFile)
   {
     std::cerr << "Failed to open the first MC file at " << firstFile << "\n";
     return false;
   }
+  std::cout<<"HHere4\n";
 
   //Does the MC playlist have the Truth tree?  This is needed for the efficiency denominator.
   const auto truthTree = testFile->Get("Truth");
+  std::cout<<"HHere5\n";
   if(truthTree == nullptr || !truthTree->IsA()->InheritsFrom(TClass::GetClass("TTree")))
   {
     std::cerr << "Could not find the \"Truth\" tree in MC file named " << firstFile << "\n";
     return false;
   }
+  std::cout<<"HHere6\n";
 
   //Figure out what the reco tree name is
   for(auto key: *testFile->GetListOfKeys())
   {
+    std::cout<<"key: " << key << "\n";
     if(static_cast<TKey*>(key)->ReadObj()->IsA()->InheritsFrom(TClass::GetClass("TTree"))
        && std::find(knownTreeNames.begin(), knownTreeNames.end(), key->GetName()) == knownTreeNames.end())
     {
+      std::cout<<"HHere7\n";
       recoTreeName = key->GetName();
       areFilesOK = true;
     }
@@ -572,10 +639,11 @@ bool inferRecoTreeNameAndCheckTreeNames(const std::string& mcPlaylistName, const
 }
 
 //==============================================================================
-// Main
+// Mainweight
 //==============================================================================
 int main(const int argc, const char** argv)
 {
+  std::cout<<"Here1\n";
   TH1::AddDirectory(false);
 
   //Validate input.
@@ -602,7 +670,7 @@ int main(const int argc, const char** argv)
     std::cerr << "Failed to find required trees in MC playlist " << mc_file_list << " and/or data playlist " << data_file_list << ".\n" << USAGE << "\n";
     return badInputFile;
   }
-
+  std::cout<<"Here4\n";
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
   std:: cout << reco_tree_name << std::endl;
 
@@ -622,6 +690,7 @@ int main(const int argc, const char** argv)
   std::cout << mc_file_list.substr(mc_label+4, 2)<<std::endl;
   std::cout << playlistname << std::endl;
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
+  std::cout<<"playlistname: " << playlistname << std::endl;
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, playlistname, true);
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
 
@@ -675,7 +744,7 @@ int main(const int argc, const char** argv)
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
 
   PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
-
+  std::cout<<"HEREALKJFKLA JFLAJKL 1\n";
   // Make a map of systematic universes
   // Leave out systematics when making validation histograms
   const bool doSystematics = (getenv("MNV101_SKIP_SYST") == nullptr);
@@ -685,7 +754,10 @@ int main(const int argc, const char** argv)
   }
 
   std::map< std::string, std::vector<CVUniverse*> > error_bands;
-  if(doSystematics) error_bands = GetStandardSystematics(options.m_mc);
+  if(doSystematics)
+  {
+    error_bands = GetStandardSystematics(options.m_mc);
+  }
   else{
     std::map<std::string, std::vector<CVUniverse*> > band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_mc, CVUniverse::GetNFluxUniverses());
     error_bands.insert(band_flux.begin(), band_flux.end()); //Necessary to get flux integral later...
@@ -748,7 +820,7 @@ int main(const int argc, const char** argv)
     nukeCuts.resetStats();
 
     CVUniverse::SetTruth(false);
-    LoopAndFillData(options.m_data, data_band, nukeVars, nukeVars2D, data_studies, nukeCuts);
+    //LoopAndFillData(options.m_data, data_band, nukeVars, nukeVars2D, data_studies, nukeCuts);
     std::cout << "Nuclear Target Data cut summary:\n" << nukeCuts << "\n";
 
 
@@ -765,7 +837,10 @@ int main(const int argc, const char** argv)
     std::cout<<"Saved studies\n";
 
     for(auto& var: nukeVars) var->WriteMC(*mcOutDir);
+    std::cout<<"Saved 1D Variables\n";
     for(auto& var: nukeVars2D) var->WriteMC(*mcOutDir);
+    std::cout<<"Saved 2D Variables\n";
+
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
@@ -872,6 +947,16 @@ int main(const int argc, const char** argv)
     //Protons On Target
     auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
     dataPOT->Write();
+
+    //Saving 2D migration matrices
+    //Putting this right at the end in case of a crash
+    //Write MC results
+    std::cout<<"Beginning migration write out\n";
+
+    for(auto& var: nukeVars2D) 
+    {
+      var->WriteMigration(); //Save migration to separate files, because it's huge
+    } 
 
     std::cout << "Success" << std::endl;
   }
