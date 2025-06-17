@@ -19,6 +19,9 @@
 #include "PlotUtils/MnvH1D.h"
 #include "PlotUtils/MnvH2D.h"
 #include "PlotUtils/MnvPlotter.h"
+#include "util/NukeUtils.h"
+#include "PlotUtils/TargetUtils.h"
+#include "PlotUtils/FluxReweighter.h"
 #pragma GCC diagnostic pop
 
 //ROOT includes
@@ -53,6 +56,41 @@ namespace std
     using iterator_category = forward_iterator_tag;
   };
 }
+
+
+double GetTotalScatteringCenters(int targetZ, bool isMC)
+{
+  // TARGET INFO
+  PlotUtils::TargetUtils targetInfo;
+  double Nucleons;
+
+  // Target 1 is generally excluded due to rock muon contamination (in the inclusive analysis)
+  if(targetZ == 6){
+    Nucleons = targetInfo.GetPassiveTargetNNucleons( 3, targetZ, isMC ); // Target 3
+  }
+  
+  if(targetZ == 26){
+    Nucleons = targetInfo.GetPassiveTargetNNucleons( 2, targetZ, isMC ) // Target 2
+             + targetInfo.GetPassiveTargetNNucleons( 3, targetZ, isMC ) // Target 3
+             + targetInfo.GetPassiveTargetNNucleons( 5, targetZ, isMC );// Target 5
+  }
+
+  if(targetZ == 82){
+    Nucleons = targetInfo.GetPassiveTargetNNucleons( 2, targetZ, isMC ) // Target 2
+             + targetInfo.GetPassiveTargetNNucleons( 3, targetZ, isMC ) // Target 3
+             + targetInfo.GetPassiveTargetNNucleons( 4, targetZ, isMC ) // Target 4
+             + targetInfo.GetPassiveTargetNNucleons( 5, targetZ, isMC );// Target 5
+  }
+  if(targetZ > 90 ){
+    Nucleons = targetInfo.GetTrackerNNucleons(5980, 8422, isMC, 850);
+    //double TargetUtils::GetTrackerNNucleons( double minZ, double maxZ, bool isMC, double apothem /* = 850. */ ) const
+
+  }
+
+  return Nucleons;     
+}
+
+
 
 //Plot a step in cross section extraction.
 void Plot(PlotUtils::MnvH1D& hist, const std::string& stepName, const std::string& prefix)
@@ -170,9 +208,12 @@ int main(const int argc, const char** argv)
     numMergedPlaylists = std::stoi(argv[4]);
   }
 
-  std::vector<std::string> crossSectionPrefixes;// = {"nuke_pTmu", "nuke_pZmu", "nuke_bjorken", "nuke_Erecoil", "nuke_Emu"};
+  //std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu" , "nuke_pZmu", "nuke_BjorkenX", "nuke_Erecoil", "nuke_Emu"};
+  std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu"};
 
-  std::vector<std::string> targets = {"Target7", "Target8", "Target9", "Target10", "Target11", "Target12", "1026", "1082", "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "Water"}; //Is there any benefit to getting this programatically like above for the 1D prefixes?
+  //std::vector<std::string> targets = { "Target7", "Target8", "Target9", "Target10", "Target11", "Target12", "1026", "1082", "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082",  "Water"}; //Is there any benefit to getting this programatically like above for the 1D prefixes?
+  //std::vector<std::string> targets = {"2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082"}; 
+  std::vector<std::string> targets = {"2026"};
 
   for(auto key: *dataFile->GetListOfKeys())
   {
@@ -192,16 +233,17 @@ int main(const int argc, const char** argv)
   }
   const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
                dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-  std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+  std::cout<<"Targets DataPOT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
   for(const auto& prefix: crossSectionPrefixes)
   {
     for (std::string& tgt : targets)
     {
+      std::cout<< "Current working on prefix: " << prefix << std::endl;
       try
       {
-
-        std::cout<< "Current working on prefix: " << prefix << std::endl;
-        auto flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (tgt+std::string("_reweightedflux_integrated")), prefix);
+        std::string temptgtstr = tgt;
+        if (tgt == "Water") temptgtstr = "TargetWater"; //Very hacky, should just change the leaf name in the event loop so the water branch naming schema is consistent with everything else
+        auto flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (temptgtstr+std::string("_reweightedflux_integrated")), prefix);
         flux->Scale(1.0/numMergedPlaylists);
         auto folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("by_TargetCode_Data_")+tgt), prefix);
         Plot(*folded, "data", prefix);
@@ -210,12 +252,12 @@ int main(const int argc, const char** argv)
         auto effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_")+tgt), prefix);
 
 
-        auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (tgt+std::string("_fiducial_nucleons")), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
+        auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (temptgtstr+std::string("_fiducial_nucleons")), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
         double nNucleonsVal = nNucleons->GetVal();
         std::vector<PlotUtils::MnvH1D*> backgrounds;
-        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, std::string("tgt")+tgt+std::string("_Wrong_Material_Bkg"), prefix));
-        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, std::string("tgt")+tgt+std::string("_Wrong_Sign_Bkg"), prefix));
-        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, std::string("tgt")+tgt+std::string("_NC_Bkg"), prefix));
+        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Material_Bkg"), prefix));
+        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_Wrong_Sign_Bkg"), prefix));
+        backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, tgt+std::string("_NC_Bkg"), prefix));
 
         for(auto key: *mcFile->GetListOfKeys())
         {
@@ -249,7 +291,7 @@ int main(const int argc, const char** argv)
                                             });
         Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
 
-        auto outFile = TFile::Open((tgt+prefix + "_crossSection.root").c_str(), "CREATE");
+        auto outFile = TFile::Open((tgt+prefix + "_crossSection.root").c_str(), "RECREATE");
         if(!outFile)
         {
           std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
@@ -272,24 +314,148 @@ int main(const int argc, const char** argv)
         unfolded->Divide(unfolded, effNum);
         Plot(*unfolded, "efficiencyCorrected", prefix);
 
-        auto crossSection = normalize(unfolded, flux, nNucleons->GetVal()/numMergedPlaylists, dataPOT);
+        double nnucleons = nNucleons->GetVal()/numMergedPlaylists;
+        std::cout<<"nnucleons: " << nnucleons <<std::endl;
+        std::cout<<"tgt: " << tgt <<std::endl;
+        //if (tgt == "1026") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(1, 26, true, 850);
+        //else if (tgt == "1082") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(1, 82, true, 850);
+        if (tgt == "2026") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(2, 26, true);
+        else if (tgt == "2082") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(2, 82, true);
+        else if (tgt == "3006") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(3, 6, true);
+        else if (tgt == "3026") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(3, 26, true);
+        else if (tgt == "3082") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(3, 82, true);
+        else if (tgt == "4082") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(4, 82, true);
+        else if (tgt == "5026") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(5, 26, true);
+        else if (tgt == "5082") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(5, 82, true);
+        else if (tgt == "Water") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(6, 1, true);
+        std::cout<<"nnucleons: " << nnucleons <<std::endl;
+
+
+
+
+        int n_flux_universes = 100;
+        int nu_pdg = 14;
+        const bool use_nue_constraint = true;
+        const std::string project_dir = "targets_2345_jointNueIMD";
+        double min_energy = 0;
+        double max_energy = 100;
+        //PlotUtils::MnvH1D *fluxIntegral;
+        std::string material;
+
+        PlotUtils::MnvH1D* flux2;
+        PlotUtils::MnvH1D* fluxIntegral;
+        PlotUtils::MnvH1D* fluxRebinned;
+        std::cout<< "Test123.1: " <<std::endl;
+
+        //FluxReweighter* frw = new FluxReweighter( 14, use_nue_constraint, "minervame1A", FluxReweighter::gen2thin, FluxReweighter::g4numiv6, 100);
+
+        auto& frw = PlotUtils::flux_reweighter("minervame1A", nu_pdg, use_nue_constraint, n_flux_universes);
+        auto& frw2 = PlotUtils::flux_reweighter("minervame1A", nu_pdg, use_nue_constraint, n_flux_universes);
+        std::cout<< "Test123.2: " <<std::endl;  
+        if(tgt == "3006") material = "carbon";
+        else if(tgt == "1026" || tgt == "2026" ||tgt == "3026" || tgt == "5026" ) material = "iron";
+        else if(tgt == "1082" || tgt == "2082" ||tgt == "3082" || tgt == "4082" || tgt == "5082" ) material = "lead";
+        else material = "tracker";
+        std::cout<< "Test123.3: " <<std::endl;
+        //auto &frw = PlotUtils::flux_reweighter("minervame6A", nu_pdg, use_nue_constraint, n_flux_universes);
+        
+        //MnvH1D* Integrated_flux = fluxReweighter->GetIntegratedFluxReweighted_FromInputFlux(flux, xsecHist, Emin, Emax);
+        //xsec.integratedFlux = Integrated_flux->Clone("IntegratedFlux");
+
+
+        fluxIntegral = frw.GetIntegratedTargetFlux(nu_pdg, material, unfolded, min_energy, max_energy, project_dir);
+        //fluxIntegral = frw.GetIntegratedFluxReweighted(14, simEventRate, 0, 100, false);
+        std::cout<< "Test123.4: " <<std::endl;
+        flux2 = frw2.GetTargetFluxMnvH1D(nu_pdg, material, project_dir);
+
+        fluxRebinned = frw2.GetRebinnedFluxReweighted_FromInputFlux(flux2, simEventRate); // issue here
+        std::cout << "Using target generated flux!" << std::endl;
+  
+
+
+
+
+
+
+
+        outFile->cd();
+        auto crossSection = normalize(unfolded, fluxIntegral, nnucleons, dataPOT);
+                std::cout<< "Test123.5: " <<std::endl;
+
         Plot(*crossSection, "crossSection", prefix);
+                std::cout<< "Test123.6: " <<std::endl;
+
         crossSection->Clone()->Write("crossSection");
+                std::cout<< "Test123.7: " <<std::endl;
+
         simEventRate->Write("simulatedEventRate");
-        flux->Write("flux_reweighted");
+                std::cout<< "Test123.8: " <<std::endl;
+
+        flux->Write("flux");
+        std::cout<< "Test123.9: " <<std::endl;
+        flux2->Write("flux2");
+        fluxRebinned->Write("fluxRebinned");
+        fluxIntegral->Write("fluxIntegral");
         //Write a "simulated cross section" to compare to the data I just extracted.
         //If this analysis passed its closure test, this should be the same cross section as
         //what GENIEXSecExtract would produce.
-        normalize(simEventRate, flux, nNucleons->GetVal()/numMergedPlaylists, mcPOT);
+
+        int tgtCode = std::stoi(tgt);
+        int targetZ = tgtCode % 1000;
+        int targetID = (tgtCode - targetZ) / 1000;
+        double passiveNucleons = 0;
+        if (targetID<7) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(targetID, targetZ, true); 
+        else
+        {
+          if (targetID==7) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 7, true); 
+          if (targetID==8) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+          if (targetID==9) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+          if (targetID==10) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+          if (targetID==11) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+          if (targetID==12) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 2, true); 
+
+        }
+
+        /* if (tgt == "1026") nnucleons =  GetTotalScatteringCenters(26, true);
+        else if (tgt == "1082") nnucleons =  GetTotalScatteringCenters(82, true);
+        else if (tgt == "2026") nnucleons =  GetTotalScatteringCenters(26, true);
+        else if (tgt == "2082") nnucleons =  GetTotalScatteringCenters(82, true);
+        else if (tgt == "3006") nnucleons =  GetTotalScatteringCenters(6, true);
+        else if (tgt == "3026") nnucleons =  GetTotalScatteringCenters(26, true);
+        else if (tgt == "3082") nnucleons =  GetTotalScatteringCenters(82, true);
+        else if (tgt == "4082") nnucleons =  GetTotalScatteringCenters(82, true);
+        else if (tgt == "5026") nnucleons =  GetTotalScatteringCenters(26, true);
+        else if (tgt == "5082") nnucleons =  GetTotalScatteringCenters(82, true); */
+        std::cout<<"nnucleons: " << nnucleons <<std::endl;
+        std::cout<<"passiveNucleons: " << passiveNucleons <<std::endl;
+        //fluxIntegral->Scale(1.103);
+        auto crossSection2 = normalize(simEventRate, flux, passiveNucleons, mcPOT);
+
+        ///!Temporary to undo the issue induced in runXseclooper where i erroneusly include the plastic before tgt2 in norm value calculations
+
+        //double trackerAtomsC = PlotUtils::TargetUtils::Get().GetTrackerElementNAtoms( 6, 108, true );
+        //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, 4358, PlotUtils::TargetProp::NukeRegion::Back, true, 850.0);
+        //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, 5970, 8450, true, 850.0);
+        //double trackerAtomsCInclTgt1 = TargetUtils::Get().GetTrackerElementNAtoms( 6, PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back, true, 850.0);
         
-        Plot(*simEventRate, "simulatedCrossSection", prefix);
-        simEventRate->Write("simulatedCrossSection");
+        //std::cout<< "trackerAtomsC: " << trackerAtomsC <<std::endl;
+
+        //std::cout<< "trackerAtomsCInclTgt1: " << trackerAtomsCInclTgt1 <<std::endl;
+        //double scale =  (trackerAtomsC / trackerAtomsCInclTgt1);
+        //std::cout<<"scale: " <<scale<<std::endl;
+
+        //crossSection2->Scale(scale);
+        
+        Plot(*crossSection2, "simulatedCrossSection", prefix);
+        crossSection2->Write("simulatedCrossSection");
+        std::cout<< "Test123.10: " <<std::endl;
         outFile->Close();
       }
       catch(const std::runtime_error& e)
       {
         std::cerr << "Failed to extract a cross section for prefix " << prefix << ": " << e.what() << "\n";
         return 4;
+        //break;
       }
     }
   }
