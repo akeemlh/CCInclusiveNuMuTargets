@@ -95,6 +95,7 @@ enum ErrorCodes
 #include "PlotUtils/RPAReweighter.h"
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
 #include "PlotUtils/TargetUtils.h"
+#include "util/NukeUtils.h"
 #pragma GCC diagnostic pop
 
 //ROOT includes
@@ -1435,13 +1436,17 @@ int main(const int argc, const char** argv)
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
 
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
-  PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true);
+  PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
 
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
   PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); //TODO: Infer this from the files somehow?
-  PlotUtils::MinervaUniverse::SetAnalysisNuPDG(14);
+  int nuoranu = util::nuOrAntiNuMode(options.m_plist_string);
+  int nupdg;
+  if (nuoranu==1) nupdg = 14;
+  else if (nuoranu==2) nupdg = -14;
+  PlotUtils::MinervaUniverse::SetAnalysisNuPDG(nupdg);
   PlotUtils::MinervaUniverse::SetNFluxUniverses(100);
   PlotUtils::MinervaUniverse::SetZExpansionFaReweight(false);
 
@@ -1454,7 +1459,7 @@ int main(const int argc, const char** argv)
 
   //const double minZ = 5980, maxZ = 8422, apothem = 850; //All in mm
   const double apothem = 850; //All in mm
-  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::Tracker::Back));
+  preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::Tracker::Back));
   preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
   preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());

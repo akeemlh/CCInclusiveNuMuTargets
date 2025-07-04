@@ -92,9 +92,10 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 
-bool PseudoTargetBuffer = false; //To exlclude the plane either end of a nuclear target
+bool PseudoTargetBuffer = true; //To exlclude the plane immediately after either end of a nuclear target
 
 //Treat the plastic between planes as though they were nuclear targets themselves
+//
 int getPlasticPseudoTargetCode(int mod, int plane)
 {
   if (PseudoTargetBuffer)
@@ -119,6 +120,256 @@ int getPlasticPseudoTargetCode(int mod, int plane)
   else if (mod >= 20 && mod <= 21)  return 12;
   else return -1;
 }
+
+int getTgtCode(CVUniverse* universe, int mode /*mc = 0, ANN = 1, TB = 2*/)
+{
+  PlotUtils::TargetUtils tgtUtil;
+  //tgtUtil.SetDistToDivCut( ??? ); //What was Anezka's + what is it in GenieXSecExtract/ Should this be tweaked?
+  double vtx_x, vtx_y, vtx_z;
+  int mod, plane;
+  if (mode == 0) //Truth
+  {
+    mod = universe->GetTruthVtxModule();
+    plane = universe->GetTruthVtxPlane();
+    int pseudoTarget = getPlasticPseudoTargetCode(mod, plane);
+    if (pseudoTarget != -1) return pseudoTarget;
+    ROOT::Math::XYZTVector Vtx = universe->GetTrueVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+  } 
+  else if (mode == 1) //ANN
+  {
+    mod = universe->GetANNVtxModule();
+    plane = universe->GetANNVtxPlane();
+    int pseudoTarget = getPlasticPseudoTargetCode(mod, plane);
+    if (pseudoTarget != -1) return pseudoTarget;
+    ROOT::Math::XYZVector Vtx = universe->GetANNVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+  }
+  else if (mode == 2) //TB
+  {
+    mod = universe->GetMADVtxModule();
+    plane = universe->GetMADVtxPlane();
+    int pseudoTarget = getPlasticPseudoTargetCode(mod, plane);
+    if (pseudoTarget != -1) return pseudoTarget;
+    ROOT::Math::XYZTVector Vtx = universe->GetVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+  }
+
+  if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 1026;
+  else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 1082;
+  else if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 2026;
+  else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 2082;
+  else if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 3006;
+  else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 3026;
+  else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 3082;
+  else if (tgtUtil.InLead4VolMC( vtx_x, vtx_y, vtx_z, 850. ) ) return 4082;
+  else if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 5026;
+  else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, vtx_z, 850., true ) ) return 5082;
+  else if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. ) ) return 6000;
+  
+  //Including the planes immediate up/downstream
+  bool includingUSDSplanes = true; //false;
+  //Utilising methods to get the z center position of each target to determine what material the x and y positions of interactions in the US/DS planes would correspond to, eg GetTarget1CenterZMC
+  if (includingUSDSplanes)
+  {
+    //Upstream
+    if (mod == -2 && plane == 2) //US of tgt 1
+    {
+      if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1026;
+      else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1082;
+    }
+    else if (mod == 3 && plane == 2) //US of tgt 2
+    {
+      if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2026;
+      else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2082;
+    }
+    else if (mod == 8 && plane == 2) //US of tgt 3
+    {
+      if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3006;
+      else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3026;
+      else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3082;
+    }
+    else if (mod == 18 && plane == 2) return 4082; //US of tgt 4 //Should I still check the x and y vertex are within the target?
+    else if (mod == 21 && plane == 2) //US of tgt 5
+    {
+      if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
+      else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
+    }
+    else if (mod == 14 && plane == 2) return 6000; //US of water target //Should I still check the x and y vertex are within the target?
+
+    //Downstream
+    if (mod == 0 && plane == 1) //US of tgt 1
+    {
+      if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1026;
+      else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1082;
+    }
+    else if (mod == 5 && plane == 1) //US of tgt 2
+    {
+      if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2026;
+      else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2082;
+    }
+    else if (mod == 11 && plane == 1) //US of tgt 3
+    {
+      if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3006;
+      else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3026;
+      else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3082;
+    }
+    else if (mod == 20 && plane == 1) return 4082; //US of tgt 4 //Should I still check the x and y vertex are within the target?
+    else if (mod == 23 && plane == 1) //US of tgt 5
+    {
+      if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
+      else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
+    }
+    else if (mod == 15 && plane == 1) return 6000; //US of water target //Should I still check the x and y vertex are within the target?
+  }
+  return -1;
+}
+
+int getSidebandTgtCode(CVUniverse* universe, int mode /*mc = 0, ANN = 1, TB = 2*/, int USorDS /*Some planes are both the US planes of one target but the DS planes of another and so need to be treated twice*/)
+{
+  PlotUtils::TargetUtils tgtUtil;
+  //tgtUtil.SetDistToDivCut( ??? ); //What was Anezka's + what is it in GenieXSecExtract/ Should this be tweaked?
+  double vtx_x, vtx_y, vtx_z;
+  int mod, plane;
+  if (mode == 0) //Truth
+  {
+    mod = universe->GetTruthVtxModule();
+    plane = universe->GetTruthVtxPlane();
+    ROOT::Math::XYZTVector Vtx = universe->GetTrueVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+  } 
+  else if (mode == 1) //ANN
+  {
+    mod = universe->GetANNVtxModule();
+    plane = universe->GetANNVtxPlane();
+    ROOT::Math::XYZVector Vtx = universe->GetANNVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+  }
+  else if (mode == 2) //TB
+  {
+    mod = universe->GetMADVtxModule();
+    plane = universe->GetMADVtxPlane();
+    ROOT::Math::XYZTVector Vtx = universe->GetVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+  }
+
+
+  //Removing planes immediately up and downstream of targets
+  if (mod == -2 && plane == 2) return -1;
+  if (mod == 0 && plane == 1) return -1;
+  if (mod == 3 && plane == 2) return -1;
+  if (mod == 5 && plane == 1) return -1;
+  if (mod == 8 && plane == 2) return -1;
+  if (mod == 11 && plane == 1) return -1;
+  if (mod == 14 && plane == 2) return -1;
+  if (mod == 15 && plane == 1) return -1;
+  if (mod == 18 && plane == 2) return -1;
+  if (mod == 20 && plane == 1) return -1;
+  if (mod == 21 && plane == 2) return -1;
+
+  //if (mod >= -5 && mod <= -2)  return 7; //Not using upstream of target 1 because of significant rock muon contamination
+  if (mod >= 0 && mod <= 3) //DS of target 1 (Iron and Lead) and US of target 2 (Iron and Lead)
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of tgt2
+    {
+      if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2026;
+      else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2082;
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of tgt1
+    { 
+      if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1026;
+      else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1082;
+    }
+  } 
+  if (mod >= 5 && mod <= 8) //DS of target 2 (Iron and Lead) and US of target 3 (Carbon, iron and Lead)
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of tgt3
+    {
+      if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3006;
+      else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3026;
+      else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3082;
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of tgt2
+    { 
+      if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2026;
+      else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2082;
+    }
+  } 
+  if (mod >= 11 && mod <= 14) //DS of target 3 (Carbon, iron and Lead) and US of water target
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of water
+    {
+      if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, (PlotUtils::TargetProp::WaterTarget::Face+PlotUtils::TargetProp::WaterTarget::Back)/2, 850. )) return 6000;
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of tgt3
+    { 
+      if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3006;
+      else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3026;
+      else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3082;
+    }
+  } 
+  if (mod >= 15 && mod <= 18) //DS of water target and US of target 4 ( Lead)
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of target 4
+    {
+      if (tgtUtil.InLead4VolMC( vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850. )) return 4082;
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of water target
+    { 
+      if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, (PlotUtils::TargetProp::WaterTarget::Face+PlotUtils::TargetProp::WaterTarget::Back)/2, 850. )) return 6000;
+    }
+  } 
+  if (mod >= 20 && mod <= 21) //DS of target 4 (Lead) and US of target 5 (Iron and Lead)
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of tgt3
+    {
+      if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
+      else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of tgt4
+    { 
+      if (tgtUtil.InLead4VolMC( vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850. )) return 4082;
+    }
+  }
+  if (mod >= 20 && mod <= 21) //DS of target 4 (Lead) and US of target 5 (Iron and Lead)
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of tgt3
+    {
+      if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
+      else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of tgt4
+    { 
+      if (tgtUtil.InLead4VolMC( vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850. )) return 4082;
+    }
+  } 
+  if (mod >= 23 && mod <= 26) //DS of target 5 (Iron and Lead)
+  {
+    if (USorDS) //If true we're looking for US Planes therefore we're looking at US of tgt3
+    {
+      return -1;//This is immedaitely after target 5 and before the tracker region, so these planes are not the upstream region for any targets
+    }
+    else //If false we're looking for DS Planes therefore we're looking at DS of tgt4
+    { 
+      if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
+      else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
+    }
+  } 
+  return -1;
+}
+
 
 //==============================================================================
 // Loop and Fill
@@ -159,101 +410,78 @@ void LoopAndFillEventSelection(
         MichelEvent myevent; // make sure your event is inside the error band loop. 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
-
         // This is where you would Access/create a Michel
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
-        
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane());
-        int truthTgtCode = universe->GetTruthTargetCode();
-        int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
-        //If this has a module num 6 it came from water target
-        bool inWaterSegment = (universe->GetTruthVtxModule()==6);
-        //if (inWaterSegment) std::cout << "MC says in Water, entry: " << i << std::endl;
-        //if (universe->GetANNSegment()==36 || universe->GetANNVtxModule()==6) std::cout << "Reco says in Water, entry: " << i << std::endl;
-        //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
-        int code = inWaterSegment ? -999 : effectiveTgtCode;
-
+        int code = getTgtCode(universe, 1);
+        int truthcode = getTgtCode(universe, 0);
+        int DSTargetCodeTruth = getSidebandTgtCode(universe, 0, 0); //Which, if any, target is this event truly in the DS Sideband region of?
+        int USTargetCodeTruth = getSidebandTgtCode(universe, 0, 1); //Which, if any, target is this event truly in the US Sideband region of?
+        int DSTargetCodeReco = getSidebandTgtCode(universe, 1, 0); //Which, if any, target is this event reconstructed in the DS Sideband region of?
+        int USTargetCodeReco = getSidebandTgtCode(universe, 1, 1); //Which, if any, target is this event reconstructed in the US Sideband region of?
         //To do: use universe->hasMLPred()
         //Nuke Target Study
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
         for(auto& var: vars)
         {
-          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+          if (code>0) //If this event truly occurs inside a nuclear target
           {
             //Plot events that occur within the nuclear targets grouped by which target they occur in
-            (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            (*var->m_SelectedSignalRecoByTgtCode)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
             if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
           }
-          if (!(truthTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
+          else //If our vertex is not in the nuclear targets
           {
-            int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
-            auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
-            auto DSTgtID = util::DSModPlaCodeToTgtId.find(tmpModCode);
-            if (USTgtID != util::USModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
+
+            if (USTargetCodeReco>0) //Get true origins of the events reconstructed in the upsteam region of tgt x
             {
-              //std::cout<<"Found in US target "<< USTgtID->second<< "\n";
-              //Check where it really interacted
-              int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
-              //Checking if this interaction truthfully originated in an upstream or downstream sideband
-              //Checking if this interaction truthfully originated in the neigbouring nuclear target
-              //If this has a non-zero target code then it actually originated in a nuke target
-              //If this has a segment num 36 it came from water target
-              int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
+              if (USTargetCodeTruth==USTargetCodeReco) //If the event truly occurred in the US region of tgt x
               {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetUSMC[USTargetCodeReco])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
-              else if (util::isUSPlane(tmpModCode)>0) //If originated immediately upstream of nuke target
+              else if (DSTargetCodeTruth==USTargetCodeReco) //If the event truly occurred in the DS region of tgt x
               {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetUSMC[USTargetCodeReco])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
-              else if (util::isDSPlane(tmpModCode)>0) //If originated immediately downstream of nuke target
+              else if (truthcode==USTargetCodeReco) //If the event truly occurred in the signal region (inside) of tgt x
               {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetUSMC[USTargetCodeReco])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
-              else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
+              else 
               {
-                (*var->m_sidebandHistSetUSMC[USTgtID->second])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetUSMC[USTargetCodeReco])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
             }
-            else if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Or is event reconstructed immediately downstream of a nuclear target
+            if (DSTargetCodeReco>0) //Get true origins of the events reconstructed in the downsteam region of tgt x
             {
-              //Check where it really interacted
-              int tmpTruthModCode = (universe->GetTruthVtxModule()*10)+universe->GetTruthVtxPlane();
-              //Checking if this interaction truthfully originated in an upstream or downstream sideband
-              //Checking if this interaction truthfully originated in the neigbouring nuclear target
-              //If this has a non-zero target code then it actually originated in a nuke target
-              //If this has a segment num 36 it came from water target
-              int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
+              if (USTargetCodeTruth==DSTargetCodeReco) //If the event truly occurred in the US region of tgt x
               {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetDSMC[DSTargetCodeReco])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
-              else if (util::isUSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
+              else if (DSTargetCodeTruth==DSTargetCodeReco) //If the event truly occurred in the DS region of tgt x
               {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetDSMC[DSTargetCodeReco])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
-              else if (util::isDSPlane(tmpModCode)>0) //Is event reconstructed immediately upstream of a nuclear target
+              else if (truthcode==DSTargetCodeReco) //If the event truly occurred in the signal region (inside) of tgt x
               {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetDSMC[DSTargetCodeReco])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
-              else //Fill "Other" histogram if this event didn't really have a vtx in the nuke target or sideband
+              else 
               {
-                (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_sidebandHistSetDSMC[DSTargetCodeReco])[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
             }
           }
         }
         for(auto& var: vars2D)
         {
-          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+          /* if (code>0) //If this event occurs inside a nuclear target
           {
             //Plot events that occur within the nuclear targets grouped by which target they occur in
-            (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            (*var->m_SelectedMCRecoByTgtCode)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
             if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           }
-          if (!(truthTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
+          else//If our vertex is not in the nuclear targets
           {
             int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
             auto USTgtID = util::USModPlaCodeToTgtId.find(tmpModCode);
@@ -268,7 +496,7 @@ void LoopAndFillEventSelection(
               //If this has a non-zero target code then it actually originated in a nuke target
               //If this has a segment num 36 it came from water target
               int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
+              if (truthTgtID > 0) 
               {
                 (*var->m_sidebandHistSetUSMC[USTgtID->second])[2].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
               }
@@ -294,7 +522,7 @@ void LoopAndFillEventSelection(
               //If this has a non-zero target code then it actually originated in a nuke target
               //If this has a segment num 36 it came from water target
               int truthTgtID = universe->GetTruthTargetID();
-              if (truthTgtID > 0 || inWaterSegment) 
+              if (truthTgtID > 0) 
               {
                 (*var->m_sidebandHistSetDSMC[DSTgtID->second])[2].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
               }
@@ -311,28 +539,29 @@ void LoopAndFillEventSelection(
                 (*var->m_sidebandHistSetDSMC[DSTgtID->second])[-1].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
               }
             }
-          }
+          } */
         }
         const bool isSignal = michelcuts.isSignal(*universe, weight);
-
-        if(isSignal)
+        if(isSignal && truthcode>0) //If it is signal and is in a nuclear target
         {
           for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
           for(auto& var: vars)
           {
             //Cross section components
-            if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+            if (code>0) //If this event is reconstructed inside a nuclear target
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               (*var->m_HistsByTgtCodeMigration)[code].FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
+              (*var->m_SelectedSignalRecoByTgtCode)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+
             }
           }
 
           for(auto& var: vars2D)
           {
             //Cross section components
-            if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+            /* if (code>0) //If this event occurs inside a nuclear target
             {
               //Plot events that occur within the nuclear targets grouped by which target they occur in
               (*var->m_HistsByTgtCodeEfficiencyNumerator)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
@@ -340,30 +569,31 @@ void LoopAndFillEventSelection(
               (*var->m_HistsByTgtCodeMigration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), var->GetTrueValueX(*universe), var->GetTrueValueY(*universe),weight);
               //(var->m_migration)[code].Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
 
-            }
+            } */
           }
         }
-        else
+        //------------------------------------------------------
+        //Backgrounds
+        //------------------------------------------------------
+        else if (truthcode != code && code > 0) //If the event truly came from somewhere other than where it was reconstructed
+        {
+          if (code == USTargetCodeTruth) //If it was reconstructed in tgt x but actually came from the US sideband region of tgt x
+          {
+            for(auto& var: vars) (*var->m_bkgsByTgtCode[code])[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            for(auto& var: vars2D) (*var->m_bkgsByTgtCode[code])[2].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          }
+          else if (code == DSTargetCodeTruth) //If it was reconstructed in tgt x but actually came from the DS sideband region of tgt x
+          {
+            for(auto& var: vars) (*var->m_bkgsByTgtCode[code])[3].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            for(auto& var: vars2D) (*var->m_bkgsByTgtCode[code])[3].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          }
+        } 
+        else //i.e if it passed the cuts but isn't a signal event/what we're looking for it must be a background
         {
           int bkgd_ID = -1;
           if (universe->GetCurrent()==2)bkgd_ID=0;
           else bkgd_ID=1;
-
-          //Cross section components
-          int ANNTgtCode = universe->GetANNTargetCode();
-          int TruthTgtCode = universe->GetTruthTargetCode();
-          //std::cout<<"ANNTgt " <<ANNTgtCode << " TruthTgtCode " << TruthTgtCode << std::endl;
-          if (ANNTgtCode!=TruthTgtCode || (universe->GetTruthVtxModule()==6 ^ (universe->GetANNSegment()==36 || universe->GetANNVtxModule()==6)))
-          {
-            bkgd_ID=2;
-            //std::cout<<"Wrong material background, ANN target code " << ANNTgtCode << " truth target code " << TruthTgtCode << std::endl;
-          }
-          /* else
-          {
-            std::cout<<"ANN and truth agree on target code " << ANNTgtCode <<std::endl;
-          } */
-
-          if (truthTgtCode>0 || inWaterSegment || code>0) //If this event occurs inside a nuclear target
+          if (code>0) //If this event is reconstructed inside a nuclear target
           {
             for(auto& var: vars) (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
             for(auto& var: vars2D) (*var->m_bkgsByTgtCode[code])[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
@@ -392,24 +622,17 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       MichelEvent myevent; 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
 
-      int pseudoTarget = getPlasticPseudoTargetCode(universe->GetANNVtxModule(), universe->GetANNVtxPlane());
-      int annTgtCode = universe->GetANNTargetCode();
-      int effectiveTgtCode = (pseudoTarget==-1) ? annTgtCode: pseudoTarget;
-      //If this has a segment num 36 it came from water target
-      bool inWaterSegment = (universe->GetANNSegment()==36 || universe->GetANNVtxModule()==6);
-      //Q: Very rarely we get annTgtCode==1000. What is that? Example in 1A MC playlist file, entry i = 68260, also 1P 947009. Answer: When material is unknown, z is left as 0 so 1000 means target 1 unknown material
-      int code = inWaterSegment ? -999 : effectiveTgtCode;
-
+      int code = getTgtCode(universe, 1);
 
       for(auto& study: studies) study->Selected(*universe, myevent, 1); 
       for(auto& var: vars)
       {
-        if (annTgtCode>0 || inWaterSegment || code>0 ) //If this event occurs inside a nuclear target
+        if (code>0 ) //If this event occurs inside a nuclear target
         {
           //Plot events that occur within the nuclear targets grouped by which target they occur in
           (*var->m_HistsByTgtCodeData)[code].FillUniverse(universe, var->GetRecoValue(*universe, myevent.m_idx), 1);
         }
-        if (!(annTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
+        else //If our vertex is not in the nuclear targets
         {
           int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
           int USModNum = util::isUSPlane(tmpModCode);
@@ -427,12 +650,12 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       //Nuke Target Study
       for(auto& var: vars2D)
       {
-        if (annTgtCode>0 || inWaterSegment || code>0 ) //If this event occurs inside a nuclear target
+        if ( code>0 ) //If this event occurs inside a nuclear target
         {
           //Plot events that occur within the nuclear targets grouped by which target they occur in
           (*var->m_HistsByTgtCodeData)[code].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
         }
-        if (!(annTgtCode>0) && !inWaterSegment) //If our vertex is not in the nuclear targets
+        else //If our vertex is not in the nuclear targets
         {
           int tmpModCode = (universe->GetANNVtxModule()*10)+universe->GetANNVtxPlane();
           int USModNum = util::isUSPlane(tmpModCode);
@@ -489,15 +712,8 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         if (!michelcuts.isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
 
-        int pseudoTarget = getPlasticPseudoTargetCode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane()); ///Wrong!!!!!!!!!!!!!!!!11
-        int truthTgtCode = universe->GetTruthTargetCode();
-        int effectiveTgtCode = (pseudoTarget==-1) ? truthTgtCode: pseudoTarget;
-        int truthTgtID = universe->GetTruthTargetID();
-        ROOT::Math::XYZTVector truthVtx = universe->GetTrueVertex();
+        int code = getTgtCode(universe, 0);
 
-        //If this has a segment num 36 it came from water target
-        bool inWaterSegment = (truthTgtID==6) || PlotUtils::TargetUtils::Get().InWaterTargetVolMC(truthVtx.X(), truthVtx.Y(), truthVtx.Z());
-        int code = inWaterSegment ? -999 : effectiveTgtCode;
         //Fill efficiency denominator now: 
         for(auto var: vars)
         {
@@ -618,14 +834,18 @@ int main(const int argc, const char** argv)
   std::cout << mc_file_list.substr(mc_label+4, 4)<<std::endl;
   std::cout << mc_file_list.substr(mc_label+4, 2)<<std::endl;
   std::cout << playlistname << std::endl;
-  std::cout<<"playlistname: " << playlistname << std::endl;
+  std::cout<<"playlistname: " << playlistname << std::endl; //isn't all this unnecessary?
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, playlistname, true);
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
 
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
   PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); //TODO: Infer this from the files somehow?
-  PlotUtils::MinervaUniverse::SetAnalysisNuPDG(14);
+  int nuoranu = util::nuOrAntiNuMode(options.m_plist_string);
+  int nupdg;
+  if (nuoranu==1) nupdg = 14;
+  else if (nuoranu==2) nupdg = -14;
+  PlotUtils::MinervaUniverse::SetAnalysisNuPDG(nupdg);
   PlotUtils::MinervaUniverse::SetNFluxUniverses(100);
   PlotUtils::MinervaUniverse::SetZExpansionFaReweight(false);
 
@@ -637,7 +857,7 @@ int main(const int argc, const char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t nukeSignalDefinition, nukePhaseSpace;
 
   const double apothem = 850; //All in mm
-  nukePreCut.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Nuclear Targets Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
+  nukePreCut.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Nuclear Targets Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
   nukePreCut.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
   nukePreCut.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   nukePreCut.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
@@ -704,11 +924,11 @@ int main(const int argc, const char** argv)
   std::vector<Variable2DNuke*> nukeVars2D;
 
   nukeVars.push_back(new Variable1DNuke("nuke_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  nukeVars.push_back(new Variable1DNuke("nuke_pZmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
-  nukeVars.push_back(new Variable1DNuke("nuke_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
-  nukeVars.push_back(new Variable1DNuke("nuke_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
-  nukeVars.push_back(new Variable1DNuke("nuke_BjorkenX", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  nukeVars2D.push_back(new Variable2DNuke("nuke_pTmu_pZmu", *nukeVars[1], *nukeVars[0]));
+  //nukeVars.push_back(new Variable1DNuke("nuke_pZmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+  //nukeVars.push_back(new Variable1DNuke("nuke_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
+  //nukeVars.push_back(new Variable1DNuke("nuke_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
+  //nukeVars.push_back(new Variable1DNuke("nuke_BjorkenX", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
+  //nukeVars2D.push_back(new Variable2DNuke("nuke_pTmu_pZmu", *nukeVars[1], *nukeVars[0]));
 
   std::vector<Study*> studies;
   std::function<double(const CVUniverse&, const MichelEvent&)> ptmu = [](const CVUniverse& univ, const MichelEvent& /* evt */) { return univ.GetMuonPT();};
@@ -733,6 +953,7 @@ int main(const int argc, const char** argv)
   for(auto& var: nukeVars2D) var->InitializeDATAHists(data_band);
 
   // Loop entries and fill
+  std::cout<<"here\n";
   try
   {
     CVUniverse::SetTruth(false);
@@ -790,7 +1011,7 @@ int main(const int argc, const char** argv)
       //For water
       auto nNucleons = new TParameter<double>((var->GetName() + "_TargetWater_fiducial_nucleons").c_str(), targetInfo.GetPassiveTargetNNucleons( 6, 1, true));
       nNucleons->Write();
-      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[-999].hist)->Write((var->GetName()+ "_TargetWater_reweightedflux_integrated").c_str());
+      util::GetFluxIntegral(*error_bands["cv"].front(), (*var->m_HistsByTgtCodeEfficiencyNumerator)[6000].hist)->Write((var->GetName()+ "_TargetWater_reweightedflux_integrated").c_str());
 
 
       //For Pseudotargets

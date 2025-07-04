@@ -88,6 +88,8 @@ enum ErrorCodes
 //c++ includes
 #include <iostream>
 #include <cstdlib> //getenv()
+#include <fstream>
+#include <sstream> //reading input files
 
 //==============================================================================
 // Loop and Fill
@@ -107,10 +109,10 @@ void LoopAndFillEventSelection(
   std::cout << "Starting MC reco loop...\n";
   const int nEntries = chain->GetEntries();
   //const int nEntries = 10000;
+  //for (int i=19598; i<nEntries; ++i)
   for (int i=0; i<nEntries; ++i)
   {
     if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
-
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
     model.SetEntry(*cvUniv, cvEvent);
@@ -136,14 +138,22 @@ void LoopAndFillEventSelection(
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        for(auto& var: vars) var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+        
+        //Get daisy petal
+        int petal = TargetUtils::Get().GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() ); // *10 to convert from cm to mm
+        //if (petal>0) std::cout<<"Petal: " <<petal << std::endl;
+
+        for(auto& var: vars)
+        {
+          var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+          if (petal >= 0 && petal < 12)  var->selectedMCRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+        }
         for(auto& var: vars2D)
         {
           var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
           (*var->m_interactionChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
         const bool isSignal = michelcuts.isSignal(*universe, weight);
-
         if(isSignal)
         {
           for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
@@ -154,6 +164,13 @@ void LoopAndFillEventSelection(
             var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
             var->migration->FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
             var->selectedSignalReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //Efficiency numerator in reco variables.  Useful for warping studies.
+            //Daisy reweight
+            if (petal >= 0 && petal < 12)
+            {
+              var->EffNumDaisy[petal]->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+              var->MigrationDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
+              var->selectedSignalRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            }
           }
 
           for(auto& var: vars2D)
@@ -169,7 +186,11 @@ void LoopAndFillEventSelection(
           if (universe->GetCurrent()==2)bkgd_ID=0;
           else bkgd_ID=1;
 
-          for(auto& var: vars) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          for(auto& var: vars)
+          {
+            (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            if (petal >= 0 && petal < 12) (*(var->BackgroundsDaisy[petal]))[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          }
           for(auto& var: vars2D) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
       } // End band's universe loop
@@ -195,12 +216,14 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
       MichelEvent myevent; 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
-
+      //Get daisy petal
+      int petal = TargetUtils::Get().GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() );
       for(auto& study: studies) study->Selected(*universe, myevent, 1); 
-
+      //std::cout<<"petal: " <<petal << "X: " << universe->GetANNVertex().X() << "\tY: "<<universe->GetANNVertex().Y()<<std::endl;
       for(auto& var: vars)
       {
         var->dataHist->FillUniverse(universe, var->GetRecoValue(*universe, myevent.m_idx), 1);
+        if (petal >= 0 && petal < 12)  var->dataDaisy[petal]->FillUniverse(*universe, var->GetRecoValue(*universe), 1); //"Fake data" for closure
       }
 
       for(auto& var: vars2D)
@@ -249,11 +272,14 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
 
         if (!michelcuts.isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
-
+        
+        int petal = TargetUtils::Get().GetDaisyPetal(universe->GetTrueVertex().X(), universe->GetTrueVertex().Y() ); // *10 to convert from cm to mm
         //Fill efficiency denominator now: 
         for(auto var: vars)
         {
           var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          //Daisy reweight
+          if (petal >= 0 && petal < 12) var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValue(*universe), weight);
         }
 
         for(auto var: vars2D)
@@ -281,7 +307,7 @@ bool inferRecoTreeNameAndCheckTreeNames(const std::string& mcPlaylistName, const
     std::cerr << "Failed to open the first MC file at " << firstFile << "\n";
     return false;
   }
-
+  std::cout<<"Here2\n";
   //Does the MC playlist have the Truth tree?  This is needed for the efficiency denominator.
   const auto truthTree = testFile->Get("Truth");
   if(truthTree == nullptr || !truthTree->IsA()->InheritsFrom(TClass::GetClass("TTree")))
@@ -358,13 +384,17 @@ int main(const int argc, const char** argv)
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
 
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
-  PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true);
+  PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
 
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
   PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); //TODO: Infer this from the files somehow?
-  PlotUtils::MinervaUniverse::SetAnalysisNuPDG(14);
+  int nuoranu = util::nuOrAntiNuMode(options.m_plist_string);
+  int nupdg;
+  if (nuoranu==1) nupdg = 14;
+  else if (nuoranu==2) nupdg = -14;
+  PlotUtils::MinervaUniverse::SetAnalysisNuPDG(nupdg);
   PlotUtils::MinervaUniverse::SetNFluxUniverses(100);
   PlotUtils::MinervaUniverse::SetZExpansionFaReweight(false);
 
@@ -377,7 +407,7 @@ int main(const int argc, const char** argv)
 
   //const double minZ = 5980, maxZ = 8422, apothem = 850; //All in mm
   const double apothem = 850; //All in mm
-  preCuts.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
   preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
   preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
@@ -467,9 +497,12 @@ int main(const int argc, const char** argv)
   try
   {
     CVUniverse::SetTruth(false);
+    std::cout<<"Daisy reweight test0\n";
     LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model);
     CVUniverse::SetTruth(true);
+    std::cout<<"Daisy reweight test1\n";
     LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model);
+      std::cout<<"Daisy reweight test2\n";
     options.PrintMacroConfiguration(argv[0]);
     std::cout << "MC cut summary:\n" << mycuts << "\n";
     mycuts.resetStats();
