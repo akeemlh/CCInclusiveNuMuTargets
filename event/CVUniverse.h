@@ -161,6 +161,10 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return GetDouble((GetAnaToolName() + "_minos_trk_qp").c_str());
   }
 
+  virtual double GetMuonQPErr() const { //Relative error on charge over momentum for minos track
+    return GetDouble((GetAnaToolName() + "_minos_trk_eqp_qp").c_str());
+  }
+
   //Some functions to match CCQENuInclusive treatment of DIS weighting. Name matches same Dan area as before.
   virtual double GetTrueExperimentersQ2() const {
     double Enu = GetEnuTrue(); //MeV
@@ -229,13 +233,17 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
 
   int GetANNVtxPlane() const {return GetVecElemInt("ANN_vtx_planes", 0);}
   int GetTruthVtxPlane() const {return GetInt("truth_vtx_plane");}
+  int GetMADVtxPlane() const {return GetInt("MasterAnaDev_vtx_plane");}
 
   int GetANNVtxModule() const {return GetVecElemInt("ANN_vtx_modules", 0);}
   int GetTruthVtxModule() const {return GetInt("truth_vtx_module");}
+  int GetMADVtxModule() const {return GetInt("MasterAnaDev_vtx_module");}
   
   ROOT::Math::XYZVector GetANNVertex() const //Dangerous since ANN_vtx doesnt always have a 3-vector in it, calling SetCoordinates without a 3 vector gives a segfault
   {
     ROOT::Math::XYZVector result;
+    //std::cout<<"GetInt(\"ANN_vtx_sz\"): " << GetInt("ANN_vtx_sz") <<std::endl;
+    if (GetInt("ANN_vtx_sz") != 3) return ROOT::Math::XYZVector(-1.0,-1.0,-1.0); //To prevent segfaults when accessing events for which there is no ANN_vtx 3-vector
     result.SetCoordinates(GetVec<double>("ANN_vtx").data());
     return result;
   }
