@@ -30,11 +30,16 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
                            std::map<std::string, std::vector<CVUniverse*>>& truth_error_bands)
     {
 
-      m_HistsByTgtCodeMC = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_MC").c_str(),
+      m_SelectedMCRecoByTgtCode = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_MC").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVec(), mc_error_bands);
 
-      for(auto& target: util::TargetNums)
+
+      m_SelectedSignalRecoByTgtCode = new util::Categorized<Hist, int>((GetName() + "_Selected_Signal_Reco").c_str(),
+        GetName().c_str(), TgtCodeLabels,
+        GetBinVec(), mc_error_bands);
+
+      for(auto& target: util::TgtCodeLabelsNukeNoPS)
       {
         //For each target set the categorised sets of histograms to store the US MC sideband distrubtions
         m_sidebandHistSetUSMC.insert({target.first, 
@@ -83,7 +88,8 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
 
     //Histograms to be filled
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
-    util::Categorized<Hist, int>* m_HistsByTgtCodeMC; ////-
+    util::Categorized<Hist, int>* m_SelectedMCRecoByTgtCode; ////-
+    util::Categorized<Hist, int>* m_SelectedSignalRecoByTgtCode;
     util::Categorized<Hist, int>* m_HistsByTgtCodeData; ////-
 
     //These histograms plot the distrubution of interaction channels per target code 
@@ -127,11 +133,11 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
         GetBinVec(), data_error_bands);
 
       m_sidebandHistsUSData = new util::Categorized<Hist, int>((GetName() + "_US_sideband_by_Target_Data").c_str(),
-        GetName().c_str(), util::TargetNums,
+        GetName().c_str(), util::TgtCodeLabelsNukeNoPS,
         GetBinVec(), data_error_bands);
 
       m_sidebandHistsDSData = new util::Categorized<Hist, int>((GetName() + "_DS_sideband_by_Target_Data").c_str(),
-        GetName().c_str(), util::TargetNums,
+        GetName().c_str(), util::TgtCodeLabelsNukeNoPS,
         GetBinVec(), data_error_bands);
     }
 
@@ -176,11 +182,16 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
       }
-      m_HistsByTgtCodeMC->visit([&file](Hist& categ)
+      m_SelectedMCRecoByTgtCode->visit([&file](Hist& categ)
                                     {
                                       categ.hist->SetDirectory(&file);
                                       categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                     });
+      m_SelectedSignalRecoByTgtCode->visit([&file](Hist& categ)
+        {
+          categ.hist->SetDirectory(&file);
+          categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+        });
 
       for(auto& histSet: m_intChannelsByTgtCode)
       {
