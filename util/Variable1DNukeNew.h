@@ -32,7 +32,7 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
 							   GetName().c_str(), util::BKGLabels,
 							   GetBinVec(), mc_error_bands);
 
-      m_interactionTypeHists = new util::Categorized<Hist, int>((GetName() + "_background").c_str(),
+      m_interactionTypeHists = new util::Categorized<Hist, int>((GetName() + "_intType").c_str(),
         GetName().c_str(), util::GENIELabels,
         GetBinVec(), mc_error_bands);
 
