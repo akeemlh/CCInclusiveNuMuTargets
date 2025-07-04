@@ -18,7 +18,7 @@ class PlasticSideband2DMC: public Study
 
     PlasticSideband2DMC(reco_t reco_x, reco_t reco_y, const std::string& varName, const std::string& varUnits, const std::vector<double> xBins, const std::vector<double> yBins, const std::map<std::string, std::vector<CVUniverse*>>& univs): Study(), fReco_x(reco_x), fReco_y(reco_y)
     {
-      m_HistsByTgtCodeMC = new util::Categorized<Hist, int>((varName + "_by_TargetCode_MC").c_str(),
+      m_SelectedMCRecoByTgtCode = new util::Categorized<Hist, int>((varName + "_by_TargetCode_MC").c_str(),
         varName.c_str(), util::TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), mc_error_bands);
 
@@ -44,7 +44,7 @@ class PlasticSideband2DMC: public Study
     {
       outDir.cd();
 
-      m_HistsByTgtCodeMC->visit([&file](Hist& categ)
+      m_SelectedMCRecoByTgtCode->visit([&file](Hist& categ)
                               {
                                 categ.hist->SetDirectory(&file);
                                 categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
@@ -72,7 +72,7 @@ class PlasticSideband2DMC: public Study
 
     std::map<int, std::string> SidebandCategories;
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
-    util::Categorized<Hist, int>* m_HistsByTgtCodeMC; ////-
+    util::Categorized<Hist, int>* m_SelectedMCRecoByTgtCode; ////-
 
 
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
@@ -103,7 +103,7 @@ class PlasticSideband2DMC: public Study
       {
         int code = inWaterSegment ? -999 : annTgtCode;
         //Plot events that occur within the nuclear targets grouped by which target they occur in
-        (m_HistsByTgtCodeMC)[code].FillUniverse(univ, univfReco_x(univ, evt), fReco_y(univ, evt), 1);
+        (m_SelectedMCRecoByTgtCode)[code].FillUniverse(univ, univfReco_x(univ, evt), fReco_y(univ, evt), 1);
       }
       else
       {

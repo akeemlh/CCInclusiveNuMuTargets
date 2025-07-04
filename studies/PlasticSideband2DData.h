@@ -53,7 +53,7 @@ class PlasticSideband2DData: public Study
     }
 
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
-    util::Categorized<Hist, int>* m_HistsByTgtCodeMC; ////-
+    util::Categorized<Hist, int>* m_SelectedMCRecoByTgtCode; ////-
 
 
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
