@@ -9,6 +9,10 @@
 #include "util/NukeUtils.h"
 #include "MinervaUnfold/MnvResponse.h"
 
+/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+need to implement m_SelectedSignalRecoByTgtCode */
 
 class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 {
@@ -27,11 +31,11 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                            std::map<std::string, std::vector<CVUniverse*>>& truth_error_bands)
     {
       
-      m_HistsByTgtCodeMC = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_MC").c_str(),
+      m_SelectedMCRecoByTgtCode = new util::Categorized<Hist, int>((GetName() + "_by_TargetCode_MC").c_str(),
         GetName().c_str(), TgtCodeLabels,
         GetBinVecX(), GetBinVecY(), mc_error_bands);
 
-      for(auto& target: util::TargetNums)
+      for(auto& target: util::TgtCodeLabelsNukeNoPS)
       {
         //For each target set the categorised sets of histograms to store the US MC sideband distrubtions
         m_sidebandHistSetUSMC.insert({target.first, 
@@ -94,7 +98,7 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 
     //Histograms to be filled
     //These histograms plot the events that we reconstruct as being WITHIN a nuclear target
-    util::Categorized<Hist, int>* m_HistsByTgtCodeMC; ////-
+    util::Categorized<Hist, int>* m_SelectedMCRecoByTgtCode; ////-
     util::Categorized<Hist, int>* m_HistsByTgtCodeData; ////-
 
     //These histograms plot the distrubution of interaction channels per target code 
@@ -133,11 +137,11 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
         GetBinVecX(), GetBinVecY(), data_error_bands);
 
       m_sidebandHistsUSData = new util::Categorized<Hist, int>((GetName() + "_US_sideband_by_Target_Data").c_str(),
-        GetName().c_str(), util::TargetNums,
+        GetName().c_str(), util::TgtCodeLabelsNukeNoPS,
         GetBinVecX(), GetBinVecY(), data_error_bands);
 
       m_sidebandHistsDSData = new util::Categorized<Hist, int>((GetName() + "_DS_sideband_by_Target_Data").c_str(),
-        GetName().c_str(), util::TargetNums,
+        GetName().c_str(), util::TgtCodeLabelsNukeNoPS,
         GetBinVecX(), GetBinVecY(), data_error_bands);
     }
 
@@ -182,7 +186,7 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
       }
-        m_HistsByTgtCodeMC->visit([&file](Hist& categ)
+        m_SelectedMCRecoByTgtCode->visit([&file](Hist& categ)
                                       {
                                         categ.hist->SetDirectory(&file);
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
@@ -214,20 +218,6 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
 
-      m_HistsByTgtCodeMigration->visit([&file](MinervaUnfold::MnvResponse& response)
-                                    {
-                                      MnvH2D* migration_hist = NULL;
-                                      MnvH2D* reco_hist = NULL;
-                                      MnvH2D* truth_hist = NULL;
-                                      response.GetMigrationObjects(migration_hist, reco_hist, truth_hist);
-                                      migration_hist->SetDirectory(&file); 
-                                      migration_hist->Write();
-                                      reco_hist->SetDirectory(&file); 
-                                      reco_hist->Write();
-                                      truth_hist->SetDirectory(&file); 
-                                      truth_hist->Write();
-                                    });
-
     }
     //Only call this manually if you Draw(), Add(), or Divide() plots in this
     //program.
@@ -239,6 +229,34 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       //if(efficiencyNumerator) efficiencyNumerator->SyncCVHistos();
       //if(efficiencyDenominator) efficiencyDenominator->SyncCVHistos();
     }
+
+    void WriteMigration()
+    {
+      SyncCVHistos();
+      std::cout<<"Writing migration matrices\n";
+      for(auto tgtCode: TgtCodeLabels)
+      {
+        TFile* migrationOutDir = TFile::Open((std::string("Migration")+tgtCode.second+".root").c_str(), "RECREATE");
+        if(!migrationOutDir)
+        {
+          std::cerr << "Failed to open a file named " << std::string("Migration")+tgtCode.second+".root" << " in the current directory for writing histograms.\n";
+          return;
+        }
+        migrationOutDir->cd();
+
+        MnvH2D* migration_hist = NULL;
+        MnvH2D* reco_hist = NULL;
+        MnvH2D* truth_hist = NULL;
+        (*m_HistsByTgtCodeMigration)[tgtCode.first].GetMigrationObjects(migration_hist, reco_hist, truth_hist);
+        migration_hist->SetDirectory(migrationOutDir); 
+        migration_hist->Write();
+        reco_hist->SetDirectory(migrationOutDir); 
+        reco_hist->Write();
+        truth_hist->SetDirectory(migrationOutDir); 
+        truth_hist->Write();
+      }
+    }
+
 };
 
 #endif //VARIABLE2DNUKE_H
