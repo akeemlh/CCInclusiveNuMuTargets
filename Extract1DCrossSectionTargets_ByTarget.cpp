@@ -211,7 +211,8 @@ int main(const int argc, const char** argv)
   std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu" , "nuke_pZmu", "nuke_BjorkenX", "nuke_Erecoil", "nuke_Emu"};
 
   //std::vector<std::string> targets = { "Target7", "Target8", "Target9", "Target10", "Target11", "Target12", "1026", "1082", "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082",  "Water"}; //Is there any benefit to getting this programatically like above for the 1D prefixes?
-  std::vector<std::string> targets = {"2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082"}; 
+  //std::vector<std::string> targets = {"2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082"}; 
+  std::vector<std::string> targets = {"2026"}; 
 
   for(auto key: *dataFile->GetListOfKeys())
   {
@@ -315,11 +316,12 @@ int main(const int argc, const char** argv)
         //double nnucleons = nNucleons->GetVal()/numMergedPlaylists;
         double nnucleons = 0;
         
+        std::cout<<"target :" << tgt<<std::endl;
         int tgtCode = std::stoi(tgt);
         int tgtMat = tgtCode%1000;
         int tgtNum = (tgtCode-tgtMat)/1000;
         if (tgt == "Water") nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(6, 1, true);
-        else if (tgtNum>7) nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(tgtNum, tgtMat, true);
+        else if (tgtNum<7) nnucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(tgtNum, tgtMat, true);
         else
         {
           if (tgtNum==7) nnucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 7, true); 
@@ -357,17 +359,22 @@ int main(const int argc, const char** argv)
 
 
 
+        flux2 = PlotUtils::flux_reweighter("minervame1A", nu_pdg, use_nue_constraint, n_flux_universes).GetTargetFluxMnvH1D(nu_pdg, material, project_dir);
+
 
         outFile->cd();
-        auto crossSection = normalize(unfolded, fluxIntegral, nnucleons, dataPOT);
+        auto crossSection = normalize(unfolded, flux, nnucleons, dataPOT);
         Plot(*crossSection, "crossSection", prefix);
         crossSection->Clone()->Write("crossSection");
         simEventRate->Write("simulatedEventRate");
-        flux->Write("flux");
+        flux->Write("flux(FRW/from event loop)");
+        flux2->Write("flux2");
         fluxIntegral->Write("fluxIntegral");
         //Write a "simulated cross section" to compare to the data I just extracted.
         //If this analysis passed its closure test, this should be the same cross section as
         //what GENIEXSecExtract would produce.
+        std::cout<<"NNucleons " << nnucleons <<std::endl;
+        std::cout<<"mcPOT " << mcPOT <<std::endl;
         auto crossSection2 = normalize(simEventRate, flux, nnucleons, mcPOT);
         Plot(*crossSection2, "simulatedCrossSection", prefix);
         crossSection2->Write("simulatedCrossSection");

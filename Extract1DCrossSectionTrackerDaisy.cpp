@@ -19,6 +19,7 @@
 #include "PlotUtils/MnvH1D.h"
 #include "PlotUtils/MnvH2D.h"
 #include "PlotUtils/MnvPlotter.h"
+#include "PlotUtils/FluxReweighter.h"
 #pragma GCC diagnostic pop
 
 //ROOT includes
@@ -143,17 +144,22 @@ int main(const int argc, const char** argv)
   if(argc < 5 )
   {
     std::cerr << "Expected 4 or more arguments, but I got " << argc-1 << ".\n"
-              << "USAGE: ExtractCrossSection <unfolding iterations> <data_directory> <mc_directory> <playlists>\n"
-              << "EG: ExtractCrossSection 5 /data/files/here/ /mc/files/here/ 1A 1B 1C\n"
-              << "Note 23/Jun/2025: DONT TRY TO RUN MULTIPLE PLAYLISTS TOGETHER, JUST DO ONE AT A TIME I.E ONLY PASS ONE PLAYLIST AS <playlists>\n";
+              << "USAGE: ExtractCrossSectionTrackerDaisy <unfolding iterations> <data_file> <mc_file>\n"
+              << "EG: ExtractCrossSection 5 /data/file  /mc/file\n";
               
     return 1;
   }
-  int numMergedPlaylists = argc - 4;
 
   const int nIterations = std::stoi(argv[1]);
 
   std::vector<std::string> variables = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
+
+  auto outFile = TFile::Open("ExtractedCrossSectionDaisy.root", "UPDATE");
+  if(!outFile)
+  {
+    std::cerr << "Could not create a file called ExtractedCrossSection.root\n";
+    return 5;
+  }
 
   double mcPOT = 0;
   double dataPOT = 0;
@@ -164,82 +170,76 @@ int main(const int argc, const char** argv)
     try
     {
       
-      PlotUtils::MnvH1D *flux, *folded, *effNum, *effDenom, *DaisyEffNum[12], *DaisyEffDenom[12];
+      PlotUtils::MnvH1D *flux, *folded, *effNum, *effDenom, *DaisyEffNum[12], *DaisyEffDenom[12], *DaisyFolded[12];
       PlotUtils::MnvH2D* migration, *DaisyMigration[12];
       std::vector<PlotUtils::MnvH1D*> backgrounds, DaisyBackgrounds[12];
       double nNucleonsVal = 0;
 
-      for (int n = 0; n < numMergedPlaylists; n++)
+
+      std::string dataFileName = std::string(argv[2]);
+      std::string mcFileName = std::string(argv[3]);
+      auto dataFile = TFile::Open(dataFileName.c_str(), "READ");
+      if(!dataFile)
       {
-        std::string dataFileName = std::string(argv[2]) + "/" + std::string(argv[4+n])+"-runEventLoopDataTracker.root";
-        std::string mcFileName = std::string(argv[3]) + "/" + std::string(argv[4+n])+"-runEventLoopMCTracker.root";
-        auto dataFile = TFile::Open(dataFileName.c_str(), "READ");
-        if(!dataFile)
-        {
-          std::cerr << "Failed to open data file " << dataFileName << ".\n";
-          return 2;
-        }
+        std::cerr << "Failed to open data file " << dataFileName << ".\n";
+        return 2;
+      }
 
-        auto mcFile = TFile::Open(mcFileName.c_str(), "READ");
-        if(!mcFile)
-        {
-          std::cerr << "Failed to open MC file " << mcFileName << ".\n";
-          return 3;
-        }
+      auto mcFile = TFile::Open(mcFileName.c_str(), "READ");
+      if(!mcFile)
+      {
+        std::cerr << "Failed to open MC file " << mcFileName << ".\n";
+        return 3;
+      }
 
-        double fileMCPOT= util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
-        double fileDataPOT= util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-        mcPOT += fileMCPOT;
-        dataPOT += fileDataPOT;
-        std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+      double fileMCPOT= util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+      double fileDataPOT= util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+      mcPOT += fileMCPOT;
+      dataPOT += fileDataPOT;
+      std::cout<<"Data POT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
 
-        if ( n == 0)
-        {
-          flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
-          flux->Scale(fileMCPOT);
-          folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix);
-          migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix);
-          effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix);
-          effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix);
 
-          //Daisy reweight
-          for (int petal=0; petal<12; petal++){
-            DaisyEffNum[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, ("Daisy_EffNum_"+std::to_string(petal)).c_str(), prefix);
-            DaisyEffDenom[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, ("Daisy_EffDenom_"+std::to_string(petal)).c_str(), prefix);
-            DaisyEffDenom[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, ("Daisy_Migration_"+std::to_string(petal)).c_str(), prefix);
-            //Backgrounds
-            for(auto key: *mcFile->GetListOfKeys())
-            {
-              if(std::string(key->GetName()).find(prefix + "_Daisy_Background_"+std::to_string(petal)) != std::string::npos)
-              {
-                DaisyBackgrounds[petal].push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
-              }
-            }
-          }
-        }
-        else //Not functional yet/ever -- DONT TRY TO RUN MULTIPLE PLAYLISTS TOGETHER, JUST DO ONE AT A TIME
+      flux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
+      flux->Scale(fileMCPOT);
+      folded = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix);
+      migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix);
+      effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix);
+      effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix);
+  
+      auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, ("fiducial_nucleons"), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
+      nNucleonsVal += nNucleons->GetVal();
+      for(auto key: *mcFile->GetListOfKeys())
+      {
+        if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
         {
-          PlotUtils::MnvH1D* tempFlux = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "reweightedflux_integrated", prefix);
-          tempFlux->Scale(fileMCPOT);
-          flux->Add(tempFlux);
-          folded->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, "data", prefix));
-          migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, "migration", prefix));
-          effNum->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_numerator", prefix));
-          effDenom->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, "efficiency_denominator", prefix));
+          backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
         }
-        auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, ("fiducial_nucleons"), prefix); //Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-        nNucleonsVal += nNucleons->GetVal();
+      }
+
+
+      //Daisy reweight
+      for (int petal=0; petal<12; petal++){
+        DaisyEffNum[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, ("Daisy_EffNum_"+std::to_string(petal)).c_str(), prefix);
+        DaisyEffDenom[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, ("Daisy_EffDenom_"+std::to_string(petal)).c_str(), prefix);
+        DaisyMigration[petal] = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, ("Daisy_Migration_"+std::to_string(petal)).c_str(), prefix);
+        DaisyFolded[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, ("Daisy_Data_"+std::to_string(petal)).c_str(), prefix);
+        
+        //Backgrounds
         for(auto key: *mcFile->GetListOfKeys())
         {
-          if(std::string(key->GetName()).find(prefix + "_background_") != std::string::npos)
+          if(std::string(key->GetName()).find(prefix + "_Daisy_Background_"+std::to_string(petal)) != std::string::npos)
           {
-            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
+            DaisyBackgrounds[petal].push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, key->GetName()));
           }
         }
-        dataFile->Close();
-        mcFile->Close();
 
+        DaisyFolded[petal]->AddMissingErrorBandsAndFillWithCV(*(DaisyMigration[petal]));
       }
+
+
+      dataFile->Close();
+      mcFile->Close();
+
       flux->Scale(1.0/mcPOT); //POT Weighted average flux -- Is this the right way to do it?  
 
       std::cout<< "Current working on prefix: " << prefix << std::endl;
@@ -269,13 +269,7 @@ int main(const int argc, const char** argv)
                                            });
       //Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
 
-      auto outFile = TFile::Open("ExtractedCrossSection.root", "UPDATE");
-      if(!outFile)
-      {
-        std::cerr << "Could not create a file called ExtractedCrossSection.root\n";
-        return 5;
-      }
-
+      outFile->cd();
       bkgSubtracted->Write((var+"_backgroundSubtracted").c_str());
 
       //d'Aogstini unfolding
@@ -292,20 +286,101 @@ int main(const int argc, const char** argv)
       unfolded->Divide(unfolded, effNum);
       Plot(*unfolded, "efficiencyCorrected", prefix);
 
-      auto crossSection = normalize(unfolded, flux, nNucleonsVal/numMergedPlaylists, dataPOT);
+      auto crossSection = normalize(unfolded, flux, nNucleonsVal, dataPOT);
       //Plot(*crossSection, "crossSection", prefix);
+      outFile->cd();
       crossSection->Clone()->Write((var+"_crossSection").c_str());
-
+      outFile->cd();
       simEventRate->Write((var+"_simulatedEventRate").c_str());
       flux->Write((var+"_flux_reweighted").c_str());
       //Write a "simulated cross section" to compare to the data I just extracted.
       //If this analysis passed its closure test, this should be the same cross section as
       //what GENIEXSecExtract would produce.
-      normalize(simEventRate, flux, nNucleonsVal/numMergedPlaylists, mcPOT);
+      normalize(simEventRate, flux, nNucleonsVal, mcPOT);
       
       //Plot(*simEventRate, "simulatedCrossSection", prefix);
-      simEventRate->Write((var+"_simulatedCrossSection").c_str());
-      outFile->Close();
+
+
+      std::cout<<"HERE123!\n";
+
+      //Daisy reweight-----------------------------------------
+      //map of petal distributions
+
+      // ---------------------------------------------------------------------
+      // Flux reweighter information, get reweighted daisy sum according to a material
+      // ---------------------------------------------------------------------
+
+      const std::string project_dir = "targets_2345_jointNueIMD";
+      double min_energy = 0;
+      double max_energy = 100;
+
+      auto& frw = PlotUtils::flux_reweighter("minervame1A", 14, true, 100);
+      std::map<int, PlotUtils::MnvH1D*> daisy_petal_hists;
+
+      for (int petal=0; petal<12; petal++){
+        auto toSubtractDaisy = std::accumulate(std::next(DaisyBackgrounds[petal].begin()), DaisyBackgrounds[petal].end(), (*(DaisyBackgrounds[petal]).begin())->Clone(),
+                                          [](auto sum, const auto hist)
+                                          {
+                                            sum->Add(hist);
+                                            return sum;
+                                          });
+        //Plot(*toSubtract, "BackgroundSum", prefix);
+        outFile->cd();
+        toSubtractDaisy->Write((var+"_toSubtractDaisy_"+petal));
+        auto bkgSubtractedDaisy = std::accumulate(DaisyBackgrounds[petal].begin(), DaisyBackgrounds[petal].end(), DaisyFolded[petal]->Clone(),
+                                            [mcPOT, dataPOT](auto sum, const auto hist)
+                                            {
+                                              std::cout << "Subtracting " << hist->GetName() << " scaled by " << -dataPOT/mcPOT << " from " << sum->GetName() << "\n";
+                                              sum->Add(hist, -dataPOT/mcPOT);
+                                              return sum;
+                                            });
+        outFile->cd();
+        DaisyEffNum[petal]->Write((var+"_DaisyEffNum_"+petal));
+        outFile->cd();
+        DaisyEffDenom[petal]->Write((var+"_DaisyEffDenom_"+petal));
+        outFile->cd();
+        DaisyFolded[petal]->Write((var+"_DaisyFolded_"+petal));
+        outFile->cd();
+        bkgSubtractedDaisy->Write((var+"_bkgSubtractedDaisy_"+petal));
+        auto unfoldedDaisy = UnfoldHist(bkgSubtractedDaisy, DaisyMigration[petal], nIterations);
+        outFile->cd();
+        unfoldedDaisy->Write((var+"_unfoldedDaisy_"+petal));
+        if(!unfoldedDaisy) throw std::runtime_error(std::string("Failed to unfold ") + DaisyFolded[petal]->GetName() + " using " + DaisyMigration[petal]->GetName());
+
+        DaisyEffNum[petal]->Divide(DaisyEffNum[petal],DaisyEffDenom[petal]);
+        unfoldedDaisy->Divide(unfoldedDaisy, DaisyEffNum[petal]);
+
+        daisy_petal_hists[petal]=unfoldedDaisy->Clone();
+      }
+      PlotUtils::MnvH1D* DaisyCorrectedC = frw.GetReweightedDaisySum(14, "carbon", daisy_petal_hists, project_dir );
+      PlotUtils::MnvH1D* DaisyCorrectedFe = frw.GetReweightedDaisySum(14, "iron", daisy_petal_hists, project_dir );
+      PlotUtils::MnvH1D* DaisyCorrectePb = frw.GetReweightedDaisySum(14, "lead", daisy_petal_hists, project_dir );
+      //Carbon
+      {
+        auto fluxIntegral = frw.GetIntegratedTargetFlux(14, "carbon", DaisyCorrectedC, min_energy, max_energy, project_dir);
+        auto fluxC = frw.GetTargetFluxMnvH1D(14, "carbon", project_dir);
+        PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nNucleonsVal, dataPOT);
+        outFile->cd();
+        crossSectionC->Write((var+"_C_simulatedCrossSection").c_str());
+      }
+      //Iron
+      {
+        auto fluxIntegral = frw.GetIntegratedTargetFlux(14, "iron", DaisyCorrectedFe, min_energy, max_energy, project_dir);
+        auto fluxC = frw.GetTargetFluxMnvH1D(14, "iron", project_dir);
+        PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nNucleonsVal, dataPOT);
+        outFile->cd();
+        crossSectionC->Write((var+"_Fe_simulatedCrossSection").c_str());
+      }
+      //Lead
+      {
+        auto fluxIntegral = frw.GetIntegratedTargetFlux(14, "lead", DaisyCorrectePb, min_energy, max_energy, project_dir);
+        auto fluxC = frw.GetTargetFluxMnvH1D(14, "lead", project_dir);
+        PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nNucleonsVal, dataPOT);
+        outFile->cd();
+        crossSectionC->Write((var+"_Pb_simulatedCrossSection").c_str());
+      }
+      //auto fluxRebinned = frw.GetRebinnedFluxReweighted_FromInputFlux(flux, h_eff_corr_tracker_to_material[iter]);
+
     }
     catch(const std::runtime_error& e)
     {
@@ -313,6 +388,7 @@ int main(const int argc, const char** argv)
       return 4;
     }
   }
+  outFile->Close();
 
   return 0;
 }
