@@ -55,6 +55,30 @@ namespace util
         }
     }
 
+    static int isUSSideband(int modPlaCode)
+    {
+        auto USTgtID = USModPlaCodeToTgtId.find(modPlaCode);
+        if (USTgtID != util::USModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
+        {
+            return USTgtID->second;
+        }
+        else
+        {
+            return 0;
+        }
+    }
 
+    static int isDSSideband(int modPlaCode)
+    {
+        auto DSTgtID = DSModPlaCodeToTgtId.find(modPlaCode);
+        if (DSTgtID != util::DSModPlaCodeToTgtId.end()) //Is event reconstructed immediately upstream of a nuclear target
+        {
+            return DSTgtID->second;
+        }
+        else
+        {
+            return 0;
+        }
+    }
 }
 #endif //UTIL_PLASTICSIDEBANDS_H
