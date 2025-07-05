@@ -184,7 +184,7 @@ void LoopAndFillEventSelection(
               if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
               {
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
-                (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+                (*var->m_SelectedMCRecoByTgtCode)[code].FillUniverse(universe, var->GetRecoValue(*universe), weight);
                 if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               }
               else
@@ -251,7 +251,7 @@ void LoopAndFillEventSelection(
             else if (set.first=="Tracker") //Check if in target
             {
               //std::cout<<"In tracker - weight: " <<weight <<std::endl;
-              (*var->m_HistsByTgtCodeMC)[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+              (*var->m_SelectedMCRecoByTgtCode)[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
               (*var->m_intChannelsByTgtCode[-1])[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
             } //End check if in target
           }
@@ -262,7 +262,7 @@ void LoopAndFillEventSelection(
               if (annTgtCode>0 || inWaterSegment) //If this event occurs inside a nuclear target
               {
                 //Plot events that occur within the nuclear targets grouped by which target they occur in
-                (*var->m_HistsByTgtCodeMC)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
+                (*var->m_SelectedMCRecoByTgtCode)[code].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
                 if (util::TgtCodeLabelsNuke.count(code)!=0) (*var->m_intChannelsByTgtCode[code])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               }
               else
@@ -329,7 +329,7 @@ void LoopAndFillEventSelection(
             else if (set.first=="Tracker") //Check if in target
             {
               //std::cout<<"In tracker - weight: " <<weight <<std::endl;
-              (*var->m_HistsByTgtCodeMC)[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
+              (*var->m_SelectedMCRecoByTgtCode)[-1].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
               (*var->m_intChannelsByTgtCode[-1])[universe->GetInteractionType()].FillUniverse(universe, set.second.variables2D[0]->GetRecoValueX(*universe), set.second.variables2D[0]->GetRecoValueY(*universe), weight);
             } //End check if in target
           }
