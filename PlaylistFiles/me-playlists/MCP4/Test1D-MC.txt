@@ -1,0 +1,1 @@
+root://fndca1.fnal.gov:1095//pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p4/FullDetector/Merged_mc_ana_me1D_DualVertex_p4/MasterAnaDev_mc_AnaTuple_run00111100_Playlist.root
