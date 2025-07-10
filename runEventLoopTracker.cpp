@@ -1,5 +1,6 @@
 #define MC_OUT_FILE_NAME "runEventLoopTrackerMC.root"
 #define DATA_OUT_FILE_NAME "runEventLoopTrackerData.root"
+#define MIGRATION_OUT_FILE_NAME "runEventLoopTracker2DMigration.root"
 
 #define USAGE \
 "\n*** USAGE ***\n"\
@@ -52,7 +53,6 @@ enum ErrorCodes
 #include "cuts/MaxPzMu.h"
 #include "util/Variable.h"
 #include "util/Variable2D.h"
-#include "util/Variable2DTracker.h"
 #include "util/GetFluxIntegral.h"
 #include "util/GetPlaylist.h"
 #include "cuts/SignalDefinition.h"
@@ -77,6 +77,8 @@ enum ErrorCodes
 #include "PlotUtils/RPAReweighter.h"
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
 #include "PlotUtils/TargetUtils.h"
+
+#include "util/NukeUtils.h"
 #pragma GCC diagnostic pop
 
 //ROOT includes
@@ -98,7 +100,7 @@ void LoopAndFillEventSelection(
     PlotUtils::ChainWrapper* chain,
     std::map<std::string, std::vector<CVUniverse*> > error_bands,
     std::vector<Variable*> vars,
-    std::vector<Variable2DTracker*> vars2D,
+    std::vector<Variable2D*> vars2D,
     std::vector<Study*> studies,
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
     PlotUtils::Model<CVUniverse, MichelEvent>& model)
@@ -117,7 +119,6 @@ void LoopAndFillEventSelection(
     cvUniv->SetEntry(i);
     model.SetEntry(*cvUniv, cvEvent);
     const double cvWeight = model.GetWeight(*cvUniv, cvEvent);
-
     //=========================================
     // Systematics loop(s)
     //=========================================
@@ -138,23 +139,31 @@ void LoopAndFillEventSelection(
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        
         //Get daisy petal
         int petal = TargetUtils::Get().GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() ); // *10 to convert from cm to mm
         //if (petal>0) std::cout<<"Petal: " <<petal << std::endl;
-
         for(auto& var: vars)
-        {
+        { 
           var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
-          if (petal >= 0 && petal < 12)  var->selectedMCRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+          (*var->m_intChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->selectedMCRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+            (*(var->ChannelsDaisy[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          }
         }
         for(auto& var: vars2D)
         {
           var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
-          (*var->m_interactionChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          (*var->m_intChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->selectedMCRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+            (*(var->ChannelsDaisy[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          }
+          //(*var->m_interactionChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
-        const bool isSignal = michelcuts.isSignal(*universe, weight);
-        if(isSignal)
+        const bool isSignal = michelcuts.isSignal(*universe, weight);        if(isSignal)
         {
           for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
 
@@ -172,12 +181,18 @@ void LoopAndFillEventSelection(
               var->selectedSignalRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight);
             }
           }
-
           for(auto& var: vars2D)
           {
             var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
-            var->migration->Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), var->GetTrueValueX(*universe), var->GetTrueValueY(*universe),universe->ShortName(),(univCount-1),weight);
-            //var->FillMigration(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            var->migration->Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+            var->selectedSignalReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //Efficiency numerator in reco variables.  Useful for warping studies.
+            //Daisy reweight
+            if (petal >= 0 && petal < 12)
+            {
+              var->EffNumDaisy[petal]->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+              var->MigrationDaisy[petal]->Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+              var->selectedSignalRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            }
           }
         }
         else
@@ -191,7 +206,11 @@ void LoopAndFillEventSelection(
             (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
             if (petal >= 0 && petal < 12) (*(var->BackgroundsDaisy[petal]))[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
           }
-          for(auto& var: vars2D) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          for(auto& var: vars2D)
+          {
+            (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            if (petal >= 0 && petal < 12) (*(var->BackgroundsDaisy[petal]))[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          } 
         }
       } // End band's universe loop
     } // End Band loop
@@ -202,7 +221,7 @@ void LoopAndFillEventSelection(
 void LoopAndFillData( PlotUtils::ChainWrapper* data,
 			        std::vector<CVUniverse*> data_band,
 				std::vector<Variable*> vars,
-                                std::vector<Variable2DTracker*> vars2D,
+                                std::vector<Variable2D*> vars2D,
                                 std::vector<Study*> studies,
 				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
 
@@ -229,6 +248,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       for(auto& var: vars2D)
       {
         var->dataHist->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+        if (petal >= 0 && petal < 12)  var->dataDaisy[petal]->FillUniverse(*universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
       }
     }
   }
@@ -238,7 +258,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
     				std::map<std::string, std::vector<CVUniverse*> > truth_bands,
     				std::vector<Variable*> vars,
-                                std::vector<Variable2DTracker*> vars2D,
+                                std::vector<Variable2D*> vars2D,
     				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
                                 PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
@@ -285,6 +305,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         for(auto var: vars2D)
         {
           var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          if (petal >= 0 && petal < 12) var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
         }
       }
     }
@@ -382,11 +403,11 @@ int main(const int argc, const char** argv)
   }
 
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
-
+  std::cout<<"Test0\n";
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
-
+  std::cout<<"Test1\n";
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
   PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); //TODO: Infer this from the files somehow?
@@ -399,7 +420,7 @@ int main(const int argc, const char** argv)
   PlotUtils::MinervaUniverse::SetZExpansionFaReweight(false);
 
   PlotUtils::MinervaUniverse::RPAMaterials(true); 
-
+  std::cout<<"Test2\n";
   //Now that we've defined what a cross section is, decide which sample and model
   //we're extracting a cross section for.
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
@@ -470,13 +491,13 @@ int main(const int argc, const char** argv)
 
   std::vector<Variable*> vars;
 
-  std::vector<Variable2DTracker*> vars2D;
+  std::vector<Variable2D*> vars2D;
   vars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", dansPTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
   vars.push_back(new Variable("tracker_pZmu", "p_{||, #mu} [GeV/c]", dansPzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
   vars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", robsEmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
   vars.push_back(new Variable("tracker_Erecoil", "E_{recoil}", robsRecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
   vars.push_back(new Variable("tracker_BjorkenX", "X", bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  vars2D.push_back(new Variable2DTracker("tracker_pTmu_pZmu", *vars[1], *vars[0]));
+  vars2D.push_back(new Variable2D("tracker_pTmu_pZmu", *vars[1], *vars[0]));
 
   std::vector<Study*> studies;
 
@@ -561,6 +582,16 @@ int main(const int argc, const char** argv)
     //Protons On Target
     auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
     dataPOT->Write();
+
+
+    //Write Migration results
+    TFile* migrationOutDir = TFile::Open(MIGRATION_OUT_FILE_NAME, "RECREATE");
+    if(!migrationOutDir)
+    {
+      std::cerr << "Failed to open a file named " << MIGRATION_OUT_FILE_NAME << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+    for(auto& var: vars2D) var->WriteMigration(*migrationOutDir);
 
     std::cout << "Success" << std::endl;
   }

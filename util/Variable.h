@@ -9,6 +9,7 @@
 //PlotUtils includes
 #include "PlotUtils/VariableBase.h"
 #include "PlotUtils/HistWrapper.h"
+#include "util/NukeUtils.h"
 #include "PlotUtils/Hist2DWrapper.h"
 
 class Variable: public PlotUtils::VariableBase<CVUniverse>
@@ -37,6 +38,11 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
     Hist* dataDaisy[12];
     PlotUtils::Hist2DWrapper<CVUniverse>* MigrationDaisy[12];
     util::Categorized<Hist, int>* BackgroundsDaisy[12];
+    util::Categorized<Hist, int>* ChannelsDaisy[12];
+
+    //These histograms plot the distrubution of interaction channels
+    util::Categorized<Hist, int>* m_intChannels; ////-
+
 
     //TODO: It's really silly to have to make 2 sets of error bands just because they point to different trees.
     //      I'd rather the physics of the error bands remain the same and just change which tree they point to.
@@ -57,6 +63,10 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
       selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVec(), mc_error_bands);
       migration = new PlotUtils::Hist2DWrapper<CVUniverse>((GetName() + "_migration").c_str(), GetName().c_str(), GetBinVec(), GetBinVec(), mc_error_bands);
 
+      m_intChannels = new util::Categorized<Hist, int>((GetName() + "_intChannels"),
+              GetName().c_str(), util::GENIELabels,
+              GetBinVec(), mc_error_bands);
+
       for (int petal = 0; petal<12; petal++)
       {
         EffNumDaisy[petal] = new Hist((GetName() + "_Daisy_EffNum_"+petal), GetName().c_str(), GetBinVec(), mc_error_bands);
@@ -64,6 +74,9 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
         MigrationDaisy[petal] = new PlotUtils::Hist2DWrapper<CVUniverse>(std::string(GetName() + "_Daisy_Migration_"+petal).c_str(), GetName().c_str(), GetBinVec(), GetBinVec(), mc_error_bands);
         BackgroundsDaisy[petal] = new util::Categorized<Hist, int>((std::string(GetName() + "_Daisy_Background_"+petal).c_str()),
 							   GetName().c_str(), BKGLabels,
+							   GetBinVec(), mc_error_bands);
+        ChannelsDaisy[petal] = new util::Categorized<Hist, int>((std::string(GetName() + "_Daisy_intChannels_"+petal).c_str()),
+							   GetName().c_str(), util::GENIELabels,
 							   GetBinVec(), mc_error_bands);
         selectedMCRecoDaisy[petal]  = new Hist((GetName() + "_Daisy_selected_mc_reco_"+petal), GetName().c_str(), GetBinVec(), mc_error_bands);
         selectedSignalRecoDaisy[petal]  = new Hist((GetName() + "_Daisy_selected_signal_reco_"+petal), GetName().c_str(), GetBinVec(), mc_error_bands);
@@ -101,6 +114,12 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
       file.cd();
 
       m_backgroundHists->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+
+      m_intChannels->visit([&file](Hist& categ)
                                     {
                                       categ.hist->SetDirectory(&file);
                                       categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
@@ -168,6 +187,11 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
                                         categ.hist->SetDirectory(&file);
                                         categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                                       });
+        ChannelsDaisy[petal]->visit([&file](Hist& categ)
+                                      {
+                                        categ.hist->SetDirectory(&file);
+                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                      });
       }
     }
 
@@ -178,6 +202,7 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
     void SyncCVHistos()
     {
       m_backgroundHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
+      m_intChannels->visit([](Hist& categ) { categ.SyncCVHistos(); });
       if(dataHist) dataHist->SyncCVHistos();
       if(efficiencyNumerator) efficiencyNumerator->SyncCVHistos();
       if(efficiencyDenominator) efficiencyDenominator->SyncCVHistos();
