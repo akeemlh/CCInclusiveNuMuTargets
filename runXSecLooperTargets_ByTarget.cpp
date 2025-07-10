@@ -22,6 +22,21 @@ public:
   
   int fTargetCode;
 
+  double getVariableValue(ChainWrapper& chw, int entry)
+  {
+      return getValue(chw, entry, m_variable_x);
+  }
+
+  double getValue(ChainWrapper& chw, int entry, XSec::EVariable var)
+  {
+      switch(var){
+          case XSec::kEHad: //GeV
+            return ( chw.GetValue("mc_incomingE", entry) - chw.GetValue("mc_primFSLepton", entry, 3) );
+      }
+      return XSec::getValue(chw, entry, var);
+  }
+
+
   bool isCCInclusiveSignal( PlotUtils::ChainWrapper& chw, int entry )
   {
     double theta              = 0.;
@@ -53,14 +68,14 @@ public:
 
 
 
-    bool inApothem = (fabs(true_muon_vtx_y) < (-1./sqrt(3.))*fabs(true_muon_vtx_x) + 2.*850/sqrt(3.)) && (fabs(true_muon_vtx_x) < 850);
+    //bool inApothem = (fabs(true_muon_vtx_y) < (-1./sqrt(3.))*fabs(true_muon_vtx_x) + 2.*850/sqrt(3.)) && (fabs(true_muon_vtx_x) < 850);
 
     //std::cout<<"runxsecloop apothem check: x " << true_muon_vtx_x << " y " << true_muon_vtx_y <<std::endl;
 
-    bool inZRange = true_muon_vtx_z > PlotUtils::TargetProp::NukeRegion::Face && true_muon_vtx_z < PlotUtils::TargetProp::NukeRegion::Back;
+    //bool inZRange = true_muon_vtx_z > PlotUtils::TargetProp::NukeRegion::Face && true_muon_vtx_z < PlotUtils::TargetProp::NukeRegion::Back;
 
     bool inERange = (truth_muon_E>2000) && (truth_muon_E<50000);
-    if(inAngle  && inERange && inZRange && inApothem  ) return true;
+    if(inAngle  && inERange ) return true;
     return false;
 
   }
@@ -83,14 +98,18 @@ public:
     }
     double nucleus = fTargetCode % 1000;
     double target =  (fTargetCode - nucleus) / 1000;
-    if ((int)chw.GetValue("truth_target_code", entry) != fTargetCode)
+    if (!inTarget( chw, entry ))
+    {
+      return false;
+    }
+    /* if ((int)chw.GetValue("truth_target_code", entry) != fTargetCode)
     {
       if (fTargetCode == 6008 ||fTargetCode == 6001)
       {
         if (!PlotUtils::TargetUtils::Get().InWaterTargetVolMC(true_muon_vtx_x, true_muon_vtx_y, true_muon_vtx_z)) return false;
       }
       else return false;
-    }  
+    }    */
 
     //if(!PassTrueDistToDivisionCut( chw, entry, target, nucleus, 25.0)) return false;
     return true;
@@ -128,18 +147,30 @@ public:
         
         return true;
     }
+
+    bool inTarget(PlotUtils::ChainWrapper& chw, int entry)
+    {
+      double vtx_x   = (double)chw.GetValue("mc_vtx",entry,0);
+      double vtx_y   = (double)chw.GetValue("mc_vtx",entry,1);
+      double vtx_z   = (double)chw.GetValue("mc_vtx",entry,2);
+      int mod   = (int)chw.GetValue("truth_vtx_module",entry);
+      int plane   = (int)chw.GetValue("truth_vtx_plane",entry);
+      int tgtCode = util::getTargetCodeFromVtxInfo(vtx_x, vtx_y, vtx_z, mod, plane);
+      return (fTargetCode == tgtCode);
+    }
 };
 
 double GetNormValue( int targetID, int targetZ )
 {
     std::cout<<" GetNormValue: targetID: " << targetID << " targetZ: " << targetZ << std::endl;
-    //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6,  5970, 8450, true, 850.0);
-    double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back, true, 850.0);
+    double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6,  5970, 8450, true, 850.0);
+    //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back, true, 850.0);
     //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, 850.0);
    std::cout<<"trackerAtomsC: " <<trackerAtomsC<<std::endl;
     
     double passiveNucleons = 0;
-    if (targetID<7) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(targetID, targetZ, true, 850); 
+    if (targetID==6) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(6, 1, true, 850); 
+    else if (targetID<7) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(targetID, targetZ, true, 850); 
     else
     {
       if (targetID==7) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 7, true); 
@@ -174,7 +205,10 @@ int main(const int argc, const char** argv)
   const std::string playlistFile = argv[1]; //argv[0] is the name of the executable
 
   //std::vector<int> targetCodes = /* { 1026, 1082, */ {/* 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6001, 6008,  */7, 8, 9, 10, 11, 12};
-  std::vector<int> targetCodes = { 1026, 1082, 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082};// 6001, 6008};
+  //std::vector<int> targetCodes = { 1026, 1082, 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
+  //std::vector<int> targetCodes = { 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
+  std::vector<int> targetCodes = { 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000 ,7, 8, 9, 10, 11, 12};
+  //std::vector<int> targetCodes = { 2082};
   for (auto const& tgtCode : targetCodes)
   {
     std::cout<< "Target: " << tgtCode << std::endl;
@@ -186,7 +220,7 @@ int main(const int argc, const char** argv)
     double tgtZ = tgtCode % 1000;
     double tgtID = (tgtCode - tgtZ) / 1000;
     std::cout << "tgtID: " <<tgtID << " tgtZ: " << tgtZ<<std::endl;
-    double norm = (tgtID<13) ? GetNormValue( tgtID, tgtZ ) : GetNormValue( tgtCode, 0 );
+    double norm = (tgtZ<13) ? GetNormValue( tgtID, tgtZ ) : GetNormValue( tgtCode, 0 );
   /* 
     std::string playlistname = "minervame1A";
     size_t mc_label = playlistFile.find("/MC/");
@@ -208,9 +242,9 @@ int main(const int argc, const char** argv)
     // Setting the number of Universes in the GENIE error band (default 100, put 0 if you do not want to include the universes)
     loop.setNumUniv(0); 
 
-    //loop.setFiducial(5970, 8450);
+    loop.setFiducial(5970, 8450);
     //loop.setFiducial(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, 850.0);
-    loop.setFiducial(PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back);
+    //loop.setFiducial(PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back);
     loop.setPlaylist(PlotUtils::FluxReweighter::minervame1A);
 
     // Add the differential cross section dsigma/ds_dpT
@@ -229,10 +263,10 @@ int main(const int argc, const char** argv)
     double Erecoil_edges[101];
     int Erecoil_nbins = 100;
 
-    const double robsRecoilBinWidth = 50; //MeV
-    for(int whichBin = 0; whichBin < Erecoil_nbins+1 ; ++whichBin)
+    const double robsRecoilBinWidth = 50;
+    for(int whichBin = 0; whichBin < Erecoil_nbins+1 ; whichBin++)
     {
-      Erecoil_edges[whichBin-1] = robsRecoilBinWidth * whichBin;
+      Erecoil_edges[whichBin] = robsRecoilBinWidth * whichBin;
     }
   
     // Flux-integrated over the range 0.0 to 100.0 GeV
@@ -317,7 +351,7 @@ int main(const int argc, const char** argv)
     loop.runLoop();
 
     // Get the output histograms and save them to file
-    std::string geniefilename =  "GENIEXSECEXTRACT_" + playlistFile.substr(playlistFile.rfind("/")+1, playlistFile.find(".")) + "Tgt"+std::to_string(tgtCode)+".root";
+    std::string geniefilename =  "GENIEXSECEXTRACT_Tgt"+std::to_string(tgtCode)+".root";
     TFile fout(geniefilename.c_str(), "RECREATE");
     for(uint i=0; i<loop.getXSecs().size(); ++i)
     {
