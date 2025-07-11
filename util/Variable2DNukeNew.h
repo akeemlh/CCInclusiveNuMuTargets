@@ -26,11 +26,19 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
     {
       
       m_backgroundHists = new util::Categorized<Hist, int>((GetName() + "_by_BKG_Label").c_str(),
-							   GetName().c_str(), util::BKGLabels,
-							   GetBinVecX(), GetBinVecY(), mc_error_bands);
+              GetName().c_str(), util::BKGLabels,
+              GetBinVecX(), GetBinVecY(), mc_error_bands);
+              
+      m_intChannelsEffDenom = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator_intChannels"),
+              GetName().c_str(), util::GENIELabels,
+              GetBinVecX(), GetBinVecY(), truth_error_bands);
 
-      efficiencyNumerator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-      efficiencyDenominator = new Hist((GetNameX() + "_" + GetNameY() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
+      m_interactionTypeHists = new util::Categorized<Hist, int>((GetName() + "_intType").c_str(),
+              GetName().c_str(), util::GENIELabels,
+              GetBinVecX(), GetBinVecY(), mc_error_bands);
+
+      efficiencyNumerator = new Hist((GetName() + "_efficiency_numerator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
+      efficiencyDenominator = new Hist((GetName() + "_efficiency_denominator").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
       selectedMCReco = new Hist((GetName() + "_selected_mc_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
       selectedSignalReco = new Hist((GetName() + "_selected_signal_reco").c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
 
@@ -84,8 +92,9 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
     Hist* m_DS_Sideband_Data; ////-
     //No equivalent for MC since we can simply get all the MC upstream and downstream events by summing the m_sidebandHistSetUSMC and m_sidebandHistSetDSMC 
     
-    
+    //These histograms plot the distrubution of interaction channels
     util::Categorized<Hist, int>*  m_interactionTypeHists;
+    util::Categorized<Hist, int>* m_intChannelsEffDenom;
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
@@ -163,6 +172,12 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
                                 categ.hist->SetDirectory(&file);
                                 categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                               });
+
+      m_intChannelsEffDenom->visit([&file](Hist& categ)
+                              {
+                                categ.hist->SetDirectory(&file);
+                                categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                              });
     }
 
 
@@ -199,6 +214,7 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
       m_sidebandHistSetUSMC->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_sidebandHistSetDSMC->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_interactionTypeHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
+      m_intChannelsEffDenom->visit([](Hist& categ) { categ.SyncCVHistos(); });
       if(dataHist) dataHist->SyncCVHistos();
       if(m_US_Sideband_Data) m_US_Sideband_Data->SyncCVHistos();
       if(m_DS_Sideband_Data) m_DS_Sideband_Data->SyncCVHistos();

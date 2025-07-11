@@ -32,6 +32,10 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
 							   GetName().c_str(), util::BKGLabels,
 							   GetBinVec(), mc_error_bands);
 
+      m_intChannelsEffDenom = new util::Categorized<Hist, int>((GetName() + "_efficiency_denominator_intChannels"),
+              GetName().c_str(), util::GENIELabels,
+              GetBinVec(), truth_error_bands);
+
       m_interactionTypeHists = new util::Categorized<Hist, int>((GetName() + "_intType").c_str(),
         GetName().c_str(), util::GENIELabels,
         GetBinVec(), mc_error_bands);
@@ -74,8 +78,9 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
     Hist* m_DS_Sideband_Data; ////-
     //No equivalent for MC since we can simply get all the MC upstream and downstream events by summing the m_sidebandHistSetUSMC and m_sidebandHistSetDSMC 
     
-    
+    //These histograms plot the distrubution of interaction channels
     util::Categorized<Hist, int>*  m_interactionTypeHists;
+    util::Categorized<Hist, int>* m_intChannelsEffDenom;
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
@@ -153,6 +158,12 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
                                 categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                               });
 
+      m_intChannelsEffDenom->visit([&file](Hist& categ)
+                                    {
+                                      categ.hist->SetDirectory(&file);
+                                      categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                                    });
+
       m_interactionTypeHists->visit([&file](Hist& categ)
                               {
                                 categ.hist->SetDirectory(&file);
@@ -170,6 +181,7 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
       m_sidebandHistSetUSMC->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_sidebandHistSetDSMC->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_interactionTypeHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
+      m_intChannelsEffDenom->visit([](Hist& categ) { categ.SyncCVHistos(); });
       if(dataHist) dataHist->SyncCVHistos();
       if(m_US_Sideband_Data) m_US_Sideband_Data->SyncCVHistos();
       if(m_DS_Sideband_Data) m_DS_Sideband_Data->SyncCVHistos();
