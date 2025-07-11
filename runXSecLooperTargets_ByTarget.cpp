@@ -16,11 +16,11 @@ typedef unsigned int uint;
 class CCInclTargets : public XSec
 {
 public:
-  CCInclTargets(const char* name, int TargetCode) : 
+  CCInclTargets(const char* name, std::string TargetCode) : 
   XSec(name), 
   fTargetCode(TargetCode){};
   
-  int fTargetCode;
+  std::string fTargetCode;
 
   double getVariableValue(ChainWrapper& chw, int entry)
   {
@@ -96,8 +96,6 @@ public:
       //std::cout<<"Failed signal check\n";
       return false;
     }
-    double nucleus = fTargetCode % 1000;
-    double target =  (fTargetCode - nucleus) / 1000;
     if (!inTarget( chw, entry ))
     {
       return false;
@@ -156,33 +154,75 @@ public:
       int mod   = (int)chw.GetValue("truth_vtx_module",entry);
       int plane   = (int)chw.GetValue("truth_vtx_plane",entry);
       int tgtCode = util::getTargetCodeFromVtxInfo(vtx_x, vtx_y, vtx_z, mod, plane);
-      return (fTargetCode == tgtCode);
+      bool inTgt = false;
+      if (fTargetCode=="Iron")
+      {
+        inTgt = (tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026);
+      }
+      else if (fTargetCode=="Lead")
+      {
+        inTgt = (tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082);
+      }
+      else if (fTargetCode=="Carbon")
+      {
+        inTgt = (tgtCode == 3006);
+      }
+      else
+      {
+        inTgt = std::stoi(fTargetCode) == tgtCode;
+      }
+      return inTgt;
     }
 };
 
-double GetNormValue( int targetID, int targetZ )
+double GetNormValue( std::string tgt)
 {
-    std::cout<<" GetNormValue: targetID: " << targetID << " targetZ: " << targetZ << std::endl;
-    double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6,  5970, 8450, true, 850.0);
-    //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back, true, 850.0);
-    //double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6, PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, 850.0);
-   std::cout<<"trackerAtomsC: " <<trackerAtomsC<<std::endl;
-    
+    std::cout<<"tgtCode : "<<tgt<<std::endl;
     double passiveNucleons = 0;
-    if (targetID==6) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(6, 1, true, 850); 
-    else if (targetID<7) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(targetID, targetZ, true, 850); 
+    PlotUtils::TargetUtils tgtUtil;
+    if (tgt=="Iron")
+    {
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(2, 26, true, 850); 
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(3, 26, true, 850); 
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(5, 26, true, 850); 
+    }
+    else if (tgt=="Lead")
+    {
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(2, 82, true, 850); 
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(3, 82, true, 850); 
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(4, 82, true, 850); 
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(5, 82, true, 850); 
+    }
+    else if (tgt=="Carbon")
+    {
+      passiveNucleons +=tgtUtil.GetPassiveTargetNNucleons(3, 6, true, 850); 
+    }
     else
     {
-      if (targetID==7) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 7, true); 
-      if (targetID==8) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
-      if (targetID==9) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
-      if (targetID==10) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
-      if (targetID==11) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
-      if (targetID==12) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 2, true); 
+      int tgtnum =  std::stoi(tgt);
+      double targetZ = tgtnum % 1000;
+      double targetID = (tgtnum - targetZ) / 1000;
+
+      if (targetID==6) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(6, 1, true, 850); 
+      else if (targetID<7) passiveNucleons = PlotUtils::TargetUtils::Get().GetPassiveTargetNNucleons(targetID, targetZ, true, 850); 
+      else
+      {
+        if (targetID==7) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 7, true); 
+        if (targetID==8) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+        if (targetID==9) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+        if (targetID==10) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+        if (targetID==11) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 6, true); 
+        if (targetID==12) passiveNucleons = PlotUtils::TargetUtils::Get().GetTrackerNNucleons( 2, true); 
+
+      }
+      if( passiveNucleons < 0 )
+          assert( false && "Normalizations only known for Z = 1,6,26,82 and 0(scint)" );
 
     }
-    if( passiveNucleons < 0 )
-        assert( false && "Normalizations only known for Z = 1,6,26,82 and 0(scint)" );
+    std::cout<<"passiveNucleons: " <<passiveNucleons<<std::endl;
+    
+    double trackerAtomsC = TargetUtils::Get().GetTrackerElementNAtoms( 6,  5970, 8450, true, 850.0);
+   std::cout<<"trackerAtomsC: " <<trackerAtomsC<<std::endl;
     
     std::cout<<"The normalization factor for this analysis is "<<trackerAtomsC / passiveNucleons<<std::endl;
     
@@ -207,8 +247,8 @@ int main(const int argc, const char** argv)
   //std::vector<int> targetCodes = /* { 1026, 1082, */ {/* 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6001, 6008,  */7, 8, 9, 10, 11, 12};
   //std::vector<int> targetCodes = { 1026, 1082, 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
   //std::vector<int> targetCodes = { 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
-  std::vector<int> targetCodes = { 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000 ,7, 8, 9, 10, 11, 12};
-  //std::vector<int> targetCodes = { 2082};
+  //std::vector<string> targetCodes = { "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "6000 ,7", "8", "9", "10", "11", "12","Iron", "Lead", "Carbon"};
+  std::vector<std::string> targetCodes = { "Iron", "Lead", "Carbon"};
   for (auto const& tgtCode : targetCodes)
   {
     std::cout<< "Target: " << tgtCode << std::endl;
@@ -216,11 +256,7 @@ int main(const int argc, const char** argv)
     // Inputs should be the merged ntuples:
     XSecLooper loop(playlistFile.c_str());
 
-    std::cout<<"tgtCode : "<<tgtCode<<std::endl;
-    double tgtZ = tgtCode % 1000;
-    double tgtID = (tgtCode - tgtZ) / 1000;
-    std::cout << "tgtID: " <<tgtID << " tgtZ: " << tgtZ<<std::endl;
-    double norm = (tgtZ<13) ? GetNormValue( tgtID, tgtZ ) : GetNormValue( tgtCode, 0 );
+    double norm = GetNormValue( tgtCode);
   /* 
     std::string playlistname = "minervame1A";
     size_t mc_label = playlistFile.find("/MC/");
@@ -351,7 +387,7 @@ int main(const int argc, const char** argv)
     loop.runLoop();
 
     // Get the output histograms and save them to file
-    std::string geniefilename =  "GENIEXSECEXTRACT_Tgt"+std::to_string(tgtCode)+".root";
+    std::string geniefilename =  "GENIEXSECEXTRACT_Tgt"+tgtCode+".root";
     TFile fout(geniefilename.c_str(), "RECREATE");
     for(uint i=0; i<loop.getXSecs().size(); ++i)
     {
