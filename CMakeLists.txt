@@ -77,6 +77,10 @@ add_executable(runEventLoopTargets runEventLoopTargets.cpp)
 target_link_libraries(runEventLoopTargets ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopTargets DESTINATION bin)
 
+add_executable(runEventLoopTargetsNew runEventLoopTargetsNew.cpp)
+target_link_libraries(runEventLoopTargetsNew ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+install(TARGETS runEventLoopTargetsNew DESTINATION bin)
+
 add_executable(runEventLoopTracker runEventLoopTracker.cpp)
 target_link_libraries(runEventLoopTracker ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopTracker DESTINATION bin)
@@ -93,6 +97,10 @@ add_executable(runEventLoopValidations runEventLoopValidations.cpp)
 target_link_libraries(runEventLoopValidations ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopValidations DESTINATION bin)
 
+add_executable(runEventLoopValidationsNew runEventLoopValidationsNew.cpp)
+target_link_libraries(runEventLoopValidationsNew ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+install(TARGETS runEventLoopValidationsNew DESTINATION bin)
+
 add_executable(Extract1DCrossSectionTargets Extract1DCrossSectionTargets.cpp)
 target_link_libraries(Extract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTargets DESTINATION bin)
@@ -100,6 +108,10 @@ install(TARGETS Extract1DCrossSectionTargets DESTINATION bin)
 add_executable(Extract1DCrossSectionTargets_ByTarget Extract1DCrossSectionTargets_ByTarget.cpp)
 target_link_libraries(Extract1DCrossSectionTargets_ByTarget ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTargets_ByTarget DESTINATION bin)
+
+add_executable(Extract1DCrossSectionTargets_ByTargetNew Extract1DCrossSectionTargets_ByTargetNew.cpp)
+target_link_libraries(Extract1DCrossSectionTargets_ByTargetNew ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTargets_ByTargetNew DESTINATION bin)
 
 add_executable(Extract1DCrossSectionTargets_ByMaterial Extract1DCrossSectionTargets_ByMaterial.cpp)
 target_link_libraries(Extract1DCrossSectionTargets_ByMaterial ${ROOT_LIBRARIES} util MAT UnfoldUtils)
@@ -113,6 +125,18 @@ add_executable(Extract1DCrossSectionTracker Extract1DCrossSectionTracker.cpp)
 target_link_libraries(Extract1DCrossSectionTracker ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTracker DESTINATION bin)
 
+add_executable(Extract1DCrossSectionTrackerNew Extract1DCrossSectionTrackerNew.cpp)
+target_link_libraries(Extract1DCrossSectionTrackerNew ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTrackerNew DESTINATION bin)
+
+add_executable(Extract1DCrossSectionTrackerDaisy Extract1DCrossSectionTrackerDaisy.cpp)
+target_link_libraries(Extract1DCrossSectionTrackerDaisy ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract1DCrossSectionTrackerDaisy DESTINATION bin)
+
+add_executable(Extract2DCrossSectionTargets Extract2DCrossSectionTargets.cpp)
+target_link_libraries(Extract2DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract2DCrossSectionTargets DESTINATION bin)
+
 add_executable(Extract2DCrossSectionTracker Extract2DCrossSectionTracker.cpp)
 target_link_libraries(Extract2DCrossSectionTracker ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract2DCrossSectionTracker DESTINATION bin)
@@ -122,11 +146,17 @@ add_executable(runXSecLooper runXSecLooper.cpp)
 target_link_libraries(runXSecLooper ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
 install(TARGETS runXSecLooper DESTINATION bin)
 
+add_executable(runXSecLooperTargets_ByTarget runXSecLooperTargets_ByTarget.cpp)
+target_link_libraries(runXSecLooperTargets_ByTarget ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
+install(TARGETS runXSecLooperTargets_ByTarget DESTINATION bin)
+
 add_executable(runXSecLooper1DTracker runXSecLooper1DTracker.cpp)
 target_link_libraries(runXSecLooper1DTracker ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
 install(TARGETS runXSecLooper1DTracker DESTINATION bin)
 
 install(FILES backgroundStack.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
+
+install(FILES SidebandTuning.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
 install(FILES runTransWarp.sh PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
