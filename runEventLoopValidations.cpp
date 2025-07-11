@@ -116,6 +116,14 @@ enum ErrorCodes
 TH1D *ERecoil = new TH1D ("ERecoil", "ERecoil", 1000, 0, 50);
 
 
+struct mcInfo
+{
+  double ANNX, ANNY, ANNZ, TBX, TBY, TBZ, TBT, TrueX, TrueY, TrueZ, TrueT, ERecoil, Weight, BatchPOT, ANNProb;
+  int hasMLPred, multiplicity;
+};
+
+std::vector<mcInfo> mcdata;
+
 double erecoil_lim0 = 0.;
 double erecoil_lim1 = 0.31;
 double erecoil_lim2 = 0.67;
@@ -377,13 +385,12 @@ void LoopAndFillEventSelection(
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
     PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
-
   //To do: Implement TTree
   //Was encountering what I think is a ROOT Bug while attempting this
   //Currently saving to a text file instead
   MCTree = new TTree("MCTree", "MCTree");
   Float_t         MCANNX, MCANNY, MCANNZ, MCTBX, MCTBY, MCTBZ, MCTBT, MCTrueX, MCTrueY, MCTrueZ, MCTrueT, MCERecoil, MCWeight, MCBatchPOT, MCANNProb;
-  Int_t           MChasMLPred, MCmultiplicity;
+  Int_t           MChasMLPred, MCmultiplicity, Test;
   MCTree->Branch("ANNX", &MCANNX, "ANNX/D");
   MCTree->Branch("ANNY", &MCANNY, "ANNY/D");
   MCTree->Branch("ANNZ", &MCANNZ, "ANNZ/D");
@@ -407,647 +414,280 @@ void LoopAndFillEventSelection(
 
   std::cout << "Starting MC reco loop...\n";
 
-  std::ofstream outfile;
-  outfile.open(MC_OUTFILE_TXT, std::ios::trunc);
-  outfile << "ANNX,ANNY,ANNZ,TBX,TBY,TBZ,TBT,TrueX,TrueY,TrueZ,TrueT,ERecoil,Weight,BatchPOT,ANNProb,hasMLPred,multiplicity\n";
-  outfile.close();
-
   const int nEntries = chain->GetEntries();
   for (int i=0; i<nEntries; ++i)
   {
-    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
-
+    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::endl;
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
+    Test = 1;
+    MCTree->Fill();
+    continue;
     model.SetEntry(*cvUniv, cvEvent);
+
     const double cvWeight = model.GetWeight(*cvUniv, cvEvent);
 
     //=========================================
     // Systematics loop(s)
     //=========================================
-    MichelEvent myevent; // make sure your event is inside the error band loop. 
-
-    std::vector<double> ANNVtx = cvUniv->GetANNVertexVector();
-    ROOT::Math::XYZTVector TrackBasedVtx = cvUniv->GetVertex();
-    ROOT::Math::XYZTVector TrueVtx = cvUniv->GetTrueVertex();
-
-    // This is where you would Access/create a Michel
-
-    //weight is ignored in isMCSelected() for all but the CV Universe.
-    if (!michelcuts.isMCSelected(*cvUniv, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
-    PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
-    //Performing vtx validation check Deborah suggested
-    //if(cvUniv->hasMLPred() && cvUniv->GetANNProb()>0.2)
-    double batchPOT = cvUniv->GetBatchPOT();
-    double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
-    
-    //Hadron Energy Spectrum plot
-    //EAvail->Fill(cvUniv->GetEavail()/pow(10,3), cvWeight/efficiency);
-    double erecoil = cvUniv->GetRecoilE()/pow(10,3);
-
-    ERecoil->Fill(erecoil, cvWeight/efficiency);
-
-    if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))
+    for (auto band : error_bands)
     {
-      //These events may be visually interesting - check out in event display
-      //std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
-    }
-    double ANNProb = cvUniv->GetANNProb();
-    double ANNX, ANNY, ANNZ;
-    if(ANNVtx.size()==3)
-    {
-      ANNX = ANNVtx[0];
-      ANNY = ANNVtx[1];
-      ANNZ = ANNVtx[2];
-    }
-    else
-    {
-      ANNX = -999;
-      ANNY = -999;
-      ANNZ = -999;
-    }
+      //std::cout<<"Here4\n";
+      std::vector<CVUniverse*> error_band_universes = band.second;
+      int univCount = 0;
+      for (auto universe : error_band_universes)
+      {
+        univCount++; // Put the iterator right at the start so it's executed even in paths that lead to a continue, don't forget to subtract by 1 when we use it
+        MichelEvent myevent; // make sure your event is inside the error band loop. 
+        // Tell the Event which entry in the TChain it's looking at
+        universe->SetEntry(i);
+        std::vector<double> ANNVtx = cvUniv->GetANNVertexVector();
+        ROOT::Math::XYZTVector TrackBasedVtx = cvUniv->GetVertex();
+        ROOT::Math::XYZTVector TrueVtx = cvUniv->GetTrueVertex();
+        // This is where you would Access/create a Michel
 
-    MCANNX = ANNX;
-    MCANNY = ANNY;
-    MCANNZ = ANNZ;
-    MCTBX = TrackBasedVtx.X();
-    MCTBY = TrackBasedVtx.Y();
-    MCTBZ = TrackBasedVtx.Z();
-    MCTBT = TrackBasedVtx.T();
-    MCTrueX = TrueVtx.X();
-    MCTrueY = TrueVtx.Y();
-    MCTrueZ = TrueVtx.Z();
-    MCTrueT = TrueVtx.T();
-    MCERecoil = erecoil;
-    MCWeight = cvWeight;
-    MCBatchPOT = batchPOT;
-    MCANNProb = ANNProb;
-    MChasMLPred = cvUniv->hasMLPred();
-    MCmultiplicity = cvUniv->GetMultiplicity();
-    //MCTree->Fill();
+        //weight is ignored in isMCSelected() for all but the CV Universe.
+        if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
+        const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
+        PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
+        //Performing vtx validation check Deborah suggested
+        //if(cvUniv->hasMLPred() && cvUniv->GetANNProb()>0.2)
+        double batchPOT = cvUniv->GetBatchPOT();
+        double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
+        
+        //Hadron Energy Spectrum plot
+        //EAvail->Fill(cvUniv->GetEavail()/pow(10,3), cvWeight/efficiency);
+        double erecoil = cvUniv->GetRecoilE()/pow(10,3);
 
+        //ERecoil->Fill(erecoil, cvWeight/efficiency);
 
+        if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))
+        {
+          //These events may be visually interesting - check out in event display
+          //std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
+        }
+        double ANNProb = cvUniv->GetANNProb();
+        double ANNX, ANNY, ANNZ;
+        if(ANNVtx.size()==3)
+        {
+          ANNX = ANNVtx[0];
+          ANNY = ANNVtx[1];
+          ANNZ = ANNVtx[2];
+        }
+        else
+        {
+          ANNX = -999;
+          ANNY = -999;
+          ANNZ = -999;
+        }
 
-    std::ofstream outfile;
-    outfile.open(MC_OUTFILE_TXT, std::ios_base::app);//std::ios_base::app;
-    outfile << ANNX<< "," << ANNY<< "," << ANNZ<< "," << TrackBasedVtx.X()<< "," << TrackBasedVtx.Y()<< "," << TrackBasedVtx.Z()<< "," << TrackBasedVtx.T()<< "," << TrueVtx.X()<< "," << TrueVtx.Y()<< "," << TrueVtx.Z()<< "," << TrueVtx.T()<< "," << erecoil<< "," << cvWeight<< "," << batchPOT<< "," << ANNProb << "," <<cvUniv->hasMLPred() << "," <<cvUniv->GetMultiplicity() << std::endl;
-    outfile.close();
-/* 
-    if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TruthVerticesMCHighResQ1->Fill( TrueVtx.Z(), cvWeight);
-    else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TruthVerticesMCHighResQ2->Fill( TrueVtx.Z(), cvWeight);
-    else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TruthVerticesMCHighResQ3->Fill( TrueVtx.Z(), cvWeight);
-    else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TruthVerticesMCHighResQ4->Fill( TrueVtx.Z(), cvWeight);
-    if(ANNVtx.size()==3 && cvUniv->GetANNProb()>0.2)
-    {
-      ANNVerticesMC->Fill( ANNVtx[2], cvWeight);
-      if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) ANNVerticesMCHighResQ1->Fill( ANNVtx[2], cvWeight);
-      else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) ANNVerticesMCHighResQ2->Fill( ANNVtx[2], cvWeight);
-      else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) ANNVerticesMCHighResQ3->Fill( ANNVtx[2], cvWeight);
-      else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) ANNVerticesMCHighResQ4->Fill( ANNVtx[2], cvWeight);
-      
-      ANNVerticesGranularMC->Fill( ANNVtx[0], ANNVtx[1], ANNVtx[2], cvWeight/efficiency);
-      //Water
-      if (m_TargetUtils->InWaterTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        TrueVtxANNRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
-        ANNRecoInWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        TrueVtxANNRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
-        ANNRecoOutWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt1
-      if (m_TargetUtils->InTarget1VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt2
-      if (m_TargetUtils->InTarget2VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt3
-      if (m_TargetUtils->InTarget3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt4
-      if (m_TargetUtils->InTarget4VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt5
-      if (m_TargetUtils->InTarget5VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt1Iron
-      if (m_TargetUtils->InIron1VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt1Lead
-      if (m_TargetUtils->InLead1VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt2Iron
-      if (m_TargetUtils->InIron2VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt2Lead
-      if (m_TargetUtils->InLead2VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt3Iron
-      if (m_TargetUtils->InIron3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt3Lead
-      if (m_TargetUtils->InLead3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt3Carbon
-      if (m_TargetUtils->InCarbon3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt4Lead
-      if (m_TargetUtils->InLead4VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt5Iron
-      if (m_TargetUtils->InIron5VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Tgt5Lead
-      if (m_TargetUtils->InLead5VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Material-Carbon
-      if (m_TargetUtils->InCarbonTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Material-Iron
-      if (m_TargetUtils->InIronTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      //Material-Lead
-      if (m_TargetUtils->InLeadTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
-      {
-        ANNRecoInLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
-      else
-      {
-        ANNRecoOutLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-      }
+        MCANNX = ANNX;
+        MCANNY = ANNY;
+        MCANNZ = ANNZ;
+        MCTBX = TrackBasedVtx.X();
+        MCTBY = TrackBasedVtx.Y();
+        MCTBZ = TrackBasedVtx.Z();
+        MCTBT = TrackBasedVtx.T();
+        MCTrueX = TrueVtx.X();
+        MCTrueY = TrueVtx.Y();
+        MCTrueZ = TrueVtx.Z();
+        MCTrueT = TrueVtx.T();
+        MCERecoil = erecoil;
+        MCWeight = cvWeight;
+        MCBatchPOT = batchPOT;
+        MCANNProb = ANNProb;
+        MChasMLPred = cvUniv->hasMLPred();
+        MCmultiplicity = cvUniv->GetMultiplicity();
+        //MCTree->Fill();
 
 
-
-
-
-
-
-      //Water
-      if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInWater->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutWater->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt1
-      if (m_TargetUtils->InTarget1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget1->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget1->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt2
-      if (m_TargetUtils->InTarget2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget2->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget2->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt3
-      if (m_TargetUtils->InTarget3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget3->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget3->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt4
-      if (m_TargetUtils->InTarget4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget4->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget4->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt5
-      if (m_TargetUtils->InTarget5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget5->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget5->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt1Iron
-      if (m_TargetUtils->InIron1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget1Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget1Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt1Lead
-      if (m_TargetUtils->InLead1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget1Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget1Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt2Iron
-      if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget2Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget2Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt2Lead
-      if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget2Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget2Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt3Iron
-      if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget3Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget3Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt3Lead
-      if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget3Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget3Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt3Carbon
-      if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget3Carbon->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget3Carbon->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt4Lead
-      if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget4Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget4Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt5Iron
-      if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget5Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget5Iron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Tgt5Lead
-      if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInTarget5Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutTarget5Lead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Material-Carbon
-      if (m_TargetUtils->InCarbonTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInCarbon->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutCarbon->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Material-Iron
-      if (m_TargetUtils->InIronTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInIron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutIron->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      //Material-Lead
-      if (m_TargetUtils->InLeadTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-      {
-        ANNTruthInLead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-      else
-      {
-        ANNTruthOutLead->Fill( ANNVtx[2], cvWeight/efficiency);
-      }
-
-
-
-
-
-
-    }
-    TBVerticesMC->Fill(TrackBasedVtx.Z(), cvWeight);
-
-    if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TBVerticesMCHighResQ1->Fill( TrackBasedVtx.Z(), cvWeight);
-    else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TBVerticesMCHighResQ2->Fill( TrackBasedVtx.Z(), cvWeight);
-    else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TBVerticesMCHighResQ3->Fill( TrackBasedVtx.Z(), cvWeight);
-    else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TBVerticesMCHighResQ4->Fill( TrackBasedVtx.Z(), cvWeight);
-    
-    TBVerticesGranularMC->Fill( TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), cvWeight/efficiency);
-    TrueVerticesGranular->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
-    //Water
-    if (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TrueVtxTBRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
-      TBRecoInWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      //std::cout<<"TB: X: " << TrackBasedVtx.X() <<" Y: " << TrackBasedVtx.Y() <<" Z: "<< TrackBasedVtx.Z() <<std::endl;
-      TrueVtxTBRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
-      TBRecoOutWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt1
-    if (m_TargetUtils->InTarget1VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt2
-    if (m_TargetUtils->InTarget2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3
-    if (m_TargetUtils->InTarget3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt4
-    if (m_TargetUtils->InTarget4VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt5
-    if (m_TargetUtils->InTarget5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt1Iron
-    if (m_TargetUtils->InIron1VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt1Lead
-    if (m_TargetUtils->InLead1VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt2Iron
-    if (m_TargetUtils->InIron2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt2Lead
-    if (m_TargetUtils->InLead2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3Iron
-    if (m_TargetUtils->InIron3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3Lead
-    if (m_TargetUtils->InLead3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3Carbon
-    if (m_TargetUtils->InCarbon3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt4Lead
-    if (m_TargetUtils->InLead4VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt5Iron
-    if (m_TargetUtils->InIron5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt5Lead
-    if (m_TargetUtils->InLead5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Material-Carbon
-    if (m_TargetUtils->InCarbonTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Material-Iron
-    if (m_TargetUtils->InIronTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //Material-Lead
-    if (m_TargetUtils->InLeadTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
-    {
-      TBRecoInLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBRecoOutLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
-    }
-    //std::cout<<"Here6\n";
+    /* 
+        if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TruthVerticesMCHighResQ1->Fill( TrueVtx.Z(), cvWeight);
+        else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TruthVerticesMCHighResQ2->Fill( TrueVtx.Z(), cvWeight);
+        else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TruthVerticesMCHighResQ3->Fill( TrueVtx.Z(), cvWeight);
+        else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TruthVerticesMCHighResQ4->Fill( TrueVtx.Z(), cvWeight);
+        if(ANNVtx.size()==3 && cvUniv->GetANNProb()>0.2)
+        {
+          ANNVerticesMC->Fill( ANNVtx[2], cvWeight);
+          if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) ANNVerticesMCHighResQ1->Fill( ANNVtx[2], cvWeight);
+          else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) ANNVerticesMCHighResQ2->Fill( ANNVtx[2], cvWeight);
+          else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) ANNVerticesMCHighResQ3->Fill( ANNVtx[2], cvWeight);
+          else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) ANNVerticesMCHighResQ4->Fill( ANNVtx[2], cvWeight);
+          
+          ANNVerticesGranularMC->Fill( ANNVtx[0], ANNVtx[1], ANNVtx[2], cvWeight/efficiency);
+          //Water
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            TrueVtxANNRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
+            ANNRecoInWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            TrueVtxANNRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
+            ANNRecoOutWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt1
+          if (m_TargetUtils->InTarget1VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt2
+          if (m_TargetUtils->InTarget2VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt3
+          if (m_TargetUtils->InTarget3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt4
+          if (m_TargetUtils->InTarget4VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt5
+          if (m_TargetUtils->InTarget5VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt1Iron
+          if (m_TargetUtils->InIron1VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt1Lead
+          if (m_TargetUtils->InLead1VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt2Iron
+          if (m_TargetUtils->InIron2VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt2Lead
+          if (m_TargetUtils->InLead2VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt3Iron
+          if (m_TargetUtils->InIron3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt3Lead
+          if (m_TargetUtils->InLead3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt3Carbon
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt4Lead
+          if (m_TargetUtils->InLead4VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt5Iron
+          if (m_TargetUtils->InIron5VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Tgt5Lead
+          if (m_TargetUtils->InLead5VolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Material-Carbon
+          if (m_TargetUtils->InCarbonTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Material-Iron
+          if (m_TargetUtils->InIronTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          //Material-Lead
+          if (m_TargetUtils->InLeadTargetVolMC(ANNVtx[0], ANNVtx[1], ANNVtx[2]))
+          {
+            ANNRecoInLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
+          else
+          {
+            ANNRecoOutLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+          }
 
 
 
@@ -1055,182 +695,552 @@ void LoopAndFillEventSelection(
 
 
 
+          //Water
+          if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInWater->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutWater->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt1
+          if (m_TargetUtils->InTarget1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget1->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget1->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt2
+          if (m_TargetUtils->InTarget2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget2->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget2->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt3
+          if (m_TargetUtils->InTarget3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget3->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget3->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt4
+          if (m_TargetUtils->InTarget4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget4->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget4->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt5
+          if (m_TargetUtils->InTarget5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget5->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget5->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt1Iron
+          if (m_TargetUtils->InIron1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget1Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget1Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt1Lead
+          if (m_TargetUtils->InLead1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget1Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget1Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt2Iron
+          if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget2Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget2Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt2Lead
+          if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget2Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget2Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt3Iron
+          if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget3Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget3Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt3Lead
+          if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget3Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget3Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt3Carbon
+          if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget3Carbon->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget3Carbon->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt4Lead
+          if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget4Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget4Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt5Iron
+          if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget5Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget5Iron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Tgt5Lead
+          if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInTarget5Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutTarget5Lead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Material-Carbon
+          if (m_TargetUtils->InCarbonTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInCarbon->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutCarbon->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Material-Iron
+          if (m_TargetUtils->InIronTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInIron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutIron->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          //Material-Lead
+          if (m_TargetUtils->InLeadTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNTruthInLead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
+          else
+          {
+            ANNTruthOutLead->Fill( ANNVtx[2], cvWeight/efficiency);
+          }
 
 
-    //Water
-    if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInWater->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutWater->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt1
-    if (m_TargetUtils->InTarget1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget1->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget1->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt2
-    if (m_TargetUtils->InTarget2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget2->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget2->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3
-    if (m_TargetUtils->InTarget3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget3->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget3->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt4
-    if (m_TargetUtils->InTarget4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget4->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget4->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt5
-    if (m_TargetUtils->InTarget5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget5->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget5->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt1Iron
-    if (m_TargetUtils->InIron1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget1Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget1Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt1Lead
-    if (m_TargetUtils->InLead1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget1Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget1Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt2Iron
-    if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget2Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget2Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt2Lead
-    if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget2Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget2Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3Iron
-    if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget3Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget3Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3Lead
-    if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget3Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget3Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt3Carbon
-    if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget3Carbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget3Carbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt4Lead
-    if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget4Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget4Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt5Iron
-    if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget5Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget5Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Tgt5Lead
-    if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInTarget5Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutTarget5Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Material-Carbon
-    if (m_TargetUtils->InCarbonTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInCarbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutCarbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Material-Iron
-    if (m_TargetUtils->InIronTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInIron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutIron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //Material-Lead
-    if (m_TargetUtils->InLeadTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
-    {
-      TBTruthInLead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    else
-    {
-      TBTruthOutLead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
-    }
-    //std::cout<<"Here6\n";
- */
 
+
+
+
+        }
+        TBVerticesMC->Fill(TrackBasedVtx.Z(), cvWeight);
+
+        if (erecoil>erecoil_lim0 && erecoil<=erecoil_lim1) TBVerticesMCHighResQ1->Fill( TrackBasedVtx.Z(), cvWeight);
+        else if (erecoil>erecoil_lim1 && erecoil<=erecoil_lim2) TBVerticesMCHighResQ2->Fill( TrackBasedVtx.Z(), cvWeight);
+        else if (erecoil>erecoil_lim2 && erecoil<=erecoil_lim3) TBVerticesMCHighResQ3->Fill( TrackBasedVtx.Z(), cvWeight);
+        else if (erecoil>erecoil_lim3 && erecoil<=erecoil_lim4) TBVerticesMCHighResQ4->Fill( TrackBasedVtx.Z(), cvWeight);
+        
+        TBVerticesGranularMC->Fill( TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), cvWeight/efficiency);
+        TrueVerticesGranular->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
+        //Water
+        if (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TrueVtxTBRecoInWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
+          TBRecoInWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          //std::cout<<"TB: X: " << TrackBasedVtx.X() <<" Y: " << TrackBasedVtx.Y() <<" Z: "<< TrackBasedVtx.Z() <<std::endl;
+          TrueVtxTBRecoOutWater->Fill( TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), cvWeight/efficiency);
+          TBRecoOutWater->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt1
+        if (m_TargetUtils->InTarget1VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget1->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt2
+        if (m_TargetUtils->InTarget2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget2->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3
+        if (m_TargetUtils->InTarget3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget3->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt4
+        if (m_TargetUtils->InTarget4VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget4->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt5
+        if (m_TargetUtils->InTarget5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget5->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt1Iron
+        if (m_TargetUtils->InIron1VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget1Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt1Lead
+        if (m_TargetUtils->InLead1VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget1Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt2Iron
+        if (m_TargetUtils->InIron2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget2Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt2Lead
+        if (m_TargetUtils->InLead2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget2Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3Iron
+        if (m_TargetUtils->InIron3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget3Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3Lead
+        if (m_TargetUtils->InLead3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget3Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3Carbon
+        if (m_TargetUtils->InCarbon3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget3Carbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt4Lead
+        if (m_TargetUtils->InLead4VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget4Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt5Iron
+        if (m_TargetUtils->InIron5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget5Iron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt5Lead
+        if (m_TargetUtils->InLead5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutTarget5Lead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Material-Carbon
+        if (m_TargetUtils->InCarbonTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutCarbon->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Material-Iron
+        if (m_TargetUtils->InIronTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutIron->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //Material-Lead
+        if (m_TargetUtils->InLeadTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        {
+          TBRecoInLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBRecoOutLead->Fill( TrueVtx.Z(), cvWeight/efficiency);
+        }
+        //std::cout<<"Here6\n";
+
+
+
+
+
+
+
+
+
+        //Water
+        if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInWater->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutWater->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt1
+        if (m_TargetUtils->InTarget1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget1->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget1->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt2
+        if (m_TargetUtils->InTarget2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget2->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget2->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3
+        if (m_TargetUtils->InTarget3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget3->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget3->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt4
+        if (m_TargetUtils->InTarget4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget4->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget4->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt5
+        if (m_TargetUtils->InTarget5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget5->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget5->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt1Iron
+        if (m_TargetUtils->InIron1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget1Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget1Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt1Lead
+        if (m_TargetUtils->InLead1VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget1Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget1Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt2Iron
+        if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget2Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget2Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt2Lead
+        if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget2Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget2Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3Iron
+        if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget3Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget3Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3Lead
+        if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget3Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget3Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt3Carbon
+        if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget3Carbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget3Carbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt4Lead
+        if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget4Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget4Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt5Iron
+        if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget5Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget5Iron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Tgt5Lead
+        if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInTarget5Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutTarget5Lead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Material-Carbon
+        if (m_TargetUtils->InCarbonTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInCarbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutCarbon->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Material-Iron
+        if (m_TargetUtils->InIronTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInIron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutIron->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //Material-Lead
+        if (m_TargetUtils->InLeadTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+        {
+          TBTruthInLead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        else
+        {
+          TBTruthOutLead->Fill( TrackBasedVtx.Z(), cvWeight/efficiency);
+        }
+        //std::cout<<"Here6\n";
+    */
+      }
+    }
 
   } //End entries loop
 
@@ -1268,10 +1278,6 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
   DataTree->Branch("hasMLPred", &DatahasMLPred, "hasMLPred/D");
   DataTree->Branch("multiplicity", &Datamultiplicity, "multiplicity/D");
 
-  std::ofstream outfile;
-  outfile.open(DATA_OUTFILE_TXT, std::ios::trunc);
-  outfile << "ANNX,ANNY,ANNZ,TBX,TBY,TBZ,TBT,ERecoil,batchPOT,ANNProb,hasMLPred,multiplicity\n";
-  outfile.close();
 
   const int nEntries = data->GetEntries();
   for (int i=0; i<data->GetEntries(); ++i) {
@@ -1314,13 +1320,8 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       DataANNProb = ANNProb;
       DatahasMLPred = universe->hasMLPred();
       Datamultiplicity = universe->GetMultiplicity();
-      //DataTree->Fill();
-
-
-      std::ofstream outfile;
-      outfile.open(DATA_OUTFILE_TXT, std::ios_base::app);//std::ios_base::app;
-      outfile << ANNX<< "," << ANNY<< "," << ANNZ<< "," << TrackBasedVtx.X()<< "," << TrackBasedVtx.Y()<< "," << TrackBasedVtx.Z()<< "," << TrackBasedVtx.T()<< "," << erecoil << "," << batchPOT << "," << ANNProb << "," <<universe->hasMLPred()  << "," <<universe->GetMultiplicity() << std::endl;
-      outfile.close();
+      std::cout<< "DataTree->GetAutoFlush(): " << DataTree->GetAutoFlush() << std::endl;
+      std::cout<< "DataTree->Fill(): " <<DataTree->Fill()<< std::endl;
 
       /* if(ANNVtx.size()==3)
       {
@@ -1489,7 +1490,7 @@ int main(const int argc, const char** argv)
   MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
-
+ 
   PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
 
   // Make a map of systematic universes
@@ -1561,10 +1562,6 @@ int main(const int argc, const char** argv)
       std::cerr << "Failed to open a file named " << MC_OUT_FILE_NAME << " in the current directory for writing histograms.\n";
       return badOutputFile;
     }
-
-    for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
-    for(auto& var: vars) var->WriteMC(*mcOutDir);
-    for(auto& var: vars2D) var->WriteMC(*mcOutDir);
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
@@ -1989,6 +1986,61 @@ int main(const int argc, const char** argv)
     //ERecoil->SetDirectory(mcOutDir);
     //ERecoil->Write();
 
+
+
+
+
+
+
+
+
+
+
+    MCTree = new TTree("MCTree", "MCTree");
+    Float_t         MCANNX, MCANNY, MCANNZ, MCTBX, MCTBY, MCTBZ, MCTBT, MCTrueX, MCTrueY, MCTrueZ, MCTrueT, MCERecoil, MCWeight, MCBatchPOT, MCANNProb;
+    Int_t           MChasMLPred, MCmultiplicity, Test;
+    MCTree->Branch("ANNX", &MCANNX, "ANNX/D");
+    MCTree->Branch("ANNY", &MCANNY, "ANNY/D");
+    MCTree->Branch("ANNZ", &MCANNZ, "ANNZ/D");
+    MCTree->Branch("TBX", &MCTBX, "TBX/D");
+    MCTree->Branch("TBY", &MCTBY, "TBY/D");
+    MCTree->Branch("TBZ", &MCTBZ, "TBZ/D");
+    MCTree->Branch("TBT", &MCTBT, "TBT/D");
+    MCTree->Branch("TrueX", &MCTrueX, "TrueX/D");
+    MCTree->Branch("TrueY", &MCTrueY, "TrueY/D");
+    MCTree->Branch("TrueZ", &MCTrueZ, "TrueZ/D");
+    MCTree->Branch("TrueT", &MCTrueT, "TrueT/D");
+    MCTree->Branch("ERecoil", &MCERecoil, "ERecoil/D");
+    MCTree->Branch("Weight", &MCWeight, "Weight/D");
+    MCTree->Branch("BatchPOT", &MCBatchPOT, "BatchPOT/D");
+    MCTree->Branch("ANNProb", &MCANNProb, "ANNProb/D");
+    MCTree->Branch("hasMLPred", &MChasMLPred, "hasMLPred/D");
+    MCTree->Branch("multiplicity", &MCmultiplicity, "multiplicity/D");
+
+    for (int i = 0; i<mcdata.size(); i++)
+    {
+      mcInfo d = mcdata[i];
+      MCANNX = d.ANNX;
+      MCANNY = d.ANNY;
+      MCANNZ = d.ANNZ;
+      MCTBX = d.ANNX;
+      MCTBY = d.TBY;
+      MCTBZ = d.TBZ;
+      MCTBT = d.TBT;
+      MCTrueX = d.TrueX;
+      MCTrueY = d.TrueY;
+      MCTrueZ = d.TrueZ;
+      MCTrueT = d.TrueT;
+      MCERecoil = d.ERecoil;
+      MCWeight = d.Weight;
+      MCBatchPOT = d.BatchPOT;
+      MCANNProb = d.ANNProb;
+      MChasMLPred = d.hasMLPred;
+      MCmultiplicity = d.multiplicity;
+      MCTree->Fill();
+      std::cout<<i<<"/"<<mcdata.size()<<std::endl;
+    }
+
     MCTree->SetDirectory(mcOutDir);
     MCTree->Write();
     //Write data results
@@ -2045,8 +2097,8 @@ int main(const int argc, const char** argv)
     ANNVerticesGranularData->Write();
     TBVerticesGranularData->Write(); */
 
-    //DataTree->SetDirectory(mcOutDir);
-    //DataTree->Write();
+    DataTree->SetDirectory(dataOutDir);
+    DataTree->Write();
 
     std::cout << "Success" << std::endl;
   }

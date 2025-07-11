@@ -1,6 +1,6 @@
-#define MC_OUT_FILE_NAME "runEventLoopTrackerMC.root"
-#define DATA_OUT_FILE_NAME "runEventLoopTrackerData.root"
-#define MIGRATION_OUT_FILE_NAME "runEventLoopTracker2DMigration.root"
+#define MC_OUT_FILE_NAME "runEventLoopTrackerMC"
+#define DATA_OUT_FILE_NAME "runEventLoopTrackerData"
+#define MIGRATION_OUT_FILE_NAME "runEventLoopTracker2DMigration"
 
 #define USAGE \
 "\n*** USAGE ***\n"\
@@ -112,6 +112,7 @@ void LoopAndFillEventSelection(
   const int nEntries = chain->GetEntries();
   //const int nEntries = 10000;
   //for (int i=19598; i<nEntries; ++i)
+  PlotUtils::TargetUtils util;
   for (int i=0; i<nEntries; ++i)
   {
     if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
@@ -140,7 +141,7 @@ void LoopAndFillEventSelection(
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue; //all is another function that will later help me with sidebands
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
         //Get daisy petal
-        int petal = TargetUtils::Get().GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() ); // *10 to convert from cm to mm
+        int petal = util.GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() ); // *10 to convert from cm to mm
         //if (petal>0) std::cout<<"Petal: " <<petal << std::endl;
         for(auto& var: vars)
         { 
@@ -228,6 +229,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 {
   std::cout << "Starting data loop...\n";
   const int nEntries = data->GetEntries();
+  PlotUtils::TargetUtils util;
   //const int nEntries = 10000;
   for (int i=0; i<data->GetEntries(); ++i) {
     for (auto universe : data_band) {
@@ -236,7 +238,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       MichelEvent myevent; 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
       //Get daisy petal
-      int petal = TargetUtils::Get().GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() );
+      int petal = util.GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() );
       for(auto& study: studies) study->Selected(*universe, myevent, 1); 
       //std::cout<<"petal: " <<petal << "X: " << universe->GetANNVertex().X() << "\tY: "<<universe->GetANNVertex().Y()<<std::endl;
       for(auto& var: vars)
@@ -264,7 +266,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
 {
   assert(!truth_bands["cv"].empty() && "\"cv\" error band is empty!  Could not set Model entry.");
   auto& cvUniv = truth_bands["cv"].front();
-
+  PlotUtils::TargetUtils util;
   std::cout << "Starting efficiency denominator loop...\n";
   const int nEntries = truth->GetEntries();
   //const int nEntries = 10000;
@@ -293,19 +295,29 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         if (!michelcuts.isEfficiencyDenom(*universe, cvWeight)) continue; //Weight is ignored for isEfficiencyDenom() in all but the CV universe 
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
         
-        int petal = TargetUtils::Get().GetDaisyPetal(universe->GetTrueVertex().X(), universe->GetTrueVertex().Y() ); // *10 to convert from cm to mm
+        int petal = util.GetDaisyPetal(universe->GetTrueVertex().X(), universe->GetTrueVertex().Y() ); // *10 to convert from cm to mm
         //Fill efficiency denominator now: 
         for(auto var: vars)
         {
           var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          (*var->m_intChannelsEffDenom)[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValue(*universe), weight);
           //Daisy reweight
-          if (petal >= 0 && petal < 12) var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+            (*(var->EffDenomDaisyIntChannels[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          }
         }
 
         for(auto var: vars2D)
         {
           var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
-          if (petal >= 0 && petal < 12) var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          (*var->m_intChannelsEffDenom)[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+            (*(var->EffDenomDaisyIntChannels[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          }
         }
       }
     }
@@ -433,14 +445,17 @@ int main(const int argc, const char** argv)
   preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
   preCuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
-  preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
+  if (nupdg>0)  preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
+  else if (nupdg<0)  preCuts.emplace_back(new reco::IsAntiNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
+  preCuts.emplace_back(new reco::MuonCurveSignificance<CVUniverse, MichelEvent>(5));
   preCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
   preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
   preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20));
 
 
                                                                                                                                                    
-  signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
+  if (nupdg>0) signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
+  else if (nupdg<0) signalDefinition.emplace_back(new truth::IsAntiNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                                                                                                                    
   phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Active Tracker Z pos", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
@@ -531,12 +546,14 @@ int main(const int argc, const char** argv)
     CVUniverse::SetTruth(false);
     LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts);
     std::cout << "Data cut summary:\n" << mycuts << "\n";
+    std::string filepath;
 
     //Write MC results
-    TFile* mcOutDir = TFile::Open(MC_OUT_FILE_NAME, "RECREATE");
+    filepath = std::string(MC_OUT_FILE_NAME)+".root";
+    TFile* mcOutDir = TFile::Open(filepath.c_str(), "RECREATE");
     if(!mcOutDir)
     {
-      std::cerr << "Failed to open a file named " << MC_OUT_FILE_NAME << " in the current directory for writing histograms.\n";
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
       return badOutputFile;
     }
 
@@ -546,6 +563,21 @@ int main(const int argc, const char** argv)
 
     //Protons On Target
     auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
+    mcPOT->Write();
+
+    //Write MC Daisy results
+    filepath = std::string(MC_OUT_FILE_NAME)+"Daisy.root";
+    TFile* mcDaisyOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!mcDaisyOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+
+    for(auto& var: vars) var->WriteDaisyMC(*mcDaisyOutDir);
+    for(auto& var: vars2D) var->WriteDaisyMC(*mcDaisyOutDir);
+  
+    //Protons On Target
     mcPOT->Write();
 
     PlotUtils::TargetUtils targetInfo;
@@ -569,10 +601,11 @@ int main(const int argc, const char** argv)
     }
 
     //Write data results
-    TFile* dataOutDir = TFile::Open(DATA_OUT_FILE_NAME, "RECREATE");
+    filepath = std::string(DATA_OUT_FILE_NAME)+".root";
+    TFile* dataOutDir = TFile::Open(filepath.c_str(), "RECREATE");
     if(!dataOutDir)
     {
-      std::cerr << "Failed to open a file named " << DATA_OUT_FILE_NAME << " in the current directory for writing histograms.\n";
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
       return badOutputFile;
     }
 
@@ -584,14 +617,41 @@ int main(const int argc, const char** argv)
     dataPOT->Write();
 
 
-    //Write Migration results
-    TFile* migrationOutDir = TFile::Open(MIGRATION_OUT_FILE_NAME, "RECREATE");
-    if(!migrationOutDir)
+    //Write data daisy results
+    filepath = std::string(DATA_OUT_FILE_NAME)+"Daisy.root";
+    TFile* daisyDataOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!daisyDataOutDir)
     {
-      std::cerr << "Failed to open a file named " << MIGRATION_OUT_FILE_NAME << " in the current directory for writing histograms.\n";
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
       return badOutputFile;
     }
-    for(auto& var: vars2D) var->WriteMigration(*migrationOutDir);
+
+    for(auto& var: vars) var->WriteDaisyData(*daisyDataOutDir);
+    for(auto& var: vars2D) var->WriteDaisyData(*daisyDataOutDir);
+
+    //Protons On Target
+    dataPOT->Write();
+
+
+    //Write Migration results
+    filepath = std::string(MIGRATION_OUT_FILE_NAME)+".root";
+    TFile* migrationOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!migrationOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+    for(auto& var: vars2D)var->WriteMigration(*migrationOutDir);
+
+    //Write Migration results
+    filepath = std::string(MIGRATION_OUT_FILE_NAME)+"Daisy.root";
+    TFile* migrationDaisyOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!migrationDaisyOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+    for(auto& var: vars2D)var->WriteDaisyMigration(*migrationDaisyOutDir);
 
     std::cout << "Success" << std::endl;
   }
