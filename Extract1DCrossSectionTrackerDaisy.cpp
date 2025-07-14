@@ -187,7 +187,7 @@ int main(const int argc, const char **argv)
   {
     std::cerr << "Expected 4 arguments, but I got " << argc - 1 << ".\n"
               << "USAGE: ExtractCrossSection <unfolding iterations> <directory> <playlistname-for-flux> <pdg>\n"
-              << "e.g: ExtractCrossSection 5 ./ 2026 minervame1A 14\n";
+              << "e.g: ExtractCrossSection 5 ./ minervame1A 14\n";
     return 1;
   }
 
@@ -198,8 +198,6 @@ int main(const int argc, const char **argv)
 
   std::string datapath = directory + "/runEventLoopTrackerData.root";
   std::string mcpath = directory + "/runEventLoopTrackerMC.root";
-  std::string datapathdaisy = directory + "/runEventLoopTrackerDataDaisy.root";
-  std::string mcpathdaisy = directory + "/runEventLoopTrackerMCDaisy.root";
 
   auto dataFile = TFile::Open(datapath.c_str(), "READ");
   if (!dataFile)
@@ -212,20 +210,6 @@ int main(const int argc, const char **argv)
   if (!mcFile)
   {
     std::cerr << "Failed to open MC file " << mcpath.c_str() << ".\n";
-    return 3;
-  }
-
-  auto dataDaisyFile = TFile::Open(datapathdaisy.c_str(), "READ");
-  if (!dataDaisyFile)
-  {
-    std::cerr << "Failed to open data file " << datapathdaisy.c_str() << ".\n";
-    return 2;
-  }
-
-  auto mcDaisyFile = TFile::Open(mcpathdaisy.c_str(), "READ");
-  if (!mcDaisyFile)
-  {
-    std::cerr << "Failed to open MC file " << mcpathdaisy.c_str() << ".\n";
     return 3;
   }
 
@@ -271,6 +255,11 @@ int main(const int argc, const char **argv)
       auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration")), prefix);
       auto effNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator")), prefix);
       auto effDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator")), prefix);
+      auto effDenom2P2H = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix);
+      auto effDenomDIS = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix);
+      auto effDenomRES = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix);
+      auto effDenomQE = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix);
+      auto effDenomOther = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix);
 
       //auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (std::string("fiducial_nucleons")), prefix); // Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
       //double nNucleonsVal = nNucleons->GetVal();
@@ -284,12 +273,35 @@ int main(const int argc, const char **argv)
         }
       }
 
-
       //***********************************************
       //Daisy reweight
       //Getting ingredients
       //***********************************************
+      bool doDaisy = true;
       for (int petal=0; petal<12; petal++){
+        std::string datapathdaisy = directory + "/runEventLoopTrackerData_petal_"+std::to_string(petal);
+        std::string mcpathdaisy = directory + "/runEventLoopTrackerMCDaisy_petal_"+std::to_string(petal);
+        bool petalFilesExist = std::filesystem::exists(datapathdaisy) && std::filesystem::exists(mcpathdaisy);
+        doDaisy = doDaisy && petalFilesExist;
+      }
+      for (int petal=0; petal<12 && doDaisy; petal++){
+        std::string datapathdaisy = directory + "/runEventLoopTrackerData_petal_"+std::to_string(petal);
+        std::string mcpathdaisy = directory + "/runEventLoopTrackerMCDaisy_petal_"+std::to_string(petal);
+        auto dataDaisyFile = TFile::Open(datapathdaisy.c_str(), "READ");
+        if (!dataDaisyFile)
+        {
+          std::cerr << "Failed to open data file " << datapathdaisy.c_str() << ".\n";
+          return 2;
+        }
+
+        auto mcDaisyFile = TFile::Open(mcpathdaisy.c_str(), "READ");
+        if (!mcDaisyFile)
+        {
+          std::cerr << "Failed to open MC file " << mcpathdaisy.c_str() << ".\n";
+          return 3;
+        }
+
+
         DaisyEffNum[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, ("Daisy_EffNum_"+std::to_string(petal)).c_str(), prefix);
         DaisyEffDenom[petal] = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, ("Daisy_EffDenom_"+std::to_string(petal)).c_str(), prefix);
         DaisyMigration[petal] = util::GetIngredient<PlotUtils::MnvH2D>(*mcDaisyFile, ("Daisy_Migration_"+std::to_string(petal)).c_str(), prefix);
@@ -307,6 +319,10 @@ int main(const int argc, const char **argv)
           }
         }
         DaisyFolded[petal]->AddMissingErrorBandsAndFillWithCV(*(DaisyMigration[petal]));
+
+        dataDaisyFile->Close();
+        mcDaisyFile->Close();
+
       }
 
 
@@ -315,6 +331,11 @@ int main(const int argc, const char **argv)
 
       std::cout << "Test " <<std::endl;
       auto simEventRate = effDenom->Clone(); // Make a copy for later
+      auto simEventRate2P2H = effDenom2P2H->Clone(); // Make a copy for later
+      auto simEventRateDIS = effDenomDIS->Clone(); // Make a copy for later
+      auto simEventRateRES = effDenomRES->Clone(); // Make a copy for later
+      auto simEventRateQE = effDenomQE->Clone(); // Make a copy for later
+      auto simEventRateOther = effDenomOther->Clone(); // Make a copy for later
       // There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
       folded->AddMissingErrorBandsAndFillWithCV(*migration);
 
@@ -405,6 +426,12 @@ int main(const int argc, const char **argv)
       Plot(*crossSection, "crossSection", prefix);
       crossSection->Clone()->Write("crossSection");
       simEventRate->Write("simulatedEventRate");
+      simEventRate2P2H->Write("simulatedEventRate2P2H");
+      simEventRateDIS->Write("simulatedEventRateDIS");
+      simEventRateRES->Write("simulatedEventRateRES");
+      simEventRateQE->Write("simulatedEventRateQE");
+      simEventRateOther->Write("simulatedEventRateOther");
+
       fluxIntReweighted->Write("fluxIntReweighted");
       std::cout << "Test 8 " <<std::endl;
       //These lines are/were mainly used to debug a scaling issue
@@ -430,6 +457,17 @@ int main(const int argc, const char **argv)
       auto crossSection2 = normalize(simEventRate, fluxIntReweighted, nnucleons, mcPOT);
       Plot(*crossSection2, "simulatedCrossSection", prefix);
       crossSection2->Write("simulatedCrossSection");
+      auto simulatedCrossSection2P2H = normalize(simEventRate2P2H, fluxIntReweighted, nnucleons, mcPOT);
+      simulatedCrossSection2P2H->Write("simulatedCrossSection2P2H");
+      auto simulatedCrossSectionDIS = normalize(simEventRateDIS, fluxIntReweighted, nnucleons, mcPOT);
+      simulatedCrossSectionDIS->Write("simulatedCrossSectionDIS");
+      auto simulatedCrossSectionRES = normalize(simEventRateRES, fluxIntReweighted, nnucleons, mcPOT);
+      simulatedCrossSectionRES->Write("simulatedCrossSectionRES");
+      auto simulatedCrossSectionQE = normalize(simEventRateQE, fluxIntReweighted, nnucleons, mcPOT);
+      simulatedCrossSectionQE->Write("simulatedCrossSectionQE");
+      auto simulatedCrossSectionOther = normalize(simEventRateOther, fluxIntReweighted, nnucleons, mcPOT);
+      simulatedCrossSectionOther->Write("simulatedCrossSectionOther");
+
       outFile->Close();
       std::cout << "Test 9 " <<std::endl;
 
@@ -442,90 +480,92 @@ int main(const int argc, const char **argv)
       // ---------------------------------------------------------------------
       // Flux reweighter information, get reweighted daisy sum according to a material
       // ---------------------------------------------------------------------
-
-      auto outFileDaisy = TFile::Open((prefix + "_Daisy_crossSection.root").c_str(), "RECREATE");
-      if (!outFileDaisy)
+      if (doDaisy)
       {
-        std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
-        return 5;
-      }
-      std::cout << "Test 10 " <<std::endl;
-      //auto& frw = PlotUtils::flux_reweighter(playlistname, pdg, true, 100);
-      std::map<int, PlotUtils::MnvH1D*> daisy_petal_hists;
+        auto outFileDaisy = TFile::Open((prefix + "_Daisy_crossSection.root").c_str(), "RECREATE");
+        if (!outFileDaisy)
+        {
+          std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
+          return 5;
+        }
+        std::cout << "Test 10 " <<std::endl;
+        //auto& frw = PlotUtils::flux_reweighter(playlistname, pdg, true, 100);
+        std::map<int, PlotUtils::MnvH1D*> daisy_petal_hists;
 
-      for (int petal=0; petal<12; petal++){
-        std::cout << "Test 11 " <<std::endl;
-        std::vector<PlotUtils::MnvH1D*> DaisyBackgroundsTemp = DaisyBackgrounds[petal];
+        for (int petal=0; petal<12; petal++){
+          std::cout << "Test 11 " <<std::endl;
+          std::vector<PlotUtils::MnvH1D*> DaisyBackgroundsTemp = DaisyBackgrounds[petal];
 
-        auto toSubtractDaisy = std::accumulate(std::next(DaisyBackgroundsTemp.begin()), DaisyBackgroundsTemp.end(), (*DaisyBackgroundsTemp.begin())->Clone(),
-                                        [](auto sum, const auto hist)
-                                        {
-                                          sum->Add(hist);
-                                          return sum;
-                                        });
-        //Plot(*toSubtract, "BackgroundSum", prefix);
-        std::cout << "Test 11.1 " <<std::endl;
-        outFileDaisy->cd();
-        std::cout << "Test 11.2 " <<std::endl;
-        toSubtractDaisy->Write((prefix+"_toSubtractDaisy_"+petal));
-        std::cout << "Test 11.3 " <<std::endl;
-        auto bkgSubtractedDaisy = std::accumulate(DaisyBackgrounds[petal].begin(), DaisyBackgrounds[petal].end(), DaisyFolded[petal]->Clone(),
-                                            [mcPOT, dataPOT](auto sum, const auto hist)
-                                            {
-                                              std::cout << "Subtracting " << hist->GetName() << " scaled by " << -dataPOT/mcPOT << " from " << sum->GetName() << "\n";
-                                              sum->Add(hist, -dataPOT/mcPOT);
-                                              return sum;
-                                            });
-        std::cout << "Test 11.4 " <<std::endl;
-        outFileDaisy->cd();
-        DaisyEffNum[petal]->Write((prefix+"_DaisyEffNum_"+petal));
-        outFileDaisy->cd();
-        DaisyEffDenom[petal]->Write((prefix+"_DaisyEffDenom_"+petal));
-        outFileDaisy->cd();
-        DaisyFolded[petal]->Write((prefix+"_DaisyFolded_"+petal));
-        outFileDaisy->cd();
-        bkgSubtractedDaisy->Write((prefix+"_bkgSubtractedDaisy_"+petal));
-        auto unfoldedDaisy = UnfoldHist(bkgSubtractedDaisy, DaisyMigration[petal], nIterations);
-        outFileDaisy->cd();
-        unfoldedDaisy->Write((prefix+"_unfoldedDaisy_"+petal));
-        std::cout << "Test 12 " <<std::endl;
-        if(!unfoldedDaisy) throw std::runtime_error(std::string("Failed to unfold ") + DaisyFolded[petal]->GetName() + " using " + DaisyMigration[petal]->GetName());
+          auto toSubtractDaisy = std::accumulate(std::next(DaisyBackgroundsTemp.begin()), DaisyBackgroundsTemp.end(), (*DaisyBackgroundsTemp.begin())->Clone(),
+                                          [](auto sum, const auto hist)
+                                          {
+                                            sum->Add(hist);
+                                            return sum;
+                                          });
+          //Plot(*toSubtract, "BackgroundSum", prefix);
+          std::cout << "Test 11.1 " <<std::endl;
+          outFileDaisy->cd();
+          std::cout << "Test 11.2 " <<std::endl;
+          toSubtractDaisy->Write((prefix+"_toSubtractDaisy_"+petal));
+          std::cout << "Test 11.3 " <<std::endl;
+          auto bkgSubtractedDaisy = std::accumulate(DaisyBackgrounds[petal].begin(), DaisyBackgrounds[petal].end(), DaisyFolded[petal]->Clone(),
+                                              [mcPOT, dataPOT](auto sum, const auto hist)
+                                              {
+                                                std::cout << "Subtracting " << hist->GetName() << " scaled by " << -dataPOT/mcPOT << " from " << sum->GetName() << "\n";
+                                                sum->Add(hist, -dataPOT/mcPOT);
+                                                return sum;
+                                              });
+          std::cout << "Test 11.4 " <<std::endl;
+          outFileDaisy->cd();
+          DaisyEffNum[petal]->Write((prefix+"_DaisyEffNum_"+petal));
+          outFileDaisy->cd();
+          DaisyEffDenom[petal]->Write((prefix+"_DaisyEffDenom_"+petal));
+          outFileDaisy->cd();
+          DaisyFolded[petal]->Write((prefix+"_DaisyFolded_"+petal));
+          outFileDaisy->cd();
+          bkgSubtractedDaisy->Write((prefix+"_bkgSubtractedDaisy_"+petal));
+          auto unfoldedDaisy = UnfoldHist(bkgSubtractedDaisy, DaisyMigration[petal], nIterations);
+          outFileDaisy->cd();
+          unfoldedDaisy->Write((prefix+"_unfoldedDaisy_"+petal));
+          std::cout << "Test 12 " <<std::endl;
+          if(!unfoldedDaisy) throw std::runtime_error(std::string("Failed to unfold ") + DaisyFolded[petal]->GetName() + " using " + DaisyMigration[petal]->GetName());
 
-        DaisyEffNum[petal]->Divide(DaisyEffNum[petal],DaisyEffDenom[petal]);
-        unfoldedDaisy->Divide(unfoldedDaisy, DaisyEffNum[petal]);
+          DaisyEffNum[petal]->Divide(DaisyEffNum[petal],DaisyEffDenom[petal]);
+          unfoldedDaisy->Divide(unfoldedDaisy, DaisyEffNum[petal]);
 
-        daisy_petal_hists[petal]=unfoldedDaisy->Clone();
-        std::cout << "Test 13 " <<std::endl;
-      }
-      PlotUtils::MnvH1D* DaisyCorrectedC = frw->GetReweightedDaisySum(14, "carbon", daisy_petal_hists, project_dir );
-      PlotUtils::MnvH1D* DaisyCorrectedFe = frw->GetReweightedDaisySum(14, "iron", daisy_petal_hists, project_dir );
-      PlotUtils::MnvH1D* DaisyCorrectePb = frw->GetReweightedDaisySum(14, "lead", daisy_petal_hists, project_dir );
-      //Carbon
-      {
-        auto fluxIntegral = frw->GetIntegratedTargetFlux(14, "carbon", DaisyCorrectedC, min_energy, max_energy, project_dir);
-        auto fluxC = frw->GetTargetFluxMnvH1D(14, "carbon", project_dir);
-        PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nnucleons, dataPOT);
-        outFileDaisy->cd();
-        crossSectionC->Write((prefix+"_C_CrossSection").c_str());
-      }
-      //Iron
-      {
-        auto fluxIntegral = frw->GetIntegratedTargetFlux(14, "iron", DaisyCorrectedFe, min_energy, max_energy, project_dir);
-        auto fluxC = frw->GetTargetFluxMnvH1D(14, "iron", project_dir);
-        PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nnucleons, dataPOT);
-        outFileDaisy->cd();
-        crossSectionC->Write((prefix+"_Fe_CrossSection").c_str());
-      }
-      //Lead
-      {
-        auto fluxIntegral = frw->GetIntegratedTargetFlux(14, "lead", DaisyCorrectePb, min_energy, max_energy, project_dir);
-        auto fluxC = frw->GetTargetFluxMnvH1D(14, "lead", project_dir);
-        PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nnucleons, dataPOT);
-        outFileDaisy->cd();
-        crossSectionC->Write((prefix+"_Pb_CrossSection").c_str());
-      }
+          daisy_petal_hists[petal]=unfoldedDaisy->Clone();
+          std::cout << "Test 13 " <<std::endl;
+        }
+        PlotUtils::MnvH1D* DaisyCorrectedC = frw->GetReweightedDaisySum(14, "carbon", daisy_petal_hists, project_dir );
+        PlotUtils::MnvH1D* DaisyCorrectedFe = frw->GetReweightedDaisySum(14, "iron", daisy_petal_hists, project_dir );
+        PlotUtils::MnvH1D* DaisyCorrectePb = frw->GetReweightedDaisySum(14, "lead", daisy_petal_hists, project_dir );
+        //Carbon
+        {
+          auto fluxIntegral = frw->GetIntegratedTargetFlux(14, "carbon", DaisyCorrectedC, min_energy, max_energy, project_dir);
+          auto fluxC = frw->GetTargetFluxMnvH1D(14, "carbon", project_dir);
+          PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nnucleons, dataPOT);
+          outFileDaisy->cd();
+          crossSectionC->Write((prefix+"_C_CrossSection").c_str());
+        }
+        //Iron
+        {
+          auto fluxIntegral = frw->GetIntegratedTargetFlux(14, "iron", DaisyCorrectedFe, min_energy, max_energy, project_dir);
+          auto fluxC = frw->GetTargetFluxMnvH1D(14, "iron", project_dir);
+          PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nnucleons, dataPOT);
+          outFileDaisy->cd();
+          crossSectionC->Write((prefix+"_Fe_CrossSection").c_str());
+        }
+        //Lead
+        {
+          auto fluxIntegral = frw->GetIntegratedTargetFlux(14, "lead", DaisyCorrectePb, min_energy, max_energy, project_dir);
+          auto fluxC = frw->GetTargetFluxMnvH1D(14, "lead", project_dir);
+          PlotUtils::MnvH1D* crossSectionC = normalize(DaisyCorrectedC, fluxC, nnucleons, dataPOT);
+          outFileDaisy->cd();
+          crossSectionC->Write((prefix+"_Pb_CrossSection").c_str());
+        }
 
-      outFileDaisy->Close();
+        outFileDaisy->Close();
+      }
       // return 0;
     }
     catch (const std::runtime_error &e)
@@ -537,6 +577,5 @@ int main(const int argc, const char **argv)
   }
   dataFile->Close();
   mcFile->Close();
-
   return 0;
 }
