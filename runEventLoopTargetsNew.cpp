@@ -24,8 +24,8 @@
 "entries will be treated like data, and the second playlist's entries must\n"\
 "have the \"Truth\" tree to use for calculating the efficiency denominator.\n\n"\
 "*** Output ***\n"\
-"Produces a two files with the base name, " MC_OUT_FILE_NAME_BASE " and " DATA_OUT_FILE_NAME_BASE ", with\n"\
-"all histograms needed for the ExtractCrossSection program also built by this\n"\
+"Produces three files with the base name, " MC_OUT_FILE_NAME_BASE ", " DATA_OUT_FILE_NAME_BASE " and\n"\
+" " MIGRATION_2D_OUT_FILE_NAME_BASE " all histograms needed for the ExtractCrossSection program also built by this\n"\
 "package.  You'll need a .rootlogon.C that loads ROOT object definitions from\n"\
 "PlotUtils to access systematics information from these files.\n\n"\
 "*** Environment Variables ***\n"\
@@ -89,6 +89,8 @@ enum ErrorCodes
 #include "PlotUtils/LowRecoil2p2hReweighter.h"
 #include "PlotUtils/RPAReweighter.h"
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
+#include "PlotUtils/LowQ2PiReweighter.h"
+#include "PlotUtils/AMUDISReweighter.h"
 #include "PlotUtils/TargetUtils.h"
 #pragma GCC diagnostic pop
 
@@ -803,12 +805,31 @@ int main(const int argc, const char** argv)
                                                                                                                                                    
   PlotUtils::Cutter<CVUniverse, MichelEvent> nukeCuts(std::move(nukePreCut), std::move(nukeSidebands) , std::move(nukeSignalDefinition),std::move(nukePhaseSpace));
 
+  const bool NO_2P2H_WARP = (getenv("NO_2P2H_WARP") != nullptr);
+  if(NO_2P2H_WARP){
+    std::cout << "Turning off LowRecoil2p2hReweighter because environment variable NO_2P2H_WARP is set.\n";
+  }
+  const bool AMU_DIS_WARP = (getenv("AMU_DIS_WARP") != nullptr);
+  if(AMU_DIS_WARP){
+  std::cout << "Turning on AMUDISReweighter because environment variable AMU_DIS_WARP is set.\n";
+  }
+  const bool LOW_Q2_PION_WARP = (getenv("LOW_Q2_PION_WARP") != nullptr);
+  if(LOW_Q2_PION_WARP){
+  std::cout << "Turning on LowQ2PiReweighter because environment variable LOW_Q2_PION_WARP is set.\n";
+  }
+
+
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
   MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
-  MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+  // standard - include this tune.  warping study, comment out 2p2h
+  if ( !NO_2P2H_WARP ) MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
+  // for a warping study, AMU DIS reweighter
+  if ( AMU_DIS_WARP ) MnvTunev1.emplace_back(new PlotUtils::AMUDISReweighter<CVUniverse, MichelEvent>());
+  // for a warping study, Low Q2 pion suppression (mnvtunev2)
+  if ( LOW_Q2_PION_WARP ) MnvTunev1.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT"));
 
   PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
   // Make a map of systematic universes
