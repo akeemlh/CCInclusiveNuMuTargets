@@ -1,39 +1,74 @@
-import os
-memmap = {"Tracker":5000, "Targets":5000}
-lifetime = 24 #hours
-outdir_logs = ""
-#dirname  = "output11July0"
-dirname  = "5Nov/GENIEXSecs"
+import os, sys, argparse, time
+memory = 6000
+lifetime = 12 #hours
 
-playlistDir = "/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists"
-
-#Tarring MAT opts folder
-cmd = "tar -cvzf /exp/minerva/app/users/alhart/opt.tar.gz -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ ."
-os.system(cmd)
-
-#If we already have a tarred opts folder, remove it so I can copy over new one (/persistent/ doesn't like being overwritten)
-if (os.path.isfile("/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz")):
-    cmd = "rm /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz"
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser( prog='gridXseclooper',
+                    description='automates the submission of gridXseclooper to fermigrid')
+    parser.add_argument('mc', nargs=1, help="the data input directory")
+    parser.add_argument('out', nargs=1, help="the output directory")
+    parser.add_argument('-p', '--playlists', nargs='*', help="the playlists to run")
+    args = parser.parse_args()
+    #Tarring MAT opts folder
+    epoch_time = int(time.time())
+    tarballfolder = "/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/"+str(epoch_time)
+    os.mkdir(tarballfolder)
+    tarballpath = tarballfolder+"/opt.tar.gz"
+    print("tarring into ", tarballpath)
+    cmd = "tar -cvzf "+tarballpath+" -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ ."
     os.system(cmd)
 
-#Copy opts tar
-cmd = "cp /exp/minerva/app/users/alhart/opt.tar.gz /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz"
-os.system(cmd)
+    playlists=args.playlists
+    mcInDir=args.mc[0]
+    outDir=args.out[0]
 
-playlists = ["1A", "1B", "1C", "1D", "1E", "1F", "1G", "1L", "1M", "1N", "1O", "1P", "Test"]
-#playlists = ["Test1L", "Test1C"] #Used for rapid testing only, 1L is water filled, 1C is unfilled
-#playlists = ["Test"]
+    #Checking all input directories exist
+    if not (os.path.isdir(mcInDir)):
+        print("Cannot access mc input directory at %s" % mcInDir)
+        exit(1)
+    #Checking if the target output directory exists and if not attempting to create it
+    if not (os.path.isdir(outDir)):
+        print("Cannot access target output directory at %s\nAttempting to create it" % outDir)
+        os.mkdir(outDir)
+    if not playlists:
+        playlists=["1A", "1B", "1C", "1D", "1E", "1F", "1G", "1L", "1M", "1N", "1O", "1P"]
+        print("No playlists specified, using default set")
 
-#Which event loop(s) to run
-#sets=["Tracker", "Targets"]
-sets=["Tracker"]
-for runType in sets:
-    memory = memmap[runType]
+    vettedPlaylists = []
+    #Checking all playlists actually correspond to a file within the data and mc input directories
     for playlist in playlists:
+        mcfilename = mcInDir+"/"+playlist+"-MC.txt"
+        mcfilefound = os.path.exists(mcfilename)
+        if not (mcfilefound):
+            print("Cannot access MC playlist file at %s. Continuing without it"% mcfilename)
+        else:
+            vettedPlaylists.append(playlist)
+            print("MC file found for playlist %s. Using it"% playlist)
+
+
+    print("Submitting playlists: ", vettedPlaylists)
+    #exit()
+    for playlist in vettedPlaylists:
+        outdirplaylist = outDir+"/"+playlist
+        #Checking if the target output directory exists and if not attempting to create it
+        if not (os.path.isdir(outdirplaylist)):
+            print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
+            os.mkdir(outdirplaylist)
+        else:
+            #We cannot overwrite on persistent so I'm making sure the files we want to write out dont exist
+            #migrationpath = outdirplaylist+"/runEventLoopTrackerMigration_petal_"+petal+".root"
+            #datapath = outdirplaylist+"/runEventLoopTrackerData_petal_"+petal+".root"
+            #mcpath = outdirplaylist+"/runEventLoopTrackerMC_petal_"+petal+".root"
+            """ if (os.path.exists(migrationpath)):
+                os.remove(migrationpath)
+            if (os.path.exists(datapath)):
+                os.remove(datapath)
+            if (os.path.exists(mcpath)):
+                os.remove(mcpath) """
         # Create wrapper
-        wrapper_name = "wrapper-xsec-"+runType+playlist+".sh"
+        wrapper_name = "wrapper-XSecLooper"+playlist+".sh"
         wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
-        my_wrapper = open(os.path.abspath(wrapper_path),"w")
+        my_wrapper = open(wrapper_path,"w")
         my_wrapper.write("#!/bin/bash\n")
         my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
         my_wrapper.write("mkdir opt\n")
@@ -47,25 +82,30 @@ for runType in sets:
         my_wrapper.write("source /cvmfs/minerva.opensciencegrid.org/minerva/setup/setup_minerva_products.sh\n")
         my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh\n")
         my_wrapper.write("spack load root@6.28.12\n")
-        my_wrapper.write("spack load cmake\n")
+        #my_wrapper.write("spack load cmake@3.27.9%gcc@11.4.1 arch=linux-almalinux9-x86_64_v2\n")
         my_wrapper.write("spack load gcc\n")
         my_wrapper.write("spack load fife-utils@3.7.4\n")
+        my_wrapper.write("htgettoken -a htvaultprod.fnal.gov -i minerva\n")
         my_wrapper.write("export LD_LIBRARY_PATH=${ROOTSYS}/lib:${ROOTSYS}/lib/root:${MINERVA_PREFIX}/lib:${LD_LIBRARY_PATH}\n")
         my_wrapper.write("echo Setting up environment - DONE\n")
-        my_wrapper.write("echo Running xec loop\n")
-        my_wrapper.write("${MINERVA_PREFIX}/bin/runXSecLooper1D" +runType+ " ${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt\n")
-        my_wrapper.write("echo Running xsec loop - DONE\n")
+        my_wrapper.write("ls -la\n")
+        my_wrapper.write("echo $(ls -la)\n")
+        my_wrapper.write("echo Running event loop\n")
+        my_wrapper.write("${MINERVA_PREFIX}/bin/runXSecLooperTargets_ByTarget ${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt\n")
+        my_wrapper.write("echo Running event loop - DONE\n")
         my_wrapper.write("echo Copying files back to persistent\n")
-        my_wrapper.write("ifdh cp  ./GENIEXSECEXTRACT_"+playlist+"-MC.txt.root //pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/"+dirname+"/GENIEXSECEXTRACT_"+playlist+"-MC.txt.root\n")
+        my_wrapper.write("ifdh cp ./GENIEXSECEXTRACT* "+outdirplaylist+"\n")
         my_wrapper.write("echo Copying files back to persistent - DONE\n")
         my_wrapper.write("echo SUCCESS\n")
         my_wrapper.close()
-        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f dropbox://%s/MC/%s-MC.txt -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s" % ( lifetime, memory, playlistDir, playlist ,wrapper_path )    
+        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f dropbox://%s/%s-MC.txt -f dropbox://%s  file://%s " % ( lifetime, memory, mcInDir, playlist , tarballpath, wrapper_path )    
         print(cmd)
         os.system(cmd)
-        if os.path.exists(wrapper_path):
+        #if os.path.exists(wrapper_path):
             #os.remove(wrapper_path)
-            pass
-        else:
-            print("Wrapper file not created successfully")
+        #else:
+        #    print("Wrapper file not created successfully")
         print("Done")
+
+    cmd = "rm -r "+tarballfolder
+    os.system(cmd)
