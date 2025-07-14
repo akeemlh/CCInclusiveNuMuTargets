@@ -470,38 +470,6 @@ int main(const int argc, const char **argv)
           }
 
         }
-        DataUSSideband->Write("DataUSSideband");
-        DataDSSideband->Write("DataDSSideband");
-
-        USSidebandSignal->Write("USSidebandSignal");
-        USSidebandUS->Write("USSidebandUS");
-        USSidebandDS->Write("USSidebandDS");
-        USSidebandOther->Write("USSidebandOther");
-        
-        DSSidebandSignal->Write("DSSidebandSignal");
-        DSSidebandUS->Write("DSSidebandUS");
-        DSSidebandDS->Write("DSSidebandDS");
-        DSSidebandOther->Write("DSSidebandOther");
-
-        USSidebandSignal->Scale(USScaleFactor);
-        USSidebandUS->Scale(USScaleFactor);
-        USSidebandDS->Scale(USScaleFactor);
-        USSidebandOther->Scale(USScaleFactor);
-
-        DSSidebandSignal->Scale(DSScaleFactor);
-        DSSidebandUS->Scale(DSScaleFactor);
-        DSSidebandDS->Scale(DSScaleFactor);
-        DSSidebandOther->Scale(DSScaleFactor);
-        
-        USSidebandSignal->Write("USSidebandSignalScaled");
-        USSidebandUS->Write("USSidebandUSScaled");
-        USSidebandDS->Write("USSidebandDSScaled");
-        USSidebandOther->Write("USSidebandOtherScaled");
-        
-        DSSidebandSignal->Write("DSSidebandSignalScaled");
-        DSSidebandUS->Write("DSSidebandUSScaled");
-        DSSidebandDS->Write("DSSidebandDSScaled");
-        DSSidebandOther->Write("DSSidebandOtherScaled");
 
         //auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (std::string("fiducial_nucleons")), prefix); // Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
         //double nNucleonsVal = nNucleons->GetVal();
@@ -559,6 +527,39 @@ int main(const int argc, const char **argv)
           std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
           return 5;
         }
+
+        DataUSSideband->Write("DataUSSideband");
+        DataDSSideband->Write("DataDSSideband");
+
+        USSidebandSignal->Write("USSidebandSignal");
+        USSidebandUS->Write("USSidebandUS");
+        USSidebandDS->Write("USSidebandDS");
+        USSidebandOther->Write("USSidebandOther");
+        
+        DSSidebandSignal->Write("DSSidebandSignal");
+        DSSidebandUS->Write("DSSidebandUS");
+        DSSidebandDS->Write("DSSidebandDS");
+        DSSidebandOther->Write("DSSidebandOther");
+
+        USSidebandSignal->Scale(USScaleFactor);
+        USSidebandUS->Scale(USScaleFactor);
+        USSidebandDS->Scale(USScaleFactor);
+        USSidebandOther->Scale(USScaleFactor);
+
+        DSSidebandSignal->Scale(DSScaleFactor);
+        DSSidebandUS->Scale(DSScaleFactor);
+        DSSidebandDS->Scale(DSScaleFactor);
+        DSSidebandOther->Scale(DSScaleFactor);
+        
+        USSidebandSignal->Write("USSidebandSignalScaled");
+        USSidebandUS->Write("USSidebandUSScaled");
+        USSidebandDS->Write("USSidebandDSScaled");
+        USSidebandOther->Write("USSidebandOtherScaled");
+        
+        DSSidebandSignal->Write("DSSidebandSignalScaled");
+        DSSidebandUS->Write("DSSidebandUSScaled");
+        DSSidebandDS->Write("DSSidebandDSScaled");
+        DSSidebandOther->Write("DSSidebandOtherScaled");
 
         bkgSubtracted->Write("backgroundSubtracted");
         bkgScaledSubtracted->Write("backgroundSubtractedSidebandScaled");
