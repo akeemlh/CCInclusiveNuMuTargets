@@ -1,0 +1,1 @@
+root://fndca1.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p6/p6PrimeData/Merged_data_ana_me1N_DualVertex_P6Prime13FebDSECalFix/MasterAnaDev_data_AnaTuple_run00020328_Playlist.root
