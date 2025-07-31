@@ -42,6 +42,16 @@ namespace util
         return 0;
     }
 
+    int filledOrEmptyMEPlaylist(std::string playlist)
+    {
+        std::vector<std::string> filled = {"minervame1L", "minervame1M", "minervame1N", "minervame1O", "minervame1P"};
+        std::vector<std::string> empty = {"minervame1A", "minervame1B", "minervame1C", "minervame1D", "minervame1E", "minervame1F", "minervame1G"/*,  "minervame5A", "minervame6A", "minervame6B", "minervame6C", "minervame6D", "minervame6E", "minervame6F", "minervame6G", "minervame6H", "minervame6I", "minervame6J" */};
+        if (std::find(std::begin(filled), std::end(filled), playlist) != std::end(filled)) return 1;
+        else if (std::find(std::begin(empty), std::end(empty), playlist) != std::end(empty)) return 2;
+        //Is this the most efficient way? Probably not
+        return 0;
+    }
+
     //Taken from Oscar's code (/exp/minerva/app/users/omorenop/cmtuser/git-Mat/Personal/Test/InclusiveUtils.h)
     int planecode(int mdl, int plane)
     {
@@ -491,6 +501,49 @@ namespace util
             else if (mod == 15 && plane == 1) return 6000; //US of water target //Should I still check the x and y vertex are within the target?
         }
         return -1;
+    }
+
+    template<class HIST>
+    void AddHist(HIST& hist1, HIST* hist2, double scale = 1)
+    {
+        if (hist1.GetEntries() > 0) //If not null
+        {
+            hist1.Add(hist2, scale);
+        }
+        else //If null
+        {
+            hist1 = *hist2;
+            hist1.Scale(scale);
+        }
+    }
+
+    //Helper function used to find directories containing root files
+    std::vector<std::string> findContainingDirectories(std::string dir, std::string type, bool recursiveSearch = true, bool skipTest = true, int curdepth = 0, int maxdepth = 2)
+    {
+    std::vector<std::string> dirpaths;
+    for (const auto &entry : std::filesystem::directory_iterator(dir))
+    {
+        std::string path = entry.path();
+        std::filesystem::file_type ft = std::filesystem::status(path).type();
+        if (ft == std::filesystem::file_type::regular)
+        {
+            const size_t base = path.find("runEventLoop"+type);
+            if (base != std::string::npos) && (std::find(dirpaths.begin(), dirpaths.end(), dir) == dirpaths.end())
+            {
+                if !(skipTest && (dir.find("/Test-") != std::string::npos)) dirpaths.push_back(dir); //If skipTest is false or if skipTest is true and the test string isn't found in the path, add to vector
+            }
+        }
+        else if ((ft == std::filesystem::file_type::directory || ft == std::filesystem::file_type::symlink) && recursiveSearch && curdepth<=maxdepth)
+        {
+        std::vector<std::string> subdirs = findContainingDirectories(path, type, recursiveSearch, skipTest, curdepth+1);
+        for (auto subdirpath : subdirs)
+        {
+            if (std::find(dirpaths.begin(), dirpaths.end(), subdirpath) == dirpaths.end()) dirpaths.push_back(subdirpath);
+        }
+        }
+    }
+    std::sort(dirpaths.begin(), dirpaths.end());
+    return dirpaths;
     }
 
 }
