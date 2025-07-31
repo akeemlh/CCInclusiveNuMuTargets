@@ -1,5 +1,5 @@
 import os, sys, argparse, time    
-memory = 6000
+memory = 5000
 lifetime = 12 #hours
 
 if __name__ == '__main__':
@@ -131,7 +131,8 @@ if __name__ == '__main__':
             my_wrapper.write("echo Copying files back to persistent - DONE\n")
             my_wrapper.write("echo SUCCESS\n")
             my_wrapper.close()
-            cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt -f dropbox://%s  file://%s " % ( lifetime, memory, dataInDir, playlist, mcInDir, playlist, tarballpath ,wrapper_path )    
+            logpath = outdirplaylist+"/LogTgt"+target+".log"
+            cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt -f dropbox://%s file://%s " % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist, tarballpath ,wrapper_path )    
             print(cmd)
             os.system(cmd)
             #if os.path.exists(wrapper_path):
