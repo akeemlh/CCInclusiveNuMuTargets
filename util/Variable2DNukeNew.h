@@ -186,7 +186,7 @@ class Variable2DNuke: public PlotUtils::Variable2DBase<CVUniverse>
 
     void WriteMigration(TFile& file)
     {
-      SyncCVHistos();
+      //SyncCVHistos();
       std::cout<<"Writing 2D migration matrices\n";
       //file->cd();
       MnvH2D* migration_hist = NULL;

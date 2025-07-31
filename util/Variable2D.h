@@ -60,29 +60,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
               GetName().c_str(), util::GENIELabels,
               GetBinVecX(), GetBinVecY(), mc_error_bands);
 
-
-      for (int petal = 0; petal<12; petal++)
-      {
-        EffNumDaisy[petal] = new Hist((GetName() + "_Daisy_EffNum_"+petal), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-        EffDenomDaisy[petal] = new Hist((GetName() + "_Daisy_EffDenom_"+petal), GetName().c_str(), GetBinVecX(), GetBinVecY(), truth_error_bands);
-        EffDenomDaisyIntChannels[petal] = new util::Categorized<Hist, int>(std::string(GetName() + "_Daisy_IntChannelEffDenom_"+petal).c_str(),
-              GetName().c_str(), util::GENIELabels,
-              GetBinVecX(), GetBinVecY(), truth_error_bands);
-        MigrationDaisy[petal] = new MinervaUnfold::MnvResponse(GetName().c_str(),
-        GetName().c_str(),
-        GetBinVecX(), GetBinVecY(), response_bands); 
-
-        BackgroundsDaisy[petal] = new util::Categorized<Hist, int>((std::string(GetName() + "_Daisy_Background_"+petal).c_str()),
-							   GetName().c_str(), BKGLabels,
-							   GetBinVecX(), GetBinVecY(), mc_error_bands);
-
-        ChannelsDaisy[petal] = new util::Categorized<Hist, int>((std::string(GetName() + "_Daisy_intChannels_"+petal).c_str()),
-							   GetName().c_str(), util::GENIELabels,
-							   GetBinVecX(), GetBinVecY(), mc_error_bands);
-
-        selectedMCRecoDaisy[petal]  = new Hist((GetName() + "_Daisy_selected_mc_reco_"+petal), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-        selectedSignalRecoDaisy[petal]  = new Hist((GetName() + "_Daisy_selected_signal_reco_"+petal), GetName().c_str(), GetBinVecX(), GetBinVecY(), mc_error_bands);
-      }
     }
 
     //Histograms to be filled
@@ -97,15 +74,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
 
     MinervaUnfold::MnvResponse* migration;
 
-    Hist* EffNumDaisy[12];
-    Hist* EffDenomDaisy[12];
-    Hist* selectedMCRecoDaisy[12], *selectedSignalRecoDaisy[12];
-    Hist* dataDaisy[12];
-    MinervaUnfold::MnvResponse* MigrationDaisy[12];
-    util::Categorized<Hist, int>* BackgroundsDaisy[12];
-    util::Categorized<Hist, int>* EffDenomDaisyIntChannels[12];
-    util::Categorized<Hist, int>* ChannelsDaisy[12];
-
     //These histograms plot the distrubution of interaction channels
     util::Categorized<Hist, int>* m_intChannels; ////-
     util::Categorized<Hist, int>* m_intChannelsEffDenom;
@@ -113,10 +81,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
   	  dataHist = new Hist((std::string("_data_") + GetName()).c_str(), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
-      for (int petal = 0; petal<12; petal++)
-      {
-        dataDaisy[petal] = new Hist((GetName() + "_Daisy_Data_"+petal), GetName().c_str(), GetBinVecX(), GetBinVecY(), data_error_bands);
-      }
     }
 
     void WriteData(TFile& file)
@@ -125,19 +89,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
       if (dataHist->hist) {
           dataHist->hist->SetDirectory(&file);
           dataHist->hist->Write();
-      }
-    }
-
-    void WriteDaisyData(TFile& file)
-    {
-
-      for (int daisy = 0; daisy<12; daisy++)
-      {
-        if (dataDaisy[daisy])
-        {
-          dataDaisy[daisy]->hist->SetDirectory(&file);
-          dataDaisy[daisy]->hist->Write();
-        }
       }
     }
     
@@ -188,55 +139,9 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
 
     }
 
-    void WriteDaisyMC(TFile& file)
-    {
-      SyncCVHistos();
-      file.cd();
-      for (int petal = 0; petal<12; petal++)
-      {
-        if (EffNumDaisy[petal])
-        {
-          EffNumDaisy[petal]->hist->SetDirectory(&file);
-          EffNumDaisy[petal]->hist->Write();
-        }
-        if (EffDenomDaisy[petal])
-        {
-          EffDenomDaisy[petal]->hist->SetDirectory(&file);
-          EffDenomDaisy[petal]->hist->Write();
-        }
-        if (selectedMCRecoDaisy[petal])
-        {
-          selectedMCRecoDaisy[petal]->hist->SetDirectory(&file);
-          selectedMCRecoDaisy[petal]->hist->Write((GetName() + "_Daisy_Data_" + petal)); //Make this histogram look just like the data for closure tests
-        }
-        if (selectedSignalRecoDaisy[petal])
-        {
-          selectedSignalRecoDaisy[petal]->hist->SetDirectory(&file);
-          selectedSignalRecoDaisy[petal]->hist->Write();
-        }
-        BackgroundsDaisy[petal]->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-        EffDenomDaisyIntChannels[petal]->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-        ChannelsDaisy[petal]->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-      }
-
-
-    }
-
     void WriteMigration(TFile& file)
     {
-      SyncCVHistos();
+      //SyncCVHistos();
       std::cout<<"Writing 2D migration matrices\n";
       //file->cd();
       {
@@ -250,38 +155,6 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
         reco_hist->Write(std::string(GetName() + "_migration").c_str());
         truth_hist->SetDirectory(&file); 
         truth_hist->Write(std::string(GetName() + "_migration").c_str());
-      }
-      for (int petal = 0; petal<12; petal++)
-      {
-        MnvH2D* migration_hist = NULL;
-        MnvH2D* reco_hist = NULL;
-        MnvH2D* truth_hist = NULL;
-        MigrationDaisy[petal]->GetMigrationObjects(migration_hist, reco_hist, truth_hist);
-        migration_hist->SetDirectory(&file); 
-        migration_hist->Write(std::string(GetName() + "_migration_" + petal).c_str());
-        reco_hist->SetDirectory(&file); 
-        reco_hist->Write(std::string(GetName() + "_migration_reco_" + petal).c_str());
-        truth_hist->SetDirectory(&file); 
-        truth_hist->Write(std::string(GetName() + "_migration_truth_" + petal).c_str());
-      }
-    }
-
-    void WriteDaisyMigration(TFile& file)
-    {
-      SyncCVHistos();
-      std::cout<<"Writing 2D migration matrices\n";
-      for (int petal = 0; petal<12; petal++)
-      {
-        MnvH2D* migration_hist = NULL;
-        MnvH2D* reco_hist = NULL;
-        MnvH2D* truth_hist = NULL;
-        MigrationDaisy[petal]->GetMigrationObjects(migration_hist, reco_hist, truth_hist);
-        migration_hist->SetDirectory(&file); 
-        migration_hist->Write(std::string(GetName() + "_migration_" + petal).c_str());
-        reco_hist->SetDirectory(&file); 
-        reco_hist->Write(std::string(GetName() + "_migration_reco_" + petal).c_str());
-        truth_hist->SetDirectory(&file); 
-        truth_hist->Write(std::string(GetName() + "_migration_truth_" + petal).c_str());
       }
     }
 

@@ -72,33 +72,11 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
       m_intChannels = new util::Categorized<Hist, int>((GetName() + "_intChannels"),
               GetName().c_str(), util::GENIELabels,
               GetBinVec(), mc_error_bands);
-
-      for (int petal = 0; petal<12; petal++)
-      {
-        EffNumDaisy[petal] = new Hist((GetName() + "_Daisy_EffNum_"+petal), GetName().c_str(), GetBinVec(), mc_error_bands);
-        EffDenomDaisy[petal] = new Hist((GetName() + "_Daisy_EffDenom_"+petal), GetName().c_str(), GetBinVec(), truth_error_bands);
-        EffDenomDaisyIntChannels[petal] = new util::Categorized<Hist, int>(std::string(GetName() + "_Daisy_IntChannelEffDenom_"+petal).c_str(),
-              GetName().c_str(), util::GENIELabels,
-              GetBinVec(), truth_error_bands);
-        MigrationDaisy[petal] = new PlotUtils::Hist2DWrapper<CVUniverse>(std::string(GetName() + "_Daisy_Migration_"+petal).c_str(), GetName().c_str(), GetBinVec(), GetBinVec(), mc_error_bands);
-        BackgroundsDaisy[petal] = new util::Categorized<Hist, int>((std::string(GetName() + "_Daisy_Background_"+petal).c_str()),
-							   GetName().c_str(), BKGLabels,
-							   GetBinVec(), mc_error_bands);
-        ChannelsDaisy[petal] = new util::Categorized<Hist, int>((std::string(GetName() + "_Daisy_intChannels_"+petal).c_str()),
-							   GetName().c_str(), util::GENIELabels,
-							   GetBinVec(), mc_error_bands);
-        selectedMCRecoDaisy[petal]  = new Hist((GetName() + "_Daisy_selected_mc_reco_"+petal), GetName().c_str(), GetBinVec(), mc_error_bands);
-        selectedSignalRecoDaisy[petal]  = new Hist((GetName() + "_Daisy_selected_signal_reco_"+petal), GetName().c_str(), GetBinVec(), mc_error_bands);
-      }
     }
     
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
       dataHist = new Hist((GetName() + "_data").c_str(), GetName().c_str(), GetBinVec(), data_error_bands);
-      for (int petal = 0; petal<12; petal++)
-      {
-        dataDaisy[petal] = new Hist((GetName() + "_Daisy_Data_"+petal), GetName().c_str(), GetBinVec(), data_error_bands);
-      }
     }
 
     void WriteData(TFile& file)
@@ -106,18 +84,6 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
       if (dataHist->hist) {
                 dataHist->hist->SetDirectory(&file);
                 dataHist->hist->Write();
-      }
-    }
-
-    void WriteDaisyData(TFile& file)
-    {
-      for (int daisy = 0; daisy<12; daisy++)
-      {
-        if (dataDaisy[daisy])
-        {
-          dataDaisy[daisy]->hist->SetDirectory(&file);
-          dataDaisy[daisy]->hist->Write();
-        }
       }
     }
 
@@ -175,56 +141,6 @@ class Variable: public PlotUtils::VariableBase<CVUniverse>
       }
 
     }
-
-    void WriteDaisyMC(TFile& file)
-    {
-      SyncCVHistos();
-      file.cd();
-      for (int petal = 0; petal<12; petal++)
-      {
-        if (EffNumDaisy[petal])
-        {
-          EffNumDaisy[petal]->hist->SetDirectory(&file);
-          EffNumDaisy[petal]->hist->Write();
-        }
-        if (EffDenomDaisy[petal])
-        {
-          EffDenomDaisy[petal]->hist->SetDirectory(&file);
-          EffDenomDaisy[petal]->hist->Write();
-        }
-        if (MigrationDaisy[petal])
-        {
-          MigrationDaisy[petal]->hist->SetDirectory(&file);
-          MigrationDaisy[petal]->hist->Write();
-        }
-        if (selectedMCRecoDaisy[petal])
-        {
-          selectedMCRecoDaisy[petal]->hist->SetDirectory(&file);
-          selectedMCRecoDaisy[petal]->hist->Write((GetName() + "_Daisy_Data_" + petal)); //Make this histogram look just like the data for closure tests
-        }
-        if (selectedSignalRecoDaisy[petal])
-        {
-          selectedSignalRecoDaisy[petal]->hist->SetDirectory(&file);
-          selectedSignalRecoDaisy[petal]->hist->Write();
-        }
-        BackgroundsDaisy[petal]->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-        EffDenomDaisyIntChannels[petal]->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-        ChannelsDaisy[petal]->visit([&file](Hist& categ)
-                                      {
-                                        categ.hist->SetDirectory(&file);
-                                        categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
-                                      });
-      }
-    }
-
 
     //Only call this manually if you Draw(), Add(), or Divide() plots in this
     //program.
