@@ -133,6 +133,10 @@ add_executable(Extract1DCrossSectionTrackerDaisy Extract1DCrossSectionTrackerDai
 target_link_libraries(Extract1DCrossSectionTrackerDaisy ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTrackerDaisy DESTINATION bin)
 
+add_executable(Extract2DCrossSectionTrackerDaisy Extract2DCrossSectionTrackerDaisy.cpp)
+target_link_libraries(Extract2DCrossSectionTrackerDaisy ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS Extract2DCrossSectionTrackerDaisy DESTINATION bin)
+
 add_executable(Extract2DCrossSectionTargets Extract2DCrossSectionTargets.cpp)
 target_link_libraries(Extract2DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract2DCrossSectionTargets DESTINATION bin)
@@ -145,6 +149,10 @@ install(TARGETS Extract2DCrossSectionTracker DESTINATION bin)
 add_executable(runXSecLooper runXSecLooper.cpp)
 target_link_libraries(runXSecLooper ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
 install(TARGETS runXSecLooper DESTINATION bin)
+
+add_executable(runXSecLooperTracker runXSecLooperTracker.cpp)
+target_link_libraries(runXSecLooperTracker ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
+install(TARGETS runXSecLooperTracker DESTINATION bin)
 
 add_executable(runXSecLooperTargets_ByTarget runXSecLooperTargets_ByTarget.cpp)
 target_link_libraries(runXSecLooperTargets_ByTarget ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
