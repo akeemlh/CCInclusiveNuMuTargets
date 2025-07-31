@@ -4,6 +4,7 @@
 #include <map>
 #include <algorithm>
 #include <string>
+#include <filesystem>
 
 #include "PlotUtils/Cut.h"
 #include "PlotUtils/TargetUtils.h"
@@ -125,7 +126,7 @@ namespace util
             if (plane == 2) {return 35;}}
         //Here goes Water!!!
         if (mdl == -999) {
-            if(plane = -999) {return 36;}}
+            if(plane == -999) {return 36;}}
         if (mdl == 15) {
             if (plane == 1) {return 37;}
             if (plane == 2) {return 38;}}
@@ -280,7 +281,7 @@ namespace util
             if (plane == 1) {return 135;}
             if (plane == 2) {return 136;}  }
         if (mdl == 66) {
-            if (plane == 137) {return 1;}
+            if (plane == 1) {return 1;}
             if (plane == 2) {return 138;}  }
         if (mdl == 67) {
             if (plane == 1) {return 139;}
@@ -580,7 +581,7 @@ namespace reco
         {
             //Don't make a significance cut if we reconstructed by range
             if(univ.GetInt((univ.GetAnaToolName() + "_minos_used_curvature").c_str()) != 1) return true;
-            double relativeErr = univ.GetMuonQPErr();
+            double relativeErr = 1/univ.GetMuonQPErr(); //Need to do 1/err because of how MINOS reports significance
             if (univ.GetAnalysisNuPDG()>0) return ( relativeErr <= -fMin );
             else if (univ.GetAnalysisNuPDG()<0) return ( relativeErr >= fMin );
         } 
