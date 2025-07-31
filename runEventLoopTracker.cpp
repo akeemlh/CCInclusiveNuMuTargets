@@ -554,7 +554,8 @@ int main(const int argc, const char** argv)
       CVUniverse::SetTruth(false);
       LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts, ptl);
       std::cout << "Data cut summary:\n" << mycuts << "\n";
-      std::string filepath;
+
+      auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
 
       std::string mcOutFileName;
       if (ptl==-1) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) + ".root";
@@ -563,7 +564,7 @@ int main(const int argc, const char** argv)
       TFile* mcOutDir = TFile::Open(mcOutFileName.c_str(), "RECREATE");
       if(!mcOutDir)
       {
-        std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+        std::cerr << "Failed to open a file named " << mcOutFileName << " in the current directory for writing histograms.\n";
         return badOutputFile;
       }
 
@@ -571,6 +572,8 @@ int main(const int argc, const char** argv)
       for(auto& var: vars) var->WriteMC(*mcOutDir);
       for(auto& var: vars2D) var->WriteMC(*mcOutDir);
 
+      //Playlist name - Used for flux calculations later on
+      playlistStr->Write();
       //Protons On Target
       auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
       mcPOT->Write();
@@ -594,6 +597,9 @@ int main(const int argc, const char** argv)
         auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, apothem));
         nNucleons->Write();
       }
+      mcOutDir->Close();
+
+      playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
 
       //Write data results
 
@@ -603,18 +609,19 @@ int main(const int argc, const char** argv)
       TFile* dataOutDir = TFile::Open(dataOutFileName.c_str(), "RECREATE");
       if(!dataOutDir)
       {
-        std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+        std::cerr << "Failed to open a file named " << dataOutFileName << " in the current directory for writing histograms.\n";
         return badOutputFile;
       }
 
       for(auto& var: vars) var->WriteData(*dataOutDir);
       for(auto& var: vars2D) var->WriteData(*dataOutDir);
 
+      playlistStr->Write();
       //Protons On Target
       auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
       dataPOT->Write();
 
-
+      dataOutDir->Close();
 
       //Saving 2D migration matrices
       //Putting this right at the end in case of a crash
@@ -624,10 +631,12 @@ int main(const int argc, const char** argv)
       TFile* migrationOutDir = TFile::Open(migrationOutDirName.c_str(), "RECREATE");
       if(!dataOutDir)
       {
-        std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+        std::cerr << "Failed to open a file named " << migrationOutDirName << " in the current directory for writing histograms.\n";
         return badOutputFile;
       }
       for(auto& var: vars2D)var->WriteMigration(*migrationOutDir);
+
+      migrationOutDir->Close();
 
       std::cout << "Success" << std::endl;
     }

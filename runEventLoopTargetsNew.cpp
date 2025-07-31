@@ -914,6 +914,7 @@ int main(const int argc, const char** argv)
       LoopAndFillData(options.m_data, data_band, nukeVars, nukeVars2D, data_studies, nukeCuts, tgt);
       std::cout << "Nuclear Target Data cut summary:\n" << nukeCuts << "\n";
 
+      auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
 
       std::string mcOutFileName = MC_OUT_FILE_NAME_BASE + std::to_string(tgt)+".root";
       //Write MC results
@@ -932,6 +933,9 @@ int main(const int argc, const char** argv)
       for(auto& var: nukeVars2D) var->WriteMC(*mcOutDir);
       std::cout<<"Saved 2D Variables\n";
 
+
+      //Playlist name - Used for flux calculations later on
+      playlistStr->Write();
 
       //Protons On Target
       auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
@@ -962,6 +966,9 @@ int main(const int argc, const char** argv)
         nNucleons->Write();
       }
 
+      mcOutDir->Close();
+
+      //playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
       //Write data results
       std::string dataOutFileName = DATA_OUT_FILE_NAME_BASE + std::to_string(tgt)+".root";
       TFile* dataOutDir = TFile::Open(dataOutFileName.c_str(), "RECREATE");
@@ -976,15 +983,19 @@ int main(const int argc, const char** argv)
 
       for(auto& study: data_studies) study->SaveOrDraw(*dataOutDir);
 
+      //Playlist name - Used for flux calculations later on
+      playlistStr->Write();
       //Protons On Target
       auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
       dataPOT->Write();
+
+      dataOutDir->Close();
 
       //Saving 2D migration matrices
       //Putting this right at the end in case of a crash
       std::string migrationOutDirName = MIGRATION_2D_OUT_FILE_NAME_BASE + std::to_string(tgt)+".root";
       TFile* migrationOutDir = TFile::Open(migrationOutDirName.c_str(), "RECREATE");
-      if(!dataOutDir)
+      if(!migrationOutDir)
       {
         std::cerr << "Failed to open a file named " << migrationOutDirName << " in the current directory for writing histograms.\n";
         return badOutputFile;
@@ -993,6 +1004,7 @@ int main(const int argc, const char** argv)
       {
         var->WriteMigration(*migrationOutDir); //Save 2D migration to separate files, because it's huge
       } 
+      migrationOutDir->Close();
 
       std::cout << "Success" << std::endl;
     }
