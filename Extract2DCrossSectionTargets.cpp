@@ -31,6 +31,9 @@
 #include "TParameter.h"
 #include "TCanvas.h"
 #include "string.h"
+#include "Math/Factory.h"
+#include "Math/Functor.h"
+#include "Math/Minimizer.h"
 
 // Cintex is only needed for older ROOT versions like the GPVMs.
 ////Let CMake decide whether it's needed.
@@ -92,6 +95,22 @@ double GetTotalScatteringCenters(int targetZ, bool isMC)
 
   return Nucleons;
 }
+
+
+PlotUtils::MnvH1D *g_combinedMCHist, *g_dataHist;
+
+
+double getChi2( const double * val )
+{
+    double scale  = val[0];
+    int ndof;
+    PlotUtils::MnvPlotter plotter;
+    plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
+    auto tmpHist = g_dataHist->Clone();
+    double chiSq = plotter.Chi2DataMC(tmpHist, g_combinedMCHist, ndof, scale, true, true);
+    return chiSq;
+}
+
 
 // Plot a step in cross section extraction.
 //Doesn't yet work for 2D
@@ -163,6 +182,42 @@ PlotUtils::MnvH2D* UnfoldHist( PlotUtils::MnvH2D* h_folded, PlotUtils::MnvH2D* h
   return h_unfolded;
 }
 
+
+
+std::vector<std::string> findContainingDirectories(std::string dir, bool recursiveSearch = true, int curdepth = 0, int maxdepth = 2)
+{
+  std::vector<std::string> dirpaths;
+  for (const auto &entry : std::filesystem::directory_iterator(dir))
+  {
+    std::string path = entry.path();
+    //std::cout<<"Investigating path -wtf: " << path <<std::endl;
+    std::filesystem::file_type ft = std::filesystem::status(path).type();
+    if (ft == std::filesystem::file_type::regular)
+    {
+      //std::cout<<"Found regular file at: " << path <<std::endl;
+      const size_t base = path.find("runEventLoopTargets");
+      if (base != std::string::npos)
+      {
+        //std::cout<<"Found matching file: " << path <<std::endl;
+        if (std::find(dirpaths.begin(), dirpaths.end(), dir) == dirpaths.end()) dirpaths.push_back(dir);
+      }
+    }
+    else if ((ft == std::filesystem::file_type::directory || ft == std::filesystem::file_type::symlink) && recursiveSearch && curdepth<=maxdepth)
+    {
+      //std::cout<<"Found directory file at: " << path <<std::endl;
+      std::vector<std::string> subdirs = findContainingDirectories(path, recursiveSearch, curdepth+1);
+      for (auto subdirpath : subdirs)
+      {
+        if (std::find(dirpaths.begin(), dirpaths.end(), subdirpath) == dirpaths.end()) dirpaths.push_back(subdirpath);
+      }
+    }
+  }
+  std::sort(dirpaths.begin(), dirpaths.end());
+  return dirpaths;
+}
+
+
+
 // The final step of cross section extraction: normalize by flux, bin width, POT, and number of targets
 PlotUtils::MnvH2D *normalize(PlotUtils::MnvH2D *efficiencyCorrected, PlotUtils::MnvH2D *fluxIntegral, const double nNucleons, const double POT)
 {
@@ -186,7 +241,7 @@ int main(const int argc, const char **argv)
   if (argc != 5)
   {
     std::cerr << "Expected 4 arguments, but I got " << argc - 1 << ".\n"
-              << "USAGE: ExtractCrossSection <unfolding iterations> <directory> <target> <playlistname-for-flux>\n"
+              << "USAGE: ExtractCrossSection <unfolding iterations> <directory> <target>\n"
               << "Where <target> is the name of a target or \"all\" to loop over all targets found\n"
               << "or the name of the material(+'_tuned', if applicable), if looking at combined playlists\n"
               << "e.g: ExtractCrossSection 5 ./ 2026 minervame1A  -- to just extract xsecs for tgt2 iron\n"
@@ -197,63 +252,31 @@ int main(const int argc, const char **argv)
   }
 
   const int nIterations = std::stoi(argv[1]);
-  std::string directory = std::string(argv[2]);
+  std::string indir = std::string(argv[2]);
   std::string intgt = std::string(argv[3]);
-  std::string platlistname = std::string(argv[4]);
+
+  bool recursiveSearch = false;
+  for (int c = 0; c<argc; c++) if (std::string(argv[c])=="-r") recursiveSearch = true;
+
+
+  std::vector<std::string> dirs = findContainingDirectories(indir, recursiveSearch);
 
   std::vector<std::string> targets;
   if (intgt == "ALL" || intgt == "all")
   {
-    for (const auto &entry : std::filesystem::directory_iterator(directory))
-    {
-      std::string path = entry.path();
-      std::cout << "path " << path << std::endl;
-      const size_t base = path.find("runEventLoopTargetsData");
-      if (base != std::string::npos)
-      {
-        const size_t ext = path.find(".root");
-        std::cout << "base " << base << std::endl;
-        std::cout << "ext " << ext << std::endl;
-        int lenTgtString = ext - base - 23;
-        std::cout << "lenTgtString: " << lenTgtString << std::endl;
-        std::string tgtstring = path.substr(base + 23, lenTgtString);
-        std::cout << "tgtstring: " << tgtstring << std::endl;
-        targets.push_back(tgtstring);
-      }
-    }
+    targets = {"1026", "1082", "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "6000", "Iron", "Carbon", "Lead"};
   }
-  else targets = {intgt};
+  else
+  {
+    targets = {intgt};
+  }
   for (std::string &tgt : targets)
   {
     //if (tgt != "3006") continue; //Used for testing with only one target
-    std::string datapath = directory + "/runEventLoopTargetsData" + tgt + ".root";
-    std::string mcpath = directory + "/runEventLoopTargetsMC" + tgt + ".root";
-    std::string migrationpath = directory + "/runEventLoopTargets2DMigration" + tgt + ".root";
 
-    auto dataFile = TFile::Open(datapath.c_str(), "READ");
-    if (!dataFile)
-    {
-      std::cerr << "Failed to open data file " << datapath.c_str() << ".\n";
-      return 2;
-    }
+    std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu", "nuke_pZmu", "nuke_BjorkenX", "nuke_Erecoil", "nuke_Emu"};
 
-    auto mcFile = TFile::Open(mcpath.c_str(), "READ");
-    if (!mcFile)
-    {
-      std::cerr << "Failed to open MC file " << mcpath.c_str() << ".\n";
-      return 3;
-    }
-
-    auto migrationFile = TFile::Open(migrationpath.c_str(), "READ");
-    if (!migrationFile)
-    {
-      std::cerr << "Failed to open MC file " << migrationpath.c_str() << ".\n";
-      return 3;
-    }
-
-    std::vector<std::string> crossSectionPrefixes = {"nuke_pTmu_pZmu"};
-
-    for (auto key : *dataFile->GetListOfKeys())
+    /* for (auto key : *dataFile->GetListOfKeys())
     {
       const std::string keyName = key->GetName();
       if (keyName == "POTUsed")
@@ -269,45 +292,325 @@ int main(const int argc, const char **argv)
       std::cout << "alreadyInVector " << alreadyInVector << std::endl;
       if (endOfPrefix != std::string::npos && !alreadyInVector && twoDimension)
         crossSectionPrefixes.push_back(prefix);
-    }
-    const double mcPOT = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal(),
-                  dataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-    std::cout << "Targets DataPOT: " << dataPOT << " mcPOT " << mcPOT << std::endl;
+    } */
     for (const auto &prefix : crossSectionPrefixes)
     {
       //if (!(prefix == "nuke_Erecoil" || prefix == "nuke_pTmu")) continue; //Used for testing with only subset of prefixes
       std::cout << "Current working on prefix: " << prefix << std::endl;
       try
       {
-        //auto flux = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("reweightedflux_integrated")), prefix);
-        //flux->Scale(1.0);
-        auto folded = util::GetIngredient<PlotUtils::MnvH2D>(*dataFile, (std::string("data")), prefix);
-        Plot(*folded, "data", prefix, tgt);
-        auto migration = util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("migration")), prefix);
-        auto migration_reco = util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("reco")), prefix);
-        auto migration_truth = util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("truth")), prefix);
-        auto effNum = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_numerator")), "nuke_pZmu_nuke_pTmu");
-        auto effDenom = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator")), "nuke_pZmu_nuke_pTmu");
+        PlotUtils::MnvH2D* flux;
+        PlotUtils::MnvH2D* folded;
+        PlotUtils::MnvH2D* migration;
+        PlotUtils::MnvH2D* migration_reco;
+        PlotUtils::MnvH2D* migration_truth;
+        PlotUtils::MnvH2D* effNum;
+        PlotUtils::MnvH2D* effDenom;
+        PlotUtils::MnvH2D* effDenom2P2H;
+        PlotUtils::MnvH2D* effDenomDIS;
+        PlotUtils::MnvH2D* effDenomRES;
+        PlotUtils::MnvH2D* effDenomQE;
+        PlotUtils::MnvH2D* effDenomOther;
 
-        //auto nNucleons = util::GetIngredient<TParameter<double>>(*mcFile, (std::string("fiducial_nucleons")), prefix); // Dan: Use the same truth fiducial volume for all extractions.  The acceptance correction corrects data back to this fiducial even if the reco fiducial cut is different.
-        //double nNucleonsVal = nNucleons->GetVal();
-        std::vector<PlotUtils::MnvH2D *> backgrounds;
-        for (auto key : *mcFile->GetListOfKeys())
+        PlotUtils::MnvH1D* USSidebandSignal;
+        PlotUtils::MnvH1D* USSidebandDS;
+        PlotUtils::MnvH1D* USSidebandUS;
+        PlotUtils::MnvH1D* USSidebandOther;
+        PlotUtils::MnvH1D* DSSidebandSignal;
+        PlotUtils::MnvH1D* DSSidebandDS;
+        PlotUtils::MnvH1D* DSSidebandUS;
+        PlotUtils::MnvH1D* DSSidebandOther;
+        PlotUtils::MnvH1D* DataUSSideband;
+        PlotUtils::MnvH1D* DataDSSideband;
+        PlotUtils::MnvH1D* DataSignal;
+
+        PlotUtils::MnvH2D* BackgroundUSPlastic;
+        PlotUtils::MnvH2D* BackgroundDSPlastic;
+        PlotUtils::MnvH2D* BackgroundWrongSign;
+        PlotUtils::MnvH2D* BackgroundNC;
+        PlotUtils::MnvH2D* BackgroundOther;
+
+        PlotUtils::MnvH2D *fluxIntReweighted;
+
+        //Flux parameters
+        int n_flux_universes = 100; // Is this right
+        const bool use_nue_constraint = true;
+        const std::string project_dir = "targets_2345_jointNueIMD";
+        double min_energy = 0;
+        double max_energy = 100;
+
+        double mcPOT = 0;
+        double dataPOT = 0;
+
+        std::vector <std::string> targetsInTgt;
+        if (tgt=="Iron") targetsInTgt = {"2026", "3026", "5026"};
+        else if (tgt=="Carbon") targetsInTgt = {"3006"};
+        else if (tgt=="Lead") targetsInTgt = {"2082", "3082", "4082", "5082"};
+        else targetsInTgt = {tgt};
+    
         {
-          if (std::string(key->GetName()).find(prefix + "_by_BKG_Label_") != std::string::npos)
+
+          std::cout<<"Adding target: " << targetsInTgt[0] << " from directory: " << dirs[0] << std::endl;
+          std::string datapath = dirs[0] + "/runEventLoopTargetsData" + targetsInTgt[0] + ".root";
+          std::string mcpath = dirs[0] + "/runEventLoopTargetsMC" + targetsInTgt[0] + ".root";
+          std::string migrationpath = dirs[0] + "/runEventLoopTargets2DMigration" + targetsInTgt[0] + ".root";
+
+          auto dataFile = TFile::Open(datapath.c_str(), "READ");
+          if (!dataFile)
           {
-            std::cout << "Found and adding background: " << key->GetName() << std::endl;
-            backgrounds.push_back(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, key->GetName()));
+            std::cerr << "Failed to open data file " << datapath.c_str() << ".\n";
+            return 2;
+          }
+
+          auto mcFile = TFile::Open(mcpath.c_str(), "READ");
+          if (!mcFile)
+          {
+            std::cerr << "Failed to open MC file " << mcpath.c_str() << ".\n";
+            return 3;
+          }
+
+          auto migrationFile = TFile::Open(migrationpath.c_str(), "READ");
+          if (!migrationFile)
+          {
+            std::cerr << "Failed to open MC file " << migrationpath.c_str() << ".\n";
+            return 3;
+          }
+
+          folded = util::GetIngredient<PlotUtils::MnvH2D>(*dataFile, (std::string("data")), prefix);
+          migration = util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("migration")), prefix);
+          migration_reco = util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("reco")), prefix);
+          migration_truth = util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("truth")), prefix);
+
+          effNum = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_numerator")), prefix);
+          effDenom = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator")), prefix);
+          effDenom2P2H = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix);
+          effDenomDIS = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix);
+          effDenomRES = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix);
+          effDenomQE = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix);
+          effDenomOther = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix);
+
+          USSidebandSignal = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_Signal")));
+          USSidebandDS = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_DS")));
+          USSidebandUS = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_US")));
+          USSidebandOther = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_Other")));
+          DSSidebandSignal = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_Signal")));
+          DSSidebandDS = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_DS")));
+          DSSidebandUS = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_US")));
+          DSSidebandOther = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_Other")));
+          DataUSSideband = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("nuke_segment_US_Sideband")));
+          DataDSSideband = util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("nuke_segment_DS_Sideband")));
+          DataSignal = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_data")));
+          DataSignal = util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_data")));
+
+          BackgroundUSPlastic = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_US_Plastic")), prefix);
+          BackgroundDSPlastic = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_DS_Plastic")), prefix);
+          BackgroundWrongSign = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_Wrong_Sign_Bkg")), prefix);
+          BackgroundNC = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_NC_Bkg")), prefix);
+          BackgroundOther = util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_Other")), prefix);
+          
+          
+          mcPOT += util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+          std::cout<<"mcPOT: " << mcPOT << std::endl;
+          double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+          dataPOT+=tempDataPOT;
+
+          std::string playlistUsed = util::GetIngredient<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
+          int nuoranu = util::nuOrAntiNuMode(playlistUsed);
+          int nupdg;
+          if (nuoranu==1) nupdg = 14;
+          else if (nuoranu==2) nupdg = -14;
+
+          PlotUtils::FluxReweighter frw = PlotUtils::FluxReweighter( nupdg, use_nue_constraint, playlistUsed, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
+          fluxIntReweighted = frw.GetIntegratedFluxReweighted(nupdg, effDenom, min_energy, max_energy, true);
+          fluxIntReweighted->Scale(tempDataPOT);
+
+
+          dataFile->Close();
+          mcFile->Close();
+        }
+        for (int c = 0; c<dirs.size(); c++)
+        {
+          for (int d = 1; d<targetsInTgt.size(); d++)
+          {
+            std::cout<<"Adding target: " << targetsInTgt[d] << " from directory: " << dirs[c] << std::endl;
+            if (c==0 && d==0) continue; //Already covered by the above
+            std::string datapath = dirs[0] + "/runEventLoopTargetsData" + targetsInTgt[d] + ".root";
+            std::string mcpath = dirs[0] + "/runEventLoopTargetsMC" + targetsInTgt[d] + ".root";
+            std::string migrationpath = dirs[0] + "/runEventLoopTargets2DMigration" + targetsInTgt[d] + ".root";
+
+            auto dataFile = TFile::Open(datapath.c_str(), "READ");
+            if (!dataFile)
+            {
+              std::cerr << "Failed to open data file " << datapath.c_str() << ".\n";
+              return 2;
+            }
+
+            auto mcFile = TFile::Open(mcpath.c_str(), "READ");
+            if (!mcFile)
+            {
+              std::cerr << "Failed to open MC file " << mcpath.c_str() << ".\n";
+              return 3;
+            }
+            
+            auto migrationFile = TFile::Open(migrationpath.c_str(), "READ");
+            if (!migrationFile)
+            {
+              std::cerr << "Failed to open MC file " << migrationpath.c_str() << ".\n";
+              return 3;
+            }
+            
+            folded->Add(util::GetIngredient<PlotUtils::MnvH2D>(*dataFile, (std::string("data")), prefix));
+            migration->Add(util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("migration")), prefix));
+            migration_reco->Add(util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("reco")), prefix));
+            migration_truth->Add(util::GetIngredient<PlotUtils::MnvH2D>(*migrationFile, (std::string("truth")), prefix));
+
+            effNum->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_numerator")), prefix));
+            effDenom->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator")), prefix));
+            effDenom2P2H->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix));
+            effDenomDIS->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix));
+            effDenomRES->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix));
+            effDenomQE->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix));
+            effDenomOther->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix));
+
+            USSidebandSignal->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_Signal"))));
+            USSidebandDS->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_DS"))));
+            USSidebandUS->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_US"))));
+            USSidebandOther->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_US_sideband_Other"))));
+            DSSidebandSignal->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_Signal"))));
+            DSSidebandDS->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_DS"))));
+            DSSidebandUS->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_US"))));
+            DSSidebandOther->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_DS_sideband_Other"))));
+            DataUSSideband->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("nuke_segment_US_Sideband"))));
+            DataDSSideband->Add(util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("nuke_segment_DS_Sideband"))));
+            DataSignal->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_data"))));
+            DataSignal->Add(util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("nuke_segment_data"))));
+
+            BackgroundUSPlastic->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_US_Plastic")), prefix));
+            BackgroundDSPlastic->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_DS_Plastic")), prefix));
+            BackgroundWrongSign->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_Wrong_Sign_Bkg")), prefix));
+            BackgroundNC->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_NC_Bkg")), prefix));
+            BackgroundOther->Add(util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("by_BKG_Label_Other")), prefix));
+
+            mcPOT += util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+            std::cout<<"mcPOT: " << mcPOT << std::endl;
+            double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+            dataPOT+=tempDataPOT;
+
+            std::string playlistUsed = util::GetIngredient<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
+            int nuoranu = util::nuOrAntiNuMode(playlistUsed);
+            int nupdg;
+            if (nuoranu==1) nupdg = 14;
+            else if (nuoranu==2) nupdg = -14;
+
+            PlotUtils::FluxReweighter frw = PlotUtils::FluxReweighter( nupdg, use_nue_constraint, playlistUsed, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
+            fluxIntReweighted = frw.GetIntegratedFluxReweighted(nupdg, effDenom, min_energy, max_energy, true);
+            fluxIntReweighted->Scale(tempDataPOT);
+
+
+            if (d==0) //Only get POT once per playlist. E.g we don't wanna double count the POT for the same runs just because we're looking at target 2026 and 2082
+            {
+              mcPOT += util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+              std::cout<<"mcPOT: " << mcPOT << std::endl;
+              double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+              dataPOT+=tempDataPOT;
+
+
+              std::string playlistUsed = util::GetIngredient<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
+              int nuoranu = util::nuOrAntiNuMode(playlistUsed);
+              int nupdg;
+              if (nuoranu==1) nupdg = 14;
+              else if (nuoranu==2) nupdg = -14;
+
+              PlotUtils::FluxReweighter frw = PlotUtils::FluxReweighter( nupdg, use_nue_constraint, playlistUsed, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
+              fluxIntReweighted->Add(frw.GetIntegratedFluxReweighted(nupdg, effDenom, min_energy, max_energy, true),tempDataPOT);
+            }
+
+            dataFile->Close();
+            mcFile->Close();
           }
         }
 
+        fluxIntReweighted->Scale(1/dataPOT);
+
+
+        bool doMinimiser = true;
+        double USScaleFactor = 1;
+        double DSScaleFactor = 1;
+        if (doMinimiser)
+        {
+          PlotUtils::MnvH1D* combinedUS = USSidebandSignal->Clone("CombinedUSMC");
+          combinedUS->Add(USSidebandUS);
+          combinedUS->Add(USSidebandDS);
+          combinedUS->Add(USSidebandOther);
+          combinedUS->Scale(dataPOT/mcPOT);
+
+          PlotUtils::MnvH1D* combinedDS = DSSidebandSignal->Clone("CombinedUSMC");
+          combinedDS->Add(DSSidebandUS);
+          combinedDS->Add(DSSidebandDS);
+          combinedDS->Add(DSSidebandOther);
+          combinedDS->Scale(dataPOT/mcPOT);
+
+          g_combinedMCHist = combinedUS;
+          g_dataHist = DataUSSideband;
+
+          //Plot(*combinedUS, "combinedUS", prefix, tgt);
+          //Plot(*DataUSSideband, "DataUSSideband", prefix, tgt);
+          double minValUS, minValDS;
+          {          //US Sideband
+            ROOT::Math::Minimizer* minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2");
+            minimizer->SetMaxFunctionCalls(1000000);
+            minimizer->SetMaxIterations(100000);
+            minimizer->SetTolerance(0.01);
+            minimizer->SetPrintLevel(1);
+            std::cout<<"Made a Minimizer" <<std::endl;
+            ROOT::Math::Functor f( & getChi2, 1 );
+            minimizer->SetFunction(f);
+            minimizer->SetVariable(0, "scale", 1, 0.001);
+            minimizer->Minimize();
+            const double *bestfit = minimizer->X();
+            double bestChiSq = minimizer->MinValue();
+            USScaleFactor = bestfit[0];
+            std::cout<<"Minised chisq for USSideband. Scale factor: " << USScaleFactor << " best chisq: " << bestChiSq << std::endl;
+          }
+
+          g_combinedMCHist = combinedDS;
+          g_dataHist = DataDSSideband;
+          {          //DS Sideband
+            ROOT::Math::Minimizer* minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2");
+            minimizer->SetMaxFunctionCalls(1000000);
+            minimizer->SetMaxIterations(100000);
+            minimizer->SetTolerance(0.01);
+            minimizer->SetPrintLevel(1);
+            std::cout<<"Made a Minimizer" <<std::endl;
+            ROOT::Math::Functor f( & getChi2, 1 );
+            minimizer->SetFunction(f);
+            minimizer->SetVariable(0, "scale", 1, 0.001);
+            minimizer->Minimize();
+            const double *bestfit = minimizer->X();
+            double bestChiSq = minimizer->MinValue();
+            DSScaleFactor = bestfit[0];
+            std::cout<<"Minised chisq for DSSideband. Scale factor: " << DSScaleFactor << " best chisq: " << bestChiSq << std::endl;
+          }
+
+        }
+
         auto simEventRate = effDenom->Clone(); // Make a copy for later
+        auto simEventRate2P2H = effDenom2P2H->Clone(); // Make a copy for later
+        auto simEventRateDIS = effDenomDIS->Clone(); // Make a copy for later
+        auto simEventRateRES = effDenomRES->Clone(); // Make a copy for later
+        auto simEventRateQE = effDenomQE->Clone(); // Make a copy for later
+        auto simEventRateOther = effDenomOther->Clone(); // Make a copy for later
         // There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
         folded->AddMissingErrorBandsAndFillWithCV(*migration);
 
         // Basing my unfolding procedure for a differential cross section on Alex's MINERvA 101 talk at https://minerva-docdb.fnal.gov/cgi-bin/private/RetrieveFile?docid=27438&filename=whatsACrossSection.pdf&version=1
 
-        // TODO: Remove these debugging plots when done
+        std::vector<PlotUtils::MnvH2D*> backgrounds = {BackgroundUSPlastic, BackgroundDSPlastic, BackgroundWrongSign, BackgroundNC, BackgroundOther};
+        PlotUtils::MnvH2D* BackgroundUSPlasticScaled = BackgroundUSPlastic->Clone();
+        BackgroundUSPlasticScaled->Scale(USScaleFactor);
+        PlotUtils::MnvH2D* BackgroundDSPlasticScaled = BackgroundDSPlastic->Clone();
+        BackgroundDSPlasticScaled->Scale(DSScaleFactor);
+        std::vector<PlotUtils::MnvH2D*> backgroundsScaled = {BackgroundUSPlasticScaled, BackgroundDSPlasticScaled, BackgroundWrongSign, BackgroundNC, BackgroundOther};
         auto toSubtract = std::accumulate(std::next(backgrounds.begin()), backgrounds.end(), (*backgrounds.begin())->Clone(),
                                           [](auto sum, const auto hist)
                                           {
@@ -323,7 +626,17 @@ int main(const int argc, const char **argv)
                                                 sum->Add(hist, -dataPOT / mcPOT);
                                                 return sum;
                                               });
+
+        auto bkgScaledSubtracted = std::accumulate(backgroundsScaled.begin(), backgroundsScaled.end(), folded->Clone(),
+                                              [mcPOT, dataPOT](auto sum, const auto hist)
+                                              {
+                                                std::cout << "Subtracting " << hist->GetName() << " scaled by " << -dataPOT / mcPOT << " from " << sum->GetName() << "\n";
+                                                sum->Add(hist, -dataPOT / mcPOT);
+                                                return sum;
+                                              });
+
         Plot(*bkgSubtracted, "backgroundSubtracted", prefix, tgt);
+        Plot(*bkgScaledSubtracted, "backgroundSubtractedScaled", prefix, tgt);
 
         auto outFile = TFile::Open((tgt + prefix + "_crossSection.root").c_str(), "RECREATE");
         if (!outFile)
@@ -332,7 +645,41 @@ int main(const int argc, const char **argv)
           return 5;
         }
 
+        DataUSSideband->Write("DataUSSideband");
+        DataDSSideband->Write("DataDSSideband");
+
+        USSidebandSignal->Write("USSidebandSignal");
+        USSidebandUS->Write("USSidebandUS");
+        USSidebandDS->Write("USSidebandDS");
+        USSidebandOther->Write("USSidebandOther");
+        
+        DSSidebandSignal->Write("DSSidebandSignal");
+        DSSidebandUS->Write("DSSidebandUS");
+        DSSidebandDS->Write("DSSidebandDS");
+        DSSidebandOther->Write("DSSidebandOther");
+
+        USSidebandSignal->Scale(USScaleFactor);
+        USSidebandUS->Scale(USScaleFactor);
+        USSidebandDS->Scale(USScaleFactor);
+        USSidebandOther->Scale(USScaleFactor);
+
+        DSSidebandSignal->Scale(DSScaleFactor);
+        DSSidebandUS->Scale(DSScaleFactor);
+        DSSidebandDS->Scale(DSScaleFactor);
+        DSSidebandOther->Scale(DSScaleFactor);
+        
+        USSidebandSignal->Write("USSidebandSignalScaled");
+        USSidebandUS->Write("USSidebandUSScaled");
+        USSidebandDS->Write("USSidebandDSScaled");
+        USSidebandOther->Write("USSidebandOtherScaled");
+        
+        DSSidebandSignal->Write("DSSidebandSignalScaled");
+        DSSidebandUS->Write("DSSidebandUSScaled");
+        DSSidebandDS->Write("DSSidebandDSScaled");
+        DSSidebandOther->Write("DSSidebandOtherScaled");
+
         bkgSubtracted->Write("backgroundSubtracted");
+        bkgScaledSubtracted->Write("backgroundSubtractedSidebandScaled");
 
         // d'Aogstini unfolding
         auto unfolded = UnfoldHist(bkgSubtracted, migration, migration_reco, migration_truth, nIterations);
@@ -342,6 +689,13 @@ int main(const int argc, const char **argv)
         unfolded->Clone()->Write("unfolded"); // TODO: Seg fault first appears when I uncomment this line
         std::cout << "Survived writing the unfolded histogram.\n"
                   << std::flush; // This is evidence that the problem is on the final file Write() and not unfolded->Clone()->Write().
+        auto unfolded_tuned = UnfoldHist(bkgScaledSubtracted, migration, migration_reco, migration_truth, nIterations);
+        if (!unfolded_tuned)
+          throw std::runtime_error(std::string("Failed to unfold ") + folded->GetName() + " using " + migration->GetName());
+        Plot(*unfolded_tuned, "unfolded_sidebandTuned", prefix, tgt);
+        unfolded_tuned->Clone()->Write("unfolded"); // TODO: Seg fault first appears when I uncomment this line
+
+
 
         effNum->Divide(effNum, effDenom); // Only the 2 parameter version of MnvH1D::Divide()
                                           // handles systematics correctly.
@@ -350,17 +704,12 @@ int main(const int argc, const char **argv)
         unfolded->Divide(unfolded, effNum);
         Plot(*unfolded, "efficiencyCorrected", prefix, tgt);
 
+        unfolded_tuned->Divide(unfolded_tuned, effNum);
+        Plot(*unfolded_tuned, "efficiencyCorrected_sidebandTuned", prefix, tgt);
+
+
         double nnucleons = 0;
         double nnucleonsData = 0;
-
-
-        int n_flux_universes = 100; // Is this right
-        int nu_pdg = 14;
-        const bool use_nue_constraint = true;
-        const std::string project_dir = "targets_2345_jointNueIMD";
-        double min_energy = 0;
-        double max_energy = 100;
-
 
 
         std::string tgtname = tgt;
@@ -412,7 +761,7 @@ int main(const int argc, const char **argv)
           int tgtCode = std::stoi(tgtname);
           int tgtMat = tgtCode%1000;
           int tgtNum = (tgtCode-tgtMat)/1000;
-          if (tgtNum<7) nnucleons = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, true);
+          if (tgtNum<7 && tgtCode>1000) nnucleons = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, true);
           else
           {
             if (tgtNum==7) nnucleons = targetInfo.GetTrackerNNucleons( 7, true); 
@@ -422,7 +771,7 @@ int main(const int argc, const char **argv)
             if (tgtNum==11) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
             if (tgtNum==12) nnucleons = targetInfo.GetTrackerNNucleons( 2, true); 
           }
-          if (tgtNum<7) nnucleonsData = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, false);
+          if (tgtNum<7 && tgtCode>1000) nnucleonsData = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, false);
           else
           {
             if (tgtNum==7) nnucleonsData = targetInfo.GetTrackerNNucleons( 7, false); 
@@ -438,7 +787,7 @@ int main(const int argc, const char **argv)
         PlotUtils::MnvH1D *fluxIntegral;
         PlotUtils::MnvH1D *fluxRebinned;
 
-        std::cout<<"nu_pdg: " << nu_pdg << std::endl;
+        //std::cout<<"nu_pdg: " << nu_pdg << std::endl;
         std::cout<<"use_nue_constraint: " << use_nue_constraint << std::endl;
         std::cout<<"n_flux_universes: " << n_flux_universes << std::endl;
         std::cout<<"min_energy: " << min_energy << std::endl;
@@ -448,25 +797,37 @@ int main(const int argc, const char **argv)
         std::cout<<"mcPOT: " << mcPOT << std::endl;
         std::cout<<"dataPOT: " << dataPOT << std::endl;
         //PlotUtils::FluxReweighter frw = PlotUtils::flux_reweighter(platlistname, nu_pdg, use_nue_constraint, n_flux_universes);
-        PlotUtils::FluxReweighter *frw = new PlotUtils::FluxReweighter( nu_pdg, use_nue_constraint, platlistname, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
+        //PlotUtils::FluxReweighter *frw = new PlotUtils::FluxReweighter( nu_pdg, use_nue_constraint, platlistname, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
         //std::cout << "ABC123-1 " << std::endl;
-        PlotUtils::MnvH2D *fluxIntReweighted = frw->GetIntegratedFluxReweighted(nu_pdg, simEventRate, min_energy, max_energy, true);
+        //PlotUtils::MnvH2D *fluxIntReweighted = frw->GetIntegratedFluxReweighted(nu_pdg, simEventRate, min_energy, max_energy, true);
         //fluxIntegral = frw->GetIntegratedTargetFlux(nu_pdg, material, simEventRate, min_energy, max_energy, project_dir);
         //auto &frw2 = PlotUtils::flux_reweighter("minervame1A", nu_pdg, use_nue_constraint, n_flux_universes);
         //flux2 = frw2.GetTargetFluxMnvH1D(nu_pdg, material, project_dir);
-
+        std::cout<<"1234.1\n"; 
         //fluxRebinned = frw->GetRebinnedFluxReweighted_FromInputFlux(flux2, simEventRate); // issue here
         //PlotUtils::MnvH1D *Integrated_fluxGenie = frw->GetIntegratedFluxReweighted_FromInputFlux(flux2, simEventRate, min_energy, max_energy);
         //PlotUtils::MnvH1D *Integrated_fluxGenie2 = frw->GetIntegratedFluxReweighted_FromInputFlux(flux, simEventRate, min_energy, max_energy);
         outFile->cd();
+        std::cout<<"1234.2\n"; 
         unfolded->Write("unfolded2");
+        std::cout<<"1234.3\n"; 
         fluxIntReweighted->Write("fluxIntReweighted2");
+        std::cout<<"1234.4\n"; 
         auto crossSection = normalize(unfolded, fluxIntReweighted, nnucleonsData, dataPOT);
+        std::cout<<"1234.5\n"; 
         Plot(*crossSection, "crossSection", prefix, tgt);
-        crossSection->Clone()->Write("crossSection");
+        std::cout<<"1234.6\n"; 
+        crossSection->Write("crossSection");
+        std::cout<<"1234.7\n"; 
+        auto crossSectionTuned = normalize(unfolded_tuned, fluxIntReweighted, nnucleonsData, dataPOT);
+        //Plot(*crossSectionTuned, "crossSectionTuned", prefix, tgt);
+        std::cout<<"1234.8\n"; 
+        crossSectionTuned->Write("crossSectionTuned");
+        std::cout<<"1234.9\n"; 
         simEventRate->Write("simulatedEventRate");
+        std::cout<<"1234.10\n"; 
         fluxIntReweighted->Write("fluxIntReweighted");
-
+        std::cout<<"1234.11\n"; 
         //These lines are/were mainly used to debug a scaling issue
         /* flux->Write("flux(FRW/from event loop)");
           //flux2->Write("flux2");
@@ -487,9 +848,26 @@ int main(const int argc, const char **argv)
         // what GENIEXSecExtract would produce.
         //fluxIntegral about 1pc off
         //fluxIntReweighted passes
-        auto crossSection2 = normalize(simEventRate, fluxIntReweighted, nnucleons, mcPOT);
-        Plot(*crossSection2, "simulatedCrossSection", prefix, tgt);
-        crossSection2->Write("simulatedCrossSection");
+        auto simulatedCrossSection = normalize(simEventRate, fluxIntReweighted, nnucleons, mcPOT);
+        std::cout<<"1234.12\n"; 
+        //Plot(*simulatedCrossSection, "simulatedCrossSection", prefix, tgt);
+        simulatedCrossSection->Write("simulatedCrossSection");
+        std::cout<<"1234.13\n";
+        auto simulatedCrossSection2P2H = normalize(simEventRate2P2H, fluxIntReweighted, nnucleons, mcPOT);
+        std::cout<<"1234.14\n";
+        simulatedCrossSection2P2H->Write("simulatedCrossSection2P2H");
+        std::cout<<"1234.15\n";
+        auto simulatedCrossSectionDIS = normalize(simEventRateDIS, fluxIntReweighted, nnucleons, mcPOT);
+        std::cout<<"1234.16\n";
+        simulatedCrossSectionDIS->Write("simulatedCrossSectionDIS");
+        std::cout<<"1234.17\n";
+        auto simulatedCrossSectionRES = normalize(simEventRateRES, fluxIntReweighted, nnucleons, mcPOT);
+        simulatedCrossSectionRES->Write("simulatedCrossSectionRES");
+        auto simulatedCrossSectionQE = normalize(simEventRateQE, fluxIntReweighted, nnucleons, mcPOT);
+        simulatedCrossSectionQE->Write("simulatedCrossSectionQE");
+        auto simulatedCrossSectionOther = normalize(simEventRateOther, fluxIntReweighted, nnucleons, mcPOT);
+        simulatedCrossSectionOther->Write("simulatedCrossSectionOther");
+        std::cout<<"1234.11\n"; 
         outFile->Close();
         // return 0;
       }
@@ -500,8 +878,6 @@ int main(const int argc, const char **argv)
         // break;
       }
     }
-    dataFile->Close();
-    mcFile->Close();
   }
   return 0;
 }
