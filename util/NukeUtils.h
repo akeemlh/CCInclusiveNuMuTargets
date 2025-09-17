@@ -7,8 +7,20 @@
 #include <filesystem>
 
 #include "PlotUtils/Cut.h"
+#include "event/MichelEvent.h"
+#include "PlotUtils/Cutter.h"
 #include "PlotUtils/TargetUtils.h"
-
+#include "cuts/SignalDefinition.h"
+#include "PlotUtils/CCInclusiveCuts.h"
+#include "PlotUtils/CCInclusiveSignal.h"
+#include "PlotUtils/Reweighter.h"
+#include "PlotUtils/FluxAndCVReweighter.h"
+#include "PlotUtils/GENIEReweighter.h"
+#include "PlotUtils/LowRecoil2p2hReweighter.h"
+#include "PlotUtils/RPAReweighter.h"
+#include "PlotUtils/MINOSEfficiencyReweighter.h"
+#include "PlotUtils/LowQ2PiReweighter.h"
+#include "PlotUtils/AMUDISReweighter.h"
 namespace util
 {
     //Just used to store objects useful for nuclear target study
@@ -521,33 +533,34 @@ namespace util
     //Helper function used to find directories containing root files
     std::vector<std::string> findContainingDirectories(std::string dir, std::string type, bool recursiveSearch = true, bool skipTest = true, int curdepth = 0, int maxdepth = 2)
     {
-    std::vector<std::string> dirpaths;
-    for (const auto &entry : std::filesystem::directory_iterator(dir))
-    {
-        std::string path = entry.path();
-        std::filesystem::file_type ft = std::filesystem::status(path).type();
-        if (ft == std::filesystem::file_type::regular)
+        std::vector<std::string> dirpaths;
+        for (const auto &entry : std::filesystem::directory_iterator(dir))
         {
-            const size_t base = path.find("runEventLoop"+type);
-            if (base != std::string::npos) && (std::find(dirpaths.begin(), dirpaths.end(), dir) == dirpaths.end())
+            std::string path = entry.path();
+            std::filesystem::file_type ft = std::filesystem::status(path).type();
+            if (ft == std::filesystem::file_type::regular)
             {
-                if !(skipTest && (dir.find("/Test-") != std::string::npos)) dirpaths.push_back(dir); //If skipTest is false or if skipTest is true and the test string isn't found in the path, add to vector
+                const size_t base = path.find("runEventLoop"+type);
+                if ((base != std::string::npos) && (std::find(dirpaths.begin(), dirpaths.end(), dir) == dirpaths.end()))
+                {
+                    if (!(skipTest && (dir.find("/Test-") != std::string::npos))) dirpaths.push_back(dir); //If skipTest is false or if skipTest is true and the test string isn't found in the path, add to vector
+                }
+            }
+            else if ((ft == std::filesystem::file_type::directory || ft == std::filesystem::file_type::symlink) && recursiveSearch && curdepth<=maxdepth)
+            {
+            std::vector<std::string> subdirs = findContainingDirectories(path, type, recursiveSearch, skipTest, curdepth+1);
+            for (auto subdirpath : subdirs)
+            {
+                if (std::find(dirpaths.begin(), dirpaths.end(), subdirpath) == dirpaths.end()) dirpaths.push_back(subdirpath);
+            }
             }
         }
-        else if ((ft == std::filesystem::file_type::directory || ft == std::filesystem::file_type::symlink) && recursiveSearch && curdepth<=maxdepth)
-        {
-        std::vector<std::string> subdirs = findContainingDirectories(path, type, recursiveSearch, skipTest, curdepth+1);
-        for (auto subdirpath : subdirs)
-        {
-            if (std::find(dirpaths.begin(), dirpaths.end(), subdirpath) == dirpaths.end()) dirpaths.push_back(subdirpath);
+        std::sort(dirpaths.begin(), dirpaths.end());
+        return dirpaths;
         }
-        }
-    }
-    std::sort(dirpaths.begin(), dirpaths.end());
-    return dirpaths;
-    }
 
-}
+};
+
 namespace reco
 {
     template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
@@ -588,5 +601,77 @@ namespace reco
 
         const double fMin;
     };
-}
+
+    template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+    class RockMuonCut: public PlotUtils::Cut<UNIVERSE, EVENT>
+    {
+        public:
+        RockMuonCut(): PlotUtils::Cut<UNIVERSE, EVENT>("Rock Muon Cut")
+        {
+        }
+
+        private:
+        bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+        {
+            return (univ.GetInt("rock_muons_removed") == 1);
+        }
+    };
+
+    template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+    class VetoWall: public PlotUtils::Cut<UNIVERSE, EVENT>
+    {
+        public:
+        VetoWall(): PlotUtils::Cut<UNIVERSE, EVENT>("Veto Wall Cut")
+        {
+        }
+
+        private:
+        bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+        {
+            return (univ.GetInt("VetoWall_event_IsVeto") == 1);
+        }
+    };
+};
+
+namespace util
+{
+
+  std::vector<double> PTBins = {0, 0.075, 0.15, 0.25, 0.325, 0.4, 0.475, 0.55, 0.7, 0.85, 1, 1.25, 1.5, 2.5, 4.5},
+                      PzBins = {1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 15, 20, 40, 60},
+                      EmuBins = {0,1,2,3,4,5,7,9,12,15,18,22,36,50,75,100,120},
+                      bjorkenXbins = {0.001, 0.02, 0.04, 0.06, 0.08, 0.1, 0.2, 0.3, 0.6, 1 , 2.2},
+                      Erecoilbins = {0, 0.2, 0.75, 1.5, 2.5, 3.5, 5, 8, 12, 14.5, 20}; //GeV
+                      //Erecoilbins = {0, 200, 750, 1500, 2500, 3500, 5000, 8000, 12000, 14500, 20000}; //MeV
+
+
+  //Boiler plate precuts for CC inclusive NuMu ME Analysis
+  const double apothem = 850; //All in mm
+  PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t GetAnalysisCuts(int pdg)
+  {
+    PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t cuts;
+    cuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
+    cuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
+    cuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
+    cuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
+    if (pdg>0)  cuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
+    else if (pdg<0)  cuts.emplace_back(new reco::IsAntiNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
+    cuts.emplace_back(new reco::MuonCurveSignificance<CVUniverse, MichelEvent>(5));
+    cuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
+    cuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(20000.0, "EMu Max"));
+    cuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40)); //Reccomended at 0.4 for P6 ML vertexing and 0.2 for P4 vertexing
+    //cuts.emplace_back(new reco::RockMuonCut<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
+    //cuts.emplace_back(new reco::VetoWall<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
+    return cuts;
+  }
+
+  PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t GetPhaseSpace()
+  {
+    PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t phasespace;
+    phasespace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
+    phasespace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
+    phasespace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
+    phasespace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(20000.0, "EMu Max"));
+    return phasespace;
+  }
+};
 #endif //UTIL_NUKEUTILS_H

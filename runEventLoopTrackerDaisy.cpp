@@ -1,15 +1,10 @@
-#define MC_OUT_FILE_NAME_BASE "runEventLoopTrackerMC"
-#define DATA_OUT_FILE_NAME_BASE "runEventLoopTrackerData"
-#define MIGRATION_2D_OUT_FILE_NAME_BASE "runEventLoopTracker2DMigration"
+#define MC_OUT_FILE_NAME "runEventLoopTrackerMC"
+#define DATA_OUT_FILE_NAME "runEventLoopTrackerData"
+#define MIGRATION_OUT_FILE_NAME "runEventLoopTracker2DMigration"
 
 #define USAGE \
 "\n*** USAGE ***\n"\
-"runEventLoopTracker <dataPlaylist.txt> <mcPlaylist.txt> <optional petal(0-11)>\n\n"\
-"To run eventLoop without petals being consideration - i.e if you're not planning \n"\
-"to perform a daisy reweigt then pass -1 as the petal\n"\
-"If petal is not provided, default behaviour is to run over everything, this can take a while\n"\
-"Additionally, if running on the grid, it is possibly more time efficient to only run 1 or a small number of\n"\
-"petals at at time and distribute the petals you're interested in over several nodes\n\n"\
+"runEventLoop <dataPlaylist.txt> <mcPlaylist.txt>\n\n"\
 "*** Explanation ***\n"\
 "Reduce MasterAnaDev AnaTuples to event selection histograms to extract a\n"\
 "single-differential inclusive cross section for the 2021 MINERvA 101 tutorial.\n\n"\
@@ -19,8 +14,8 @@
 "entries will be treated like data, and the second playlist's entries must\n"\
 "have the \"Truth\" tree to use for calculating the efficiency denominator.\n\n"\
 "*** Output ***\n"\
-"Produces three files with the base name, " MC_OUT_FILE_NAME_BASE ", " DATA_OUT_FILE_NAME_BASE " and\n"\
-" " MIGRATION_2D_OUT_FILE_NAME_BASE " all histograms needed for the ExtractCrossSection program also built by this\n"\
+"Produces a two files, " MC_OUT_FILE_NAME " and " DATA_OUT_FILE_NAME ", with\n"\
+"all histograms needed for the ExtractCrossSection program also built by this\n"\
 "package.  You'll need a .rootlogon.C that loads ROOT object definitions from\n"\
 "PlotUtils to access systematics information from these files.\n\n"\
 "*** Environment Variables ***\n"\
@@ -81,8 +76,6 @@ enum ErrorCodes
 #include "PlotUtils/LowRecoil2p2hReweighter.h"
 #include "PlotUtils/RPAReweighter.h"
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
-#include "PlotUtils/LowQ2PiReweighter.h"
-#include "PlotUtils/AMUDISReweighter.h"
 #include "PlotUtils/TargetUtils.h"
 
 #include "util/NukeUtils.h"
@@ -90,6 +83,7 @@ enum ErrorCodes
 
 //ROOT includes
 #include "TParameter.h"
+#include "TNamed.h"
 
 #include "Math/Vector3D.h"
 #include "TH3D.h"
@@ -110,7 +104,7 @@ void LoopAndFillEventSelection(
     std::vector<Variable2D*> vars2D,
     std::vector<Study*> studies,
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-    PlotUtils::Model<CVUniverse, MichelEvent>& model, int inpetal)
+    PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
   assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
   auto& cvUniv = error_bands["cv"].front();
@@ -122,8 +116,7 @@ void LoopAndFillEventSelection(
   PlotUtils::TargetUtils util;
   for (int i=0; i<nEntries; ++i)
   {
-    if(i%1000==0) 
-      std::cout << i << " / " << nEntries << "\r" <<std::endl;
+    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" <<std::flush;
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
     model.SetEntry(*cvUniv, cvEvent);
@@ -150,17 +143,26 @@ void LoopAndFillEventSelection(
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
         //Get daisy petal
         int petal = util.GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() ); // *10 to convert from cm to mm
-        if (petal!=inpetal/*  && inpetal!=-1 */) continue;
         //if (petal>0) std::cout<<"Petal: " <<petal << std::endl;
         for(auto& var: vars)
         { 
           var->selectedMCReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
           (*var->m_intChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->selectedMCRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight); //"Fake data" for closure
+            (*(var->ChannelsDaisy[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          }
         }
         for(auto& var: vars2D)
         {
           var->selectedMCReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
           (*var->m_intChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->selectedMCRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //"Fake data" for closure
+            (*(var->ChannelsDaisy[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+          }
           //(*var->m_interactionChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
         const bool isSignal = michelcuts.isSignal(*universe, weight);        if(isSignal)
@@ -173,12 +175,26 @@ void LoopAndFillEventSelection(
             var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
             var->migration->FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
             var->selectedSignalReco->FillUniverse(universe, var->GetRecoValue(*universe), weight); //Efficiency numerator in reco variables.  Useful for warping studies.
+            //Daisy reweight
+            if (petal >= 0 && petal < 12)
+            {
+              var->EffNumDaisy[petal]->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+              var->MigrationDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
+              var->selectedSignalRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            }
           }
           for(auto& var: vars2D)
           {
             var->efficiencyNumerator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
             var->migration->Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
             var->selectedSignalReco->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight); //Efficiency numerator in reco variables.  Useful for warping studies.
+            //Daisy reweight
+            if (petal >= 0 && petal < 12)
+            {
+              var->EffNumDaisy[petal]->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+              var->MigrationDaisy[petal]->Fill(var->GetRecoValueX(*universe), var->GetRecoValueY(*universe),var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+              var->selectedSignalRecoDaisy[petal]->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            }
           }
         }
         else
@@ -190,10 +206,12 @@ void LoopAndFillEventSelection(
           for(auto& var: vars)
           {
             (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            if (petal >= 0 && petal < 12) (*(var->BackgroundsDaisy[petal]))[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
           }
           for(auto& var: vars2D)
           {
             (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+            if (petal >= 0 && petal < 12) (*(var->BackgroundsDaisy[petal]))[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           } 
         }
       } // End band's universe loop
@@ -207,14 +225,14 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 				std::vector<Variable*> vars,
                                 std::vector<Variable2D*> vars2D,
                                 std::vector<Study*> studies,
-				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts, int inpetal)
+				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
 
 {
   std::cout << "Starting data loop...\n";
   const int nEntries = data->GetEntries();
   PlotUtils::TargetUtils util;
   //const int nEntries = 10000;
-  for (int i=0; i<nEntries; ++i) {
+  for (int i=0; i<data->GetEntries(); ++i) {
     for (auto universe : data_band) {
       universe->SetEntry(i);
       if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
@@ -222,17 +240,18 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
       //Get daisy petal
       int petal = util.GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() );
-      if (petal!=inpetal && inpetal!=-1) continue;
       for(auto& study: studies) study->Selected(*universe, myevent, 1); 
       //std::cout<<"petal: " <<petal << "X: " << universe->GetANNVertex().X() << "\tY: "<<universe->GetANNVertex().Y()<<std::endl;
       for(auto& var: vars)
       {
         var->dataHist->FillUniverse(universe, var->GetRecoValue(*universe, myevent.m_idx), 1);
+        if (petal >= 0 && petal < 12)  var->dataDaisy[petal]->FillUniverse(*universe, var->GetRecoValue(*universe), 1); //"Fake data" for closure
       }
 
       for(auto& var: vars2D)
       {
         var->dataHist->FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1);
+        if (petal >= 0 && petal < 12)  var->dataDaisy[petal]->FillUniverse(*universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), 1); //"Fake data" for closure
       }
     }
   }
@@ -244,7 +263,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
     				std::vector<Variable*> vars,
                                 std::vector<Variable2D*> vars2D,
     				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-                                PlotUtils::Model<CVUniverse, MichelEvent>& model, int inpetal)
+                                PlotUtils::Model<CVUniverse, MichelEvent>& model)
 {
   assert(!truth_bands["cv"].empty() && "\"cv\" error band is empty!  Could not set Model entry.");
   auto& cvUniv = truth_bands["cv"].front();
@@ -278,18 +297,28 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
         
         int petal = util.GetDaisyPetal(universe->GetTrueVertex().X(), universe->GetTrueVertex().Y() ); // *10 to convert from cm to mm
-        if (petal!=inpetal && inpetal!=-1) continue;
         //Fill efficiency denominator now: 
         for(auto var: vars)
         {
           var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValue(*universe), weight);
           (*var->m_intChannelsEffDenom)[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          //Daisy reweight
+          if (petal >= 0 && petal < 12)
+          {
+            var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValue(*universe), weight);
+            (*(var->EffDenomDaisyIntChannels[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValue(*universe), weight);
+          }
         }
 
         for(auto var: vars2D)
         {
           var->efficiencyDenominator->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
           (*var->m_intChannelsEffDenom)[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          if (petal >= 0 && petal < 12)
+          {
+            var->EffDenomDaisy[petal]->FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+            (*(var->EffDenomDaisyIntChannels[petal]))[universe->GetInteractionType()].FillUniverse(universe, var->GetTrueValueX(*universe), var->GetTrueValueY(*universe), weight);
+          }
         }
       }
     }
@@ -362,36 +391,21 @@ int main(const int argc, const char** argv)
   TH1::AddDirectory(false);
 
   //Validate input.
-  if(argc < 3)
+  //I expect a data playlist file name and an MC playlist file name which is exactly 2 arguments.
+  const int nArgsExpected = 2;
+  if(argc != nArgsExpected + 1) //argc is the size of argv.  I check for number of arguments + 1 because
+                                //argv[0] is always the path to the executable.
   {
-    std::cerr << "Expected 3 or more arguments, but got " << argc - 1 << "\n" << USAGE << "\n";
+    std::cerr << "Expected " << nArgsExpected << " arguments, but got " << argc - 1 << "\n" << USAGE << "\n";
     return badCmdLine;
-  } 
+  }
 
-  std::cout<<"Here1\n";
   //One playlist must contain only MC files, and the other must contain only data files.
   //Only checking the first file in each playlist because opening each file an extra time
   //remotely (e.g. through xrootd) can get expensive.
   //TODO: Look in INSTALL_DIR if files not found?
   const std::string mc_file_list = argv[2],
                     data_file_list = argv[1];
-  std::vector<int> petals = {};
-  std::cout<<"Here2\n";
-  if (argc>3)
-  {
-    for (int i = 3; i<argc; i++)
-    {
-      int petalToAdd = std::stoi(argv[i]);
-      std::cout<<"Adding petal " << petalToAdd << std::endl;
-      petals.push_back(petalToAdd);
-    }  
-  }
-  else //If no argument is given, do all petals
-  {
-      std::cout<<"No petal specified. Doing all" << std::endl;
-      petals={-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-  }
-
 
   //Check that necessary TTrees exist in the first file of mc_file_list and data_file_list
   std::string reco_tree_name;
@@ -425,46 +439,32 @@ int main(const int argc, const char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
 
-  preCuts = util::GetAnalysisCuts(nupdg);
   preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  if (nupdg>0)  preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
+  else if (nupdg<0)  preCuts.emplace_back(new reco::IsAntiNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
+  preCuts.insert(preCuts.end(), util::preCuts.begin(), util::preCuts.end());
+
+
 
                                                                                                                                                    
   if (nupdg>0) signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
   else if (nupdg<0) signalDefinition.emplace_back(new truth::IsAntiNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                                                                                                                    
-  phaseSpace = util::GetPhaseSpace();
   phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  phaseSpace.insert(phaseSpace.end(), util::phaseSpace.begin(), util::phaseSpace.end());
+
                                                                                                                                                    
   PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
-
-  const bool NO_2P2H_WARP = (getenv("NO_2P2H_WARP") != nullptr);
-  if(NO_2P2H_WARP){
-    std::cout << "Turning off LowRecoil2p2hReweighter because environment variable NO_2P2H_WARP is set.\n";
-  }
-  const bool AMU_DIS_WARP = (getenv("AMU_DIS_WARP") != nullptr);
-  if(AMU_DIS_WARP){
-  std::cout << "Turning on AMUDISReweighter because environment variable AMU_DIS_WARP is set.\n";
-  }
-  const bool LOW_Q2_PION_WARP = (getenv("LOW_Q2_PION_WARP") != nullptr);
-  if(LOW_Q2_PION_WARP){
-  std::cout << "Turning on LowQ2PiReweighter because environment variable LOW_Q2_PION_WARP is set.\n";
-  }
-
 
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
   MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
-  // standard - include this tune.  warping study, comment out 2p2h
-  if ( !NO_2P2H_WARP ) MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+  MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
-  // for a warping study, AMU DIS reweighter
-  if ( AMU_DIS_WARP ) MnvTunev1.emplace_back(new PlotUtils::AMUDISReweighter<CVUniverse, MichelEvent>());
-  // for a warping study, Low Q2 pion suppression (mnvtunev2)
-  if ( LOW_Q2_PION_WARP ) MnvTunev1.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT"));
 
-  PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
+  PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(util::MnvTunev1));
 
   // Make a map of systematic universes
   // Leave out systematics when making validation histograms
@@ -486,31 +486,20 @@ int main(const int argc, const char** argv)
   truth_bands["cv"] = {new CVUniverse(options.m_truth)};
 
   std::vector<Variable*> vars;
+
   std::vector<Variable2D*> vars2D;
 
-  std::vector<double> RecoilBins, segmentBins, angleBins;
-  //const double RecoilBinWidth = 50; //MeV
-  //for(int whichBin = 0; whichBin < 100 + 1; ++whichBin) RecoilBins.push_back(RecoilBinWidth * whichBin);
+  std::vector<double> RecoilBins;
+  const double RecoilBinWidth = 50; //MeV
+  for(int whichBin = 0; whichBin < 100 + 1; ++whichBin) RecoilBins.push_back(robsRecoilBinWidth * whichBin);
 
-  const double nAngleBins = 170;
-  for (double whichBin = 0; whichBin < nAngleBins+1; whichBin++)
-    angleBins.push_back(0.1*whichBin);
-
-  std::function<double(const CVUniverse&)> ANNRecoilEGeV = [](const CVUniverse& univ) { return univ.GetANNRecoilE()/1000;};
-  std::function<double(const CVUniverse&)> q0TrueGeV = [](const CVUniverse& univ) { return univ.Getq0True()/1000;};
-  std::function<double(const CVUniverse &)> muonAngleDegrees = [](const CVUniverse &univ) { return (univ.GetThetamu() * 180 / M_PI); };
-  std::function<double(const CVUniverse &)> muonAngleDegreesTruth = [](const CVUniverse &univ) { return (univ.GetDouble("truth_muon_theta")* 180 / M_PI); };
-
-
-  vars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  vars.push_back(new Variable("tracker_pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
-  vars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
-  vars.push_back(new Variable("tracker_Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, ANNRecoilEGeV, q0TrueGeV)); //TODO: q0 is not the same as recoil energy without a spline correction
-  vars.push_back(new Variable("tracker_BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  vars.push_back(new Variable("nuke_beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
+  vars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", utils::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
+  vars.push_back(new Variable("tracker_pZmu", "p_{||, #mu} [GeV/c]", utils::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+  vars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", utils::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
+  vars.push_back(new Variable("tracker_Erecoil", "E_{recoil}", RecoilBins, &CVUniverse::GetRecoilE, &CVUniverse::Getq0True)); //TODO: q0 is not the same as recoil energy without a spline correction
+  vars.push_back(new Variable("tracker_BjorkenX", "X", utils::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
   vars2D.push_back(new Variable2D("tracker_pTmu_pZmu", *vars[0], *vars[1]));
   vars2D.push_back(new Variable2D("tracker_Emu_Erecoil", *vars[2], *vars[3]));
-
 
   std::vector<Study*> studies;
 
@@ -521,125 +510,149 @@ int main(const int argc, const char** argv)
   
   std::vector<Study*> data_studies;
 
+  for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
+  for(auto& var: vars) var->InitializeDATAHists(data_band);
 
-  for (auto ptl : petals)
+  for(auto& var: vars2D) var->InitializeMCHists(error_bands, truth_bands);
+  for(auto& var: vars2D) var->InitializeDATAHists(data_band);
+
+  // Loop entries and fill
+  try
   {
-    for(auto& var: vars) var->InitializeMCHists(error_bands, truth_bands);
-    for(auto& var: vars) var->InitializeDATAHists(data_band);
+    CVUniverse::SetTruth(false);
+    std::cout<<"Daisy reweight test0\n";
+    LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model);
+    CVUniverse::SetTruth(true);
+    std::cout<<"Daisy reweight test1\n";
+    LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model);
+      std::cout<<"Daisy reweight test2\n";
+    options.PrintMacroConfiguration(argv[0]);
+    std::cout << "MC cut summary:\n" << mycuts << "\n";
+    mycuts.resetStats();
 
-    for(auto& var: vars2D) var->InitializeMCHists(error_bands, truth_bands);
-    for(auto& var: vars2D) var->InitializeDATAHists(data_band);
+    CVUniverse::SetTruth(false);
+    LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts);
+    std::cout << "Data cut summary:\n" << mycuts << "\n";
+    std::string filepath;
 
-    // Loop entries and fill
-    try
+    auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
+    //Write MC results
+    filepath = std::string(MC_OUT_FILE_NAME)+".root";
+    TFile* mcOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!mcOutDir)
     {
-      CVUniverse::SetTruth(false);
-      std::cout<<"Daisy reweight test0\n";
-      LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model, ptl);
-      CVUniverse::SetTruth(true);
-      std::cout<<"Daisy reweight test1\n";
-      LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model, ptl);
-        std::cout<<"Daisy reweight test2\n";
-      options.PrintMacroConfiguration(argv[0]);
-      std::cout << "MC cut summary:\n" << mycuts << "\n";
-      mycuts.resetStats();
-
-      CVUniverse::SetTruth(false);
-      LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts, ptl);
-      std::cout << "Data cut summary:\n" << mycuts << "\n";
-
-      auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
-
-      std::string mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      //if (ptl==-1) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) + ".root";
-      //else mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      //Write MC results
-      TFile* mcOutDir = TFile::Open(mcOutFileName.c_str(), "RECREATE");
-      if(!mcOutDir)
-      {
-        std::cerr << "Failed to open a file named " << mcOutFileName << " in the current directory for writing histograms.\n";
-        return badOutputFile;
-      }
-
-      for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
-      for(auto& var: vars) var->WriteMC(*mcOutDir);
-      for(auto& var: vars2D) var->WriteMC(*mcOutDir);
-
-      //Playlist name - Used for flux calculations later on
-      playlistStr->Write();
-      //Protons On Target
-      auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
-      mcPOT->Write();
-
-      PlotUtils::TargetUtils targetInfo;
-      assert(error_bands["cv"].size() == 1 && "List of error bands must contain a universe named \"cv\" for the flux integral.");
-
-      for(const auto& var: vars)
-      {
-        //Flux integral only if systematics are being done (temporary solution)
-        util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
-        //Always use MC number of nucleons for cross section
-        auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, util::apothem));
-        nNucleons->Write();
-      }
-      for(const auto& var: vars2D)
-      {
-        //Flux integral only if systematics are being done (temporary solution)
-        util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
-        //Always use MC number of nucleons for cross section
-        auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, util::apothem));
-        nNucleons->Write();
-      }
-      mcOutDir->Close();
-
-      playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
-
-      //Write data results
-
-      std::string dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      //if (ptl==-1) dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) + ".root";
-      //else dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      TFile* dataOutDir = TFile::Open(dataOutFileName.c_str(), "RECREATE");
-      if(!dataOutDir)
-      {
-        std::cerr << "Failed to open a file named " << dataOutFileName << " in the current directory for writing histograms.\n";
-        return badOutputFile;
-      }
-
-      for(auto& var: vars) var->WriteData(*dataOutDir);
-      for(auto& var: vars2D) var->WriteData(*dataOutDir);
-
-      playlistStr->Write();
-      //Protons On Target
-      auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
-      dataPOT->Write();
-
-      dataOutDir->Close();
-
-      //Saving 2D migration matrices
-      //Putting this right at the end in case of a crash
-      std::string migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      //if (ptl==-1) migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) + ".root";
-      //else migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      TFile* migrationOutDir = TFile::Open(migrationOutDirName.c_str(), "RECREATE");
-      if(!dataOutDir)
-      {
-        std::cerr << "Failed to open a file named " << migrationOutDirName << " in the current directory for writing histograms.\n";
-        return badOutputFile;
-      }
-      for(auto& var: vars2D)var->WriteMigration(*migrationOutDir);
-
-      migrationOutDir->Close();
-
-      std::cout << "Success" << std::endl;
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
     }
-    catch(const ROOT::exception& e)
+
+    for(auto& study: studies) study->SaveOrDraw(*mcOutDir);
+    for(auto& var: vars) var->WriteMC(*mcOutDir);
+    for(auto& var: vars2D) var->WriteMC(*mcOutDir);
+
+    //Playlist name - Used for flux calculations later on
+    playlistStr->Write();
+    //Protons On Target
+    auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
+    mcPOT->Write();
+
+    //Write MC Daisy results
+    filepath = std::string(MC_OUT_FILE_NAME)+"Daisy.root";
+    TFile* mcDaisyOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!mcDaisyOutDir)
     {
-      std::cerr << "Ending on a ROOT error message.  No histograms will be produced.\n"
-                << "If the message talks about \"TNetXNGFile\", this could be a problem with dCache.  The message is:\n"
-                << e.what() << "\n" << USAGE << "\n";
-      return badFileRead;
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
     }
+
+    for(auto& var: vars) var->WriteDaisyMC(*mcDaisyOutDir);
+    for(auto& var: vars2D) var->WriteDaisyMC(*mcDaisyOutDir);
+  
+    //Protons On Target
+    mcPOT->Write();
+
+    PlotUtils::TargetUtils targetInfo;
+    assert(error_bands["cv"].size() == 1 && "List of error bands must contain a universe named \"cv\" for the flux integral.");
+
+    for(const auto& var: vars)
+    {
+      //Flux integral only if systematics are being done (temporary solution)
+      util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
+      //Always use MC number of nucleons for cross section
+      auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, apothem));
+      nNucleons->Write();
+    }
+    for(const auto& var: vars2D)
+    {
+      //Flux integral only if systematics are being done (temporary solution)
+      util::GetFluxIntegral(*error_bands["cv"].front(), var->efficiencyNumerator->hist)->Write((var->GetName() + "_reweightedflux_integrated").c_str());
+      //Always use MC number of nucleons for cross section
+      auto nNucleons = new TParameter<double>((var->GetName() + "_fiducial_nucleons").c_str(), targetInfo.GetTrackerNNucleons(PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back, true, apothem));
+      nNucleons->Write();
+    }
+
+    //Write data results
+    filepath = std::string(DATA_OUT_FILE_NAME)+".root";
+    TFile* dataOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!dataOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+
+    for(auto& var: vars) var->WriteData(*dataOutDir);
+    for(auto& var: vars2D) var->WriteData(*dataOutDir);
+
+    //Playlist name - Used for flux calculations later on
+    playlistStr->Write();
+    //Protons On Target
+    auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
+    dataPOT->Write();
+
+
+    //Write data daisy results
+    filepath = std::string(DATA_OUT_FILE_NAME)+"Daisy.root";
+    TFile* daisyDataOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!daisyDataOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+
+    for(auto& var: vars) var->WriteDaisyData(*daisyDataOutDir);
+    for(auto& var: vars2D) var->WriteDaisyData(*daisyDataOutDir);
+
+    //Protons On Target
+    dataPOT->Write();
+
+
+    //Write Migration results
+    filepath = std::string(MIGRATION_OUT_FILE_NAME)+".root";
+    TFile* migrationOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!migrationOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+    for(auto& var: vars2D)var->WriteMigration(*migrationOutDir);
+
+    //Write Migration results
+    filepath = std::string(MIGRATION_OUT_FILE_NAME)+"Daisy.root";
+    TFile* migrationDaisyOutDir = TFile::Open(filepath.c_str(), "RECREATE");
+    if(!migrationDaisyOutDir)
+    {
+      std::cerr << "Failed to open a file named " << filepath << " in the current directory for writing histograms.\n";
+      return badOutputFile;
+    }
+    for(auto& var: vars2D)var->WriteDaisyMigration(*migrationDaisyOutDir);
+
+    std::cout << "Success" << std::endl;
+  }
+  catch(const ROOT::exception& e)
+  {
+    std::cerr << "Ending on a ROOT error message.  No histograms will be produced.\n"
+              << "If the message talks about \"TNetXNGFile\", this could be a problem with dCache.  The message is:\n"
+              << e.what() << "\n" << USAGE << "\n";
+    return badFileRead;
   }
 
   return success;

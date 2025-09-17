@@ -247,8 +247,9 @@ int main(const int argc, const char** argv)
   //std::vector<int> targetCodes = /* { 1026, 1082, */ {/* 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6001, 6008,  */7, 8, 9, 10, 11, 12};
   //std::vector<int> targetCodes = { 1026, 1082, 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
   //std::vector<int> targetCodes = { 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
-  //std::vector<string> targetCodes = { "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "6000 ,7", "8", "9", "10", "11", "12","Iron", "Lead", "Carbon"};
-  std::vector<std::string> targetCodes = { "Iron", "Lead", "Carbon"};
+  //std::vector<std::string> targetCodes = { "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "6000 ,7", "8", "9", "10", "11", "12","Iron", "Lead", "Carbon"};
+  //std::vector<std::string> targetCodes = { "Iron", "Lead", "Carbon"};
+  std::vector<std::string> targetCodes = { "2026"};
   for (auto const& tgtCode : targetCodes)
   {
     std::cout<< "Target: " << tgtCode << std::endl;

@@ -1,6 +1,6 @@
-import os, sys, argparse
-memory = 6000
-lifetime = 24 #hours
+import os, sys, argparse, time    
+memory = 5000
+lifetime = 12 #hours
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser( prog='gridEventLoopValidations',
@@ -9,24 +9,27 @@ if __name__ == '__main__':
     parser.add_argument('mc', nargs=1, help="the data input directory")
     parser.add_argument('out', nargs=1, help="the output directory")
     parser.add_argument('-p', '--playlists', nargs='*', help="the playlists to run")
+    #parser.add_argument('--no2p2hwarp', action='store_true', help="Turning off LowRecoil2p2hReweighter")
+    #parser.add_argument('--amudiswarp', action='store_true', help="Turning on AMUDISReweighter")
+    #parser.add_argument('--lowq2warp', action='store_true', help="Turning on LowQ2PiReweighter")
     args = parser.parse_args()
     #Tarring MAT opts folder
-    cmd = "tar -cvzf /exp/minerva/app/users/alhart/opt.tar.gz -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ ."
-    os.system(cmd)
-
-    #If we already have a tarred opts folder, remove it so I can copy over new one (/persistent/ doesn't like being overwritten)
-    if (os.path.isfile("/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz")):
-        cmd = "rm /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz"
-        os.system(cmd)
-
-    #Copy opts tar
-    cmd = "mv /exp/minerva/app/users/alhart/opt.tar.gz /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz"
+    epoch_time = int(time.time())
+    tarballfolder = "/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/"+str(epoch_time)
+    os.mkdir(tarballfolder)
+    tarballpath = tarballfolder+"/opt.tar.gz"
+    print("tarring into ", tarballpath)
+    cmd = "tar -cvzf "+tarballpath+" -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ ."
     os.system(cmd)
 
     playlists=args.playlists
     dataInDir=args.data[0]
     mcInDir=args.mc[0]
     outDir=args.out[0]
+   
+    #no2p2hwarp = args.no2p2hwarp
+    #amudiswarp = args.amudiswarp
+    #lowq2warp = args.lowq2warp
 
     #Checking all input directories exist
     if not (os.path.isdir(dataInDir)):
@@ -70,28 +73,32 @@ if __name__ == '__main__':
             os.mkdir(outdirplaylist)
         else:
             #We cannot overwrite on persistent so I'm making sure the files we want to write out dont exist
-            migrationpath = outdirplaylist+"/runEventLoopTargets2DMigration"+target+".root"
-            datapath = outdirplaylist+"/runEventLoopTargetsData"+target+".root"
-            mcpath = outdirplaylist+"/runEventLoopTargetsMC"+target+".root"
-            if (os.path.exists(migrationpath)):
+            #migrationpath = outdirplaylist+"/runEventLoopTargets2DMigration"+target+".root"
+            #datapath = outdirplaylist+"/runEventLoopTargetsData"+target+".root"
+            #mcpath = outdirplaylist+"/runEventLoopTargetsMC"+target+".root"
+            """ if (os.path.exists(migrationpath)):
                 os.remove(migrationpath)
             if (os.path.exists(datapath)):
                 os.remove(datapath)
             if (os.path.exists(mcpath)):
-                os.remove(mcpath)
+                os.remove(mcpath) """
         # Create wrapper
-        wrapper_name = "wrapper-EvLoopTargets"+playlist+target+".sh"
+        wrapper_name = "wrapper-EvLoopValidation"+playlist+".sh"
         wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
         my_wrapper = open(wrapper_path,"w")
         my_wrapper.write("#!/bin/bash\n")
         my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
-        my_wrapper.write("mkdir opt\n")
-        my_wrapper.write("echo Untarring\n")
-        my_wrapper.write("tar -xvzf opt.tar.gz -C opt\n")
-        my_wrapper.write("echo Untarring - DONE\n")
         my_wrapper.write("echo Setting up environment\n")
+        my_wrapper.write("export MINERVA_PREFIX=${INPUT_TAR_DIR_LOCAL}\n")
+        #if skipSys:
+        #    my_wrapper.write("export MNV101_SKIP_SYST=True\n")
+        #if no2p2hwarp:
+        #    my_wrapper.write("export NO_2P2H_WARP=True\n")
+        #if amudiswarp:
+        #    my_wrapper.write("export AMU_DIS_WARP=True\n")
+        #if lowq2warp:
+        #    my_wrapper.write("export LOW_Q2_PION_WARP=True\n")
         my_wrapper.write("export XRD_NETWORKSTACK=IPv4\n")
-        my_wrapper.write("export MINERVA_PREFIX=${CONDOR_DIR_INPUT}/opt\n")
         my_wrapper.write("source ${MINERVA_PREFIX}/bin/setup.sh\n")
         my_wrapper.write("source /cvmfs/minerva.opensciencegrid.org/minerva/setup/setup_minerva_products.sh\n")
         my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh\n")
@@ -105,14 +112,15 @@ if __name__ == '__main__':
         my_wrapper.write("ls -la\n")
         my_wrapper.write("echo $(ls -la)\n")
         my_wrapper.write("echo Running event loop\n")
-        my_wrapper.write("${MINERVA_PREFIX}/bin/runEventLoopTargetsNew ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+target+"\n")
+        my_wrapper.write("${MINERVA_PREFIX}/bin/runEventLoopValidationsNew ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt\n")
         my_wrapper.write("echo Running event loop - DONE\n")
         my_wrapper.write("echo Copying files back to persistent\n")
-        my_wrapper.write("ifdh cp ./runEventLoopTargets* "+outdirplaylist+"\n")
+        my_wrapper.write("ifdh cp ./VertexValidations.root "+outdirplaylist+"\n")
         my_wrapper.write("echo Copying files back to persistent - DONE\n")
         my_wrapper.write("echo SUCCESS\n")
         my_wrapper.close()
-        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt -f /pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/opt.tar.gz  file://%s " % ( lifetime, memory, dataInDir, playlist, mcInDir, playlist ,wrapper_path )    
+        logpath = outdirplaylist+"/LogValidations.log"
+        cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines=+FERMIHTC_AutoRelease=True --lines=+FERMIHTC_GraceMemory=1024 --lines=+FERMIHTC_GraceLifetime=1800 -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt --tar_file_name dropbox://%s file://%s " % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist, tarballpath ,wrapper_path )    
         print(cmd)
         os.system(cmd)
         #if os.path.exists(wrapper_path):
@@ -120,3 +128,6 @@ if __name__ == '__main__':
         #else:
         #    print("Wrapper file not created successfully")
         print("Done")
+
+    cmd = "rm -r "+tarballfolder
+    os.system(cmd)

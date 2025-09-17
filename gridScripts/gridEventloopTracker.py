@@ -1,6 +1,6 @@
 import os, sys, argparse, time
-memory = 4000
-lifetime = 12 #hours
+memory = 2000
+lifetime = 36 #hours
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser( prog='gridEventLoopTracker',
@@ -96,11 +96,8 @@ if __name__ == '__main__':
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
             my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
-            my_wrapper.write("mkdir opt\n")
-            my_wrapper.write("echo Untarring\n")
-            my_wrapper.write("tar -xvzf opt.tar.gz -C opt\n")
-            my_wrapper.write("echo Untarring - DONE\n")
             my_wrapper.write("echo Setting up environment\n")
+            my_wrapper.write("export MINERVA_PREFIX=${INPUT_TAR_DIR_LOCAL}\n")
             if skipSys:
                 my_wrapper.write("export MNV101_SKIP_SYST=True\n")
             if no2p2hwarp:
@@ -110,7 +107,6 @@ if __name__ == '__main__':
             if lowq2warp:
                 my_wrapper.write("export LOW_Q2_PION_WARP=True\n")
             my_wrapper.write("export XRD_NETWORKSTACK=IPv4\n")
-            my_wrapper.write("export MINERVA_PREFIX=${CONDOR_DIR_INPUT}/opt\n")
             my_wrapper.write("source ${MINERVA_PREFIX}/bin/setup.sh\n")
             my_wrapper.write("source /cvmfs/minerva.opensciencegrid.org/minerva/setup/setup_minerva_products.sh\n")
             my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh\n")
@@ -131,8 +127,9 @@ if __name__ == '__main__':
             my_wrapper.write("echo Copying files back to persistent - DONE\n")
             my_wrapper.write("echo SUCCESS\n")
             my_wrapper.close()
-            logpath = outdirplaylist+"/LogPetal"+petal+".log"
-            cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest  -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines '+FERMIHTC_AutoRelease=True' --lines '+FERMIHTC_GraceMemory=1024' --lines '+FERMIHTC_GraceLifetime=1800' -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt -f dropbox://%s  file://%s " % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist , tarballpath, wrapper_path )    
+            #logpath = outdirplaylist+"/LogPetal"+petal+".log"
+            #cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest  -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines=+FERMIHTC_AutoRelease=True --lines=+FERMIHTC_GraceMemory=1024 --lines=+FERMIHTC_GraceLifetime=1800 -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt --tar_file_name dropbox://%s  file://%s " % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist , tarballpath, wrapper_path )    
+            cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt  -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines=+FERMIHTC_AutoRelease=True --lines=+FERMIHTC_GraceMemory=1024 --lines=+FERMIHTC_GraceLifetime=1800 -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt --tar_file_name dropbox://%s  file://%s " % ( lifetime, memory, dataInDir, playlist, mcInDir, playlist , tarballpath, wrapper_path )    
             print(cmd)
             os.system(cmd)
             #if os.path.exists(wrapper_path):

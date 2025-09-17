@@ -131,67 +131,6 @@ double xlow = 4200;
 double xhigh = 5900;
 
 
-
-//==============================================================================
-// Global - Declaring histograms
-//==============================================================================
-
-TH1D *ANNVerticesMC_ByModule = new TH1D ("ANNVerticesMC_ByModule", "ANNVerticesMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *TBVerticesMC_ByModule = new TH1D ("TBVerticesMC_ByModule", "TBVerticesMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *ANNVerticesData_ByModule = new TH1D ("ANNVerticesData_ByModule", "ANNVerticesData_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *TBVerticesData_ByModule = new TH1D ("TBVerticesData_ByModule", "TBVerticesData_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *TruthVerticesMC_ByModule = new TH1D ("TruthVerticesMC_ByModule", "TruthVerticesMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *ANNVerticesMC_ByZPos = new TH1D ("ANNVerticesMC_ByZPos", "ANNVerticesMC_ByZPos", 9000, 4200, 8700);
-TH1D *TBVerticesMC_ByZPos = new TH1D ("TBVerticesMC_ByZPos", "TBVerticesMC_ByModuleTruthVerticesMC_ByZPosHighRes", 9000, 4200, 8700);
-TH1D *ANNVerticesData_ByZPos = new TH1D ("ANNVerticesData_ByZPos", "ANNVerticesData_ByZPos", 9000, 4200, 8700);
-TH1D *TBVerticesData_ByZPos = new TH1D ("TBVerticesData_ByZPos", "TBVerticesData_ByZPos", 9000, 4200, 8700);
-TH1D *TruthVerticesMC_ByZPos = new TH1D ("TruthVerticesMC_ByZPos", "TruthVerticesMC_ByZPos", 9000, 4200, 8700);
-
-TH1D *ANNZVertexDifference = new TH1D ("ANNZVertexDifference", "ANNZVertexDifference", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTracker = new TH1D ("ANNZVertexDifferenceTracker", "ANNZVertexDifferenceTracker", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt2Iron = new TH1D ("ANNZVertexDifferenceTgt2Iron", "ANNZVertexDifferenceTgt2Iron", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt2Lead = new TH1D ("ANNZVertexDifferenceTgt2Lead", "ANNZVertexDifferenceTgt2Lead", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt3Iron = new TH1D ("ANNZVertexDifferenceTgt3Iron", "ANNZVertexDifferenceTgt3Iron", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt3Lead = new TH1D ("ANNZVertexDifferenceTgt3Lead", "ANNZVertexDifferenceTgt3Lead", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt3Carbon = new TH1D ("ANNZVertexDifferenceTgt3Carbon", "ANNZVertexDifferenceTgt3Carbon", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt4Lead = new TH1D ("ANNZVertexDifferenceTgt4Lead", "ANNZVertexDifferenceTgt4Lead", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt5Iron = new TH1D ("ANNZVertexDifferenceTgt5Iron", "ANNZVertexDifferenceTgt5Iron", 9000, -9000, 9000);
-TH1D *ANNZVertexDifferenceTgt5Lead = new TH1D ("ANNZVertexDifferenceTgt5Lead", "ANNZVertexDifferenceTgt5Lead", 9000, -9000, 9000);
-
-//ERecoil
-TH2D *TruthVerticesMCERecoil_ByModule = new TH2D ("TruthVerticesMCERecoil_ByModule", "TruthVerticesMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
-TH2D *ANNVerticesMCERecoil_ByModule = new TH2D ("ANNVerticesMCERecoil_ByModule", "ANNVerticesMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
-TH2D *TBVerticesMCERecoil_ByModule = new TH2D ("TBVerticesMCERecoil_ByModule", "TBVerticesMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
-TH2D *ANNVerticesDataERecoil_ByModule = new TH2D ("ANNVerticesDataERecoil_ByModule", "ANNVerticesDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
-TH2D *TBVerticesDataERecoil_ByModule = new TH2D ("TBVerticesDataERecoil_ByModule", "TBVerticesDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
-//Multiplicity
-TH2D *TruthVerticesMCMultiplicity_ByModule = new TH2D ("TruthVerticesMCMultiplicity_ByModule", "TruthVerticesMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *ANNVerticesMCMultiplicity_ByModule = new TH2D ("ANNVerticesMCMultiplicity_ByModule", "ANNVerticesMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *TBVerticesMCMultiplicity_ByModule = new TH2D ("TBVerticesMCMultiplicity_ByModule", "TBVerticesMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *ANNVerticesDataMultiplicity_ByModule = new TH2D ("ANNVerticesDataMultiplicity_ByModule", "ANNVerticesDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *TBVerticesDataMultiplicity_ByModule = new TH2D ("TBVerticesDataMultiplicity_ByModule", "TBVerticesDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-
-//ANN Confidence
-TH2D *TruthVerticesMCANNConf_ByModule = new TH2D ("TruthVerticesMCANNConf_ByModule", "TruthVerticesMCANNConf_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 1);
-TH2D *ANNVerticesMCANNConf_ByModule = new TH2D ("ANNVerticesMCANNConf_ByModule", "ANNVerticesMCANNConf_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 1);
-TH2D *ANNVerticesDataANNConf_ByModule = new TH2D ("ANNVerticesDataANNConf_ByModule", "ANNVerticesDataANNConf_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 1);
-
-//Curvature signifiance
-TH2D *TruthVerticesMCCurvSig_ByModule = new TH2D ("TruthVerticesMCCurvSig_ByModule", "TruthVerticesMCCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *ANNVerticesMCCurvSig_ByModule = new TH2D ("ANNVerticesMCCurvSig_ByModule", "ANNVerticesMCCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *TBVerticesMCCurvSig_ByModule = new TH2D ("TBVerticesMCCurvSig_ByModule", "TBVerticesMCCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *ANNVerticesDataCurvSig_ByModule = new TH2D ("ANNVerticesDataCurvSig_ByModule", "ANNVerticesDataCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *TBVerticesDataCurvSig_ByModule = new TH2D ("TBVerticesDataCurvSig_ByModule", "TBVerticesDataCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-
-//Migration ANN only
-TH2D *ANNVerticesConfusion_ByModule = new TH2D ("ANNVerticesConfusion_ByModule", "ANNVerticesConfusion_ByModule", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
-TH2D *ANNVerticesConfusion_ByZPos = new TH2D ("ANNVerticesConfusion_ByZPos", "ANNVerticesConfusion_ByZPos", 9000, 4200, 8700, 9000, 4200, 8700);
-
-
-//==============================================================================
-// End - Declaring histograms
-//==============================================================================
-
 int nuOrAntiNuMode(std::string playlist)
 {
     std::vector<std::string> nuVector = {"minervame1A", "minervame1B", "minervame1C", "minervame1D", "minervame1E", "minervame1F", "minervame1G", "minervame1L", "minervame1M", "minervame1N", "minervame1O", "minervame1P"};
@@ -544,7 +483,19 @@ void LoopAndFillMC(
     PlotUtils::ChainWrapper* chain,
     std::map<std::string, std::vector<CVUniverse*> > error_bands,
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-    PlotUtils::Model<CVUniverse, MichelEvent>& model
+    PlotUtils::Model<CVUniverse, MichelEvent>& model,
+    TH1D& ANNVerticesFilledMC_ByModule,
+    TH1D& ANNVerticesFilledMC_ByZPos,
+    TH1D& TBVerticesFilledMC_ByModule,
+    TH1D& TBVerticesFilledMC_ByZPos,
+    TH1D& TruthVerticesFilledMC_ByModule,
+    TH1D& TruthVerticesFilledMC_ByZPos,
+    TH2D& ANNVerticesFilledMCERecoil_ByModule,
+    TH2D& ANNVerticesFilledMCMultiplicity_ByModule,
+    TH2D& TBVerticesFilledMCERecoil_ByModule,
+    TH2D& TBVerticesFilledMCMultiplicity_ByModule,
+    TH2D& TruthVerticesFilledMCERecoil_ByModule,
+    TH2D& TruthVerticesFilledMCMultiplicity_ByModule
     )
 {
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
@@ -586,7 +537,7 @@ void LoopAndFillMC(
         MichelEvent myevent; // make sure your event is inside the error band loop. 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
-        ROOT::Math::XYZVector ANNVtx = cvUniv->GetANNVertex();
+        std::vector<double> ANNVtx = cvUniv->GetANNVertexVector();
         ROOT::Math::XYZTVector TrackBasedVtx = cvUniv->GetVertex();
         ROOT::Math::XYZTVector TrueVtx = cvUniv->GetTrueVertex();
         // This is where you would Access/create a Michel
@@ -603,63 +554,57 @@ void LoopAndFillMC(
 
         //Hadron Energy Spectrum plot
         double erecoil = cvUniv->GetRecoilE()/pow(10,3);
-        double ANNProb = cvUniv->GetANNProb();
-        double curvsig = 1/cvUniv->GetMuonQPErr();
-        int multiplicity = cvUniv->GetMultiplicity();
-        //-----------------------------------------------------------
-        // Making a note of events that may be interesting to view in Arachne
-        //-----------------------------------------------------------
-        //if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))  std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
-        if ( std::abs(TrueVtx.Z() - ANNVtx.Z()) > 2000 && ANNProb>0.4)  std::cout<<"Difference between true and ann reco z larger than 2000: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
-        
-        if(ANNVtx.X()!=-1.0)
+
+
+        if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))
         {
-          ANNVerticesMC_ByModule->Fill( ANNVtx.Z(), cvWeight);
-          ANNVerticesMC_ByZPos->Fill( ANNVtx.Z(), cvWeight);
-
-          ANNVerticesMCERecoil_ByModule->Fill( ANNVtx.Z(), erecoil, cvWeight);
-          ANNVerticesMCMultiplicity_ByModule->Fill( ANNVtx.Z(), multiplicity, cvWeight);
-          ANNVerticesMCANNConf_ByModule->Fill( ANNVtx.Z(), ANNProb, cvWeight);
-          ANNVerticesMCCurvSig_ByModule->Fill( ANNVtx.Z(), curvsig, cvWeight);
-
-          ANNVerticesConfusion_ByModule->Fill(ANNVtx.Z(), TrueVtx.Z(), cvWeight);
-          ANNVerticesConfusion_ByZPos->Fill(ANNVtx.Z(), TrueVtx.Z(), cvWeight);
-
-          ANNZVertexDifference->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-
-          if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt2Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt2Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt3Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt3Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt3Carbon->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt4Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt4Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNZVertexDifferenceTgt5Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          else  ANNZVertexDifferenceTracker->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
+          //These events may be visually interesting - check out in event display
+          //std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
         }
-        TBVerticesMC_ByModule->Fill(TrackBasedVtx.Z(), cvWeight);
-        TBVerticesMC_ByZPos->Fill( TrackBasedVtx.Z(), cvWeight);
-        TruthVerticesMC_ByModule->Fill( TrueVtx.Z(), cvWeight);
-        TruthVerticesMC_ByZPos->Fill( TrueVtx.Z(), cvWeight);
+        double ANNProb = cvUniv->GetANNProb();
+        double ANNX, ANNY, ANNZ;
+        if(ANNVtx.size()==3)
+        {
+          ANNX = ANNVtx[0];
+          ANNY = ANNVtx[1];
+          ANNZ = ANNVtx[2];
+        }
 
-        TBVerticesMCERecoil_ByModule->Fill( TrackBasedVtx.Z(), erecoil, cvWeight);
-        TBVerticesMCMultiplicity_ByModule->Fill( TrackBasedVtx.Z(), multiplicity, cvWeight);
-        TruthVerticesMCERecoil_ByModule->Fill( TrueVtx.Z(), erecoil, cvWeight);
-        TruthVerticesMCMultiplicity_ByModule->Fill( TrueVtx.Z(), multiplicity, cvWeight);
+        if(ANNVtx.size()==3)
+        {
+          ANNVerticesFilledMC_ByModule.Fill( ANNVtx[2], cvWeight);
+          ANNVerticesFilledMC_ByZPos.Fill( ANNVtx[2], cvWeight);
 
-        TBVerticesMCCurvSig_ByModule->Fill( TrackBasedVtx.Z(), curvsig, cvWeight);
-        TruthVerticesMCANNConf_ByModule->Fill( TrackBasedVtx.Z(), ANNProb, cvWeight);
-        TruthVerticesMCCurvSig_ByModule->Fill( TrackBasedVtx.Z(), curvsig, cvWeight);
+          ANNVerticesFilledMCERecoil_ByModule.Fill( ANNVtx[2], erecoil, cvWeight);
+          ANNVerticesFilledMCMultiplicity_ByModule.Fill( ANNVtx[2], cvUniv->GetMultiplicity(), cvWeight);
+        }
+        TBVerticesFilledMC_ByModule.Fill(TrackBasedVtx.Z(), cvWeight);
+        TBVerticesFilledMC_ByZPos.Fill( TrackBasedVtx.Z(), cvWeight);
+        TruthVerticesFilledMC_ByModule.Fill( TrueVtx.Z(), cvWeight);
+        TruthVerticesFilledMC_ByZPos.Fill( TrueVtx.Z(), cvWeight);
+
+        TBVerticesFilledMCERecoil_ByModule.Fill( TrackBasedVtx.Z(), erecoil, cvWeight);
+        TBVerticesFilledMCMultiplicity_ByModule.Fill( TrackBasedVtx.Z(), cvUniv->GetMultiplicity(), cvWeight);
+        TruthVerticesFilledMCERecoil_ByModule.Fill( TrueVtx.Z(), erecoil, cvWeight);
+        TruthVerticesFilledMCMultiplicity_ByModule.Fill( TrueVtx.Z(), cvUniv->GetMultiplicity(), cvWeight);
 
       }
     }
   } //End entries loop
-  std::cout << "Finished MC reco loop.\n"; 
+  std::cout << "Finished MC reco loop.\n";
 }
 
 void LoopAndFillData( PlotUtils::ChainWrapper* data,
 			        std::vector<CVUniverse*> data_band,
-				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts
+				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
+        TH1D& ANNVerticesFilledData_ByModule,
+        TH1D& ANNVerticesFilledData_ByZPos,
+        TH1D& TBVerticesFilledData_ByZPos,
+        TH1D& TBVerticesFilledData_ByModule,
+        TH2D& ANNVerticesFilledDataERecoil_ByModule,
+        TH2D& TBVerticesFilledDataERecoil_ByModule,
+        TH2D& ANNVerticesFilledDataMultiplicity_ByModule,
+        TH2D& TBVerticesFilledDataMultiplicity_ByModule
         )
 
 {
@@ -680,33 +625,35 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
         std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"\r" <<std::flush;
       }
       MichelEvent myevent; 
-      ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
+      std::vector<double> ANNVtx = universe->GetANNVertexVector();
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
       double batchPOT = universe->GetBatchPOT();
       //Incorporate batch POT efficiency scaling as applied above
       double erecoil = universe->GetRecoilE()/pow(10,3);
-      double ANNProb = universe->GetANNProb();
-      double curvsig = 1/universe->GetMuonQPErr();
-      int multiplicity = universe->GetMultiplicity();
+
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
 
-      if(ANNVtx.X()!=-1.0)
+      double ANNX, ANNY, ANNZ;
+      if(ANNVtx.size()==3)
       {
-        ANNVerticesData_ByModule->Fill(ANNVtx.Z());
-        ANNVerticesData_ByZPos->Fill(ANNVtx.Z());
-
-        ANNVerticesDataERecoil_ByModule->Fill( ANNVtx.Z(), erecoil);
-        ANNVerticesDataMultiplicity_ByModule->Fill( ANNVtx.Z(), multiplicity);
-
-        ANNVerticesDataANNConf_ByModule->Fill( ANNVtx.Z(), ANNProb);
-        ANNVerticesDataCurvSig_ByModule->Fill( ANNVtx.Z(), curvsig);
+        ANNX = ANNVtx[0];
+        ANNY = ANNVtx[1];
+        ANNZ = ANNVtx[2];
       }
-      TBVerticesData_ByZPos->Fill(TrackBasedVtx.Z());
-      TBVerticesData_ByModule->Fill(TrackBasedVtx.Z());
 
-      TBVerticesDataERecoil_ByModule->Fill( TrackBasedVtx.Z(), erecoil);
-      TBVerticesDataMultiplicity_ByModule->Fill( TrackBasedVtx.Z(), multiplicity);
-      TBVerticesDataCurvSig_ByModule->Fill( TrackBasedVtx.Z(), curvsig);
+       if(ANNVtx.size()==3)
+      {
+        ANNVerticesFilledData_ByModule.Fill(ANNVtx[2]);
+        ANNVerticesFilledData_ByZPos.Fill(ANNVtx[2]);
+
+        ANNVerticesFilledDataERecoil_ByModule.Fill( ANNVtx[2], erecoil);
+        ANNVerticesFilledDataMultiplicity_ByModule.Fill( ANNVtx[2], universe->GetMultiplicity());
+      }
+      TBVerticesFilledData_ByZPos.Fill(TrackBasedVtx.Z());
+      TBVerticesFilledData_ByModule.Fill(TrackBasedVtx.Z());
+
+      TBVerticesFilledDataERecoil_ByModule.Fill( TrackBasedVtx.Z(), erecoil);
+      TBVerticesFilledDataMultiplicity_ByModule.Fill( TrackBasedVtx.Z(), universe->GetMultiplicity());
     }
   }
   std::cout << "Finished data loop.\n";
@@ -778,7 +725,7 @@ int main(const int argc, char** argv)
 
   //Validate input.
   //I expect a data playlist file name and an MC playlist file name which is exactly 2 arguments.
-  const int nArgsExpected = 2;
+  const int nArgsExpected = 5;
   if(argc != nArgsExpected + 1) //argc is the size of argv.  I check for number of arguments + 1 because
                                 //argv[0] is always the path to the executable.
   {
@@ -790,27 +737,30 @@ int main(const int argc, char** argv)
   //Only checking the first file in each playlist because opening each file an extra time
   //remotely (e.g. through xrootd) can get expensive.
   //TODO: Look in INSTALL_DIR if files not found?
-  const std::string  mc_file_list = argv[2],
-                    data_file_list = argv[1];
+  const std::string mc_file_list_empty = argv[4],
+                    data_file_list_empty = argv[3],
+                    mc_file_list_filled = argv[2],
+                    data_file_list_filled = argv[1];
 
-  //Check that necessary TTrees exist in the first file of mc_file_list and data_file_list
+  //Check that necessary TTrees exist in the first file of mc_file_list_filled and data_file_list_filled
   std::string reco_tree_name;
-  if(!inferRecoTreeNameAndCheckTreeNames(mc_file_list, data_file_list, reco_tree_name))
+  if(!inferRecoTreeNameAndCheckTreeNames(mc_file_list_filled, data_file_list_filled, reco_tree_name))
   {
-    std::cerr << "Failed to find required trees in MC playlist " << mc_file_list << " and/or data playlist " << data_file_list << ".\n" << USAGE << "\n";
+    std::cerr << "Failed to find required trees in MC playlist " << mc_file_list_filled << " and/or data playlist " << data_file_list_filled << ".\n" << USAGE << "\n";
     return badInputFile;
   }
 
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
 
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
-  PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
-  options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
+  PlotUtils::MacroUtil optionsFilled(reco_tree_name, mc_file_list_filled, data_file_list_filled, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
+  PlotUtils::MacroUtil optionsEmpty(reco_tree_name, mc_file_list_empty, data_file_list_empty, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
+  optionsFilled.m_plist_string = util::GetPlaylist(*optionsFilled.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
 
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
-  PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); //TODO: Infer this from the files somehow?
-  int nuoranu = nuOrAntiNuMode(options.m_plist_string);
+  PlotUtils::MinervaUniverse::SetPlaylist(optionsFilled.m_plist_string); //TODO: Infer this from the files somehow?
+  int nuoranu = nuOrAntiNuMode(optionsFilled.m_plist_string);
   int nupdg;
   if (nuoranu==1) nupdg = 14;
   else if (nuoranu==2) nupdg = -14;
@@ -825,28 +775,29 @@ int main(const int argc, char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
 
-  //preCuts = util::GetAnalysisCuts(nupdg);
-  preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(util::apothem));
+  //const double minZ = 5980, maxZ = 8422, apothem = 850; //All in mm
+  const double apothem = 850; //All in mm
+  preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Active Tracker Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::Tracker::Back));
+  preCuts.emplace_back(new reco::Apothem<CVUniverse, MichelEvent>(apothem));
   preCuts.emplace_back(new reco::MaxMuonAngle<CVUniverse, MichelEvent>(17.));
   preCuts.emplace_back(new reco::HasMINOSMatch<CVUniverse, MichelEvent>());
   preCuts.emplace_back(new reco::NoDeadtime<CVUniverse, MichelEvent>(1, "Deadtime"));
-  if (nupdg>0)  preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
-  else if (nupdg<0)  preCuts.emplace_back(new reco::IsAntiNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
-  preCuts.emplace_back(new reco::MuonCurveSignificance<CVUniverse, MichelEvent>(5));
+  preCuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>());
   preCuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
-  preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(20000.0, "EMu Max"));
+  preCuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(50000.0, "EMu Max"));
   preCuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40));
-  ///////
-  preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::Tracker::Back));
+
+
                                                                                                                                    
-  //Not used in this macro
-  //signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
-  //signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
+  signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
+  signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                                                                                                                    
-  phaseSpace = util::GetPhaseSpace();
-  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::Tracker::Back));
-
-
+  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Active Tracker Z pos", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::Tracker::Back));
+  phaseSpace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
+  phaseSpace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
+  phaseSpace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
+  phaseSpace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(50000.0, "EMu Max"));
+                                                                                                                                                   
   PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
 
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
@@ -855,72 +806,175 @@ int main(const int argc, char** argv)
   MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
-
+ 
   PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
 
   PlotUtils::MinervaUniverse::SetNFluxUniverses(2); //Necessary to get Flux integral later...  Doesn't work with just 1 flux universe though because _that_ triggers "spread errors".
 
+
+  //==============================================================================
+  // Global - Declaring histograms
+  //==============================================================================
+  TH1D *ANNVerticesFilledMC_ByModule = new TH1D ("ANNVerticesFilledMC_ByModule", "ANNVerticesFilledMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *TBVerticesFilledMC_ByModule = new TH1D ("TBVerticesFilledMC_ByModule", "TBVerticesFilledMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *ANNVerticesFilledData_ByModule = new TH1D ("ANNVerticesFilledData_ByModule", "ANNVerticesFilledData_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *TBVerticesFilledData_ByModule = new TH1D ("TBVerticesFilledData_ByModule", "TBVerticesFilledData_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *TruthVerticesFilledMC_ByModule = new TH1D ("TruthVerticesFilledMC_ByModule", "TruthVerticesFilledMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *ANNVerticesFilledMC_ByZPos = new TH1D ("ANNVerticesFilledMC_ByZPos", "ANNVerticesFilledMC_ByZPos", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledMC_ByZPos = new TH1D ("TBVerticesFilledMC_ByZPos", "TBVerticesFilledMC_ByModuleTruthVerticesFilledMC_ByZPosHighRes", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledData_ByZPos = new TH1D ("ANNVerticesFilledData_ByZPos", "ANNVerticesFilledData_ByZPos", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledData_ByZPos = new TH1D ("TBVerticesFilledData_ByZPos", "TBVerticesFilledData_ByZPos", 3400, 4200, 5900);
+  TH1D *TruthVerticesFilledMC_ByZPos = new TH1D ("TruthVerticesFilledMC_ByZPos", "TruthVerticesFilledMC_ByZPos", 3400, 4200, 5900);
+  //ERecoil
+  TH2D *TruthVerticesFilledMCERecoil_ByModule = new TH2D ("TruthVerticesFilledMCERecoil_ByModule", "TruthVerticesFilledMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *ANNVerticesFilledMCERecoil_ByModule = new TH2D ("ANNVerticesFilledMCERecoil_ByModule", "ANNVerticesFilledMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *TBVerticesFilledMCERecoil_ByModule = new TH2D ("TBVerticesFilledMCERecoil_ByModule", "TBVerticesFilledMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *ANNVerticesFilledDataERecoil_ByModule = new TH2D ("ANNVerticesFilledDataERecoil_ByModule", "ANNVerticesFilledDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *TBVerticesFilledDataERecoil_ByModule = new TH2D ("TBVerticesFilledDataERecoil_ByModule", "TBVerticesFilledDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  //Multiplicity
+  TH2D *TruthVerticesFilledMCMultiplicity_ByModule = new TH2D ("TruthVerticesFilledMCMultiplicity_ByModule", "TruthVerticesFilledMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *ANNVerticesFilledMCMultiplicity_ByModule = new TH2D ("ANNVerticesFilledMCMultiplicity_ByModule", "ANNVerticesFilledMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *TBVerticesFilledMCMultiplicity_ByModule = new TH2D ("TBVerticesFilledMCMultiplicity_ByModule", "TBVerticesFilledMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *ANNVerticesFilledDataMultiplicity_ByModule = new TH2D ("ANNVerticesFilledDataMultiplicity_ByModule", "ANNVerticesFilledDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *TBVerticesFilledDataMultiplicity_ByModule = new TH2D ("TBVerticesFilledDataMultiplicity_ByModule", "TBVerticesFilledDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+
+
+  TH1D *ANNVerticesEmptyMC_ByModule = new TH1D ("ANNVerticesEmptyMC_ByModule", "ANNVerticesEmptyMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *TBVerticesEmptyMC_ByModule = new TH1D ("TBVerticesEmptyMC_ByModule", "TBVerticesEmptyMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *ANNVerticesEmptyData_ByModule = new TH1D ("ANNVerticesEmptyData_ByModule", "ANNVerticesEmptyData_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *TBVerticesEmptyData_ByModule = new TH1D ("TBVerticesEmptyData_ByModule", "TBVerticesEmptyData_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *TruthVerticesEmptyMC_ByModule = new TH1D ("TruthVerticesEmptyMC_ByModule", "TruthVerticesEmptyMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
+  TH1D *ANNVerticesEmptyMC_ByZPos = new TH1D ("ANNVerticesEmptyMC_ByZPos", "ANNVerticesEmptyMC_ByZPos", 3400, 4200, 5900);
+  TH1D *TBVerticesEmptyMC_ByZPos = new TH1D ("TBVerticesEmptyMC_ByZPos", "TBVerticesEmptyMC_ByModuleTruthVerticesEmptyMC_ByZPosHighRes", 3400, 4200, 5900);
+  TH1D *ANNVerticesEmptyData_ByZPos = new TH1D ("ANNVerticesEmptyData_ByZPos", "ANNVerticesEmptyData_ByZPos", 3400, 4200, 5900);
+  TH1D *TBVerticesEmptyData_ByZPos = new TH1D ("TBVerticesEmptyData_ByZPos", "TBVerticesEmptyData_ByZPos", 3400, 4200, 5900);
+  TH1D *TruthVerticesEmptyMC_ByZPos = new TH1D ("TruthVerticesEmptyMC_ByZPos", "TruthVerticesEmptyMC_ByZPos", 3400, 4200, 5900);
+  //ERecoil
+  TH2D *TruthVerticesEmptyMCERecoil_ByModule = new TH2D ("TruthVerticesEmptyMCERecoil_ByModule", "TruthVerticesEmptyMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *ANNVerticesEmptyMCERecoil_ByModule = new TH2D ("ANNVerticesEmptyMCERecoil_ByModule", "ANNVerticesEmptyMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *TBVerticesEmptyMCERecoil_ByModule = new TH2D ("TBVerticesEmptyMCERecoil_ByModule", "TBVerticesEmptyMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *ANNVerticesEmptyDataERecoil_ByModule = new TH2D ("ANNVerticesEmptyDataERecoil_ByModule", "ANNVerticesEmptyDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  TH2D *TBVerticesEmptyDataERecoil_ByModule = new TH2D ("TBVerticesEmptyDataERecoil_ByModule", "TBVerticesEmptyDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 50);
+  //Multiplicity
+  TH2D *TruthVerticesEmptyMCMultiplicity_ByModule = new TH2D ("TruthVerticesEmptyMCMultiplicity_ByModule", "TruthVerticesEmptyMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *ANNVerticesEmptyMCMultiplicity_ByModule = new TH2D ("ANNVerticesEmptyMCMultiplicity_ByModule", "ANNVerticesEmptyMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *TBVerticesEmptyMCMultiplicity_ByModule = new TH2D ("TBVerticesEmptyMCMultiplicity_ByModule", "TBVerticesEmptyMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *ANNVerticesEmptyDataMultiplicity_ByModule = new TH2D ("ANNVerticesEmptyDataMultiplicity_ByModule", "ANNVerticesEmptyDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+  TH2D *TBVerticesEmptyDataMultiplicity_ByModule = new TH2D ("TBVerticesEmptyDataMultiplicity_ByModule", "TBVerticesEmptyDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+
+
+
+  /* TH1D *ANNVerticesFilledMC_ByZPosQ1 = new TH1D ("ANNVerticesFilledMC_ByZPosQ1", "ANNVerticesFilledMC_ByZPosQ1", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledMC_ByZPosQ1 = new TH1D ("TBVerticesFilledMC_ByZPosQ1", "TBVerticesFilledMC_ByZPosQ1", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledData_ByZPosQ1 = new TH1D ("ANNVerticesFilledData_ByZPosQ1", "ANNVerticesFilledData_ByZPosQ1", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledData_ByZPosQ1 = new TH1D ("TBVerticesFilledData_ByZPosQ1", "TBVerticesFilledData_ByZPosQ1", 3400, 4200, 5900);
+  TH1D *TruthVerticesFilledMC_ByZPosQ1 = new TH1D ("TruthVerticesFilledMC_ByZPosQ1", "TruthVerticesFilledMC_ByZPosQ1", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledMC_ByZPosQ2 = new TH1D ("ANNVerticesFilledMC_ByZPosQ2", "ANNVerticesFilledMC_ByZPosQ2", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledMC_ByZPosQ2 = new TH1D ("TBVerticesFilledMC_ByZPosQ2", "TBVerticesFilledMC_ByZPosQ2", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledData_ByZPosQ2 = new TH1D ("ANNVerticesFilledData_ByZPosQ2", "ANNVerticesFilledData_ByZPosQ2", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledData_ByZPosQ2 = new TH1D ("TBVerticesFilledData_ByZPosQ2", "TBVerticesFilledData_ByZPosQ2", 3400, 4200, 5900);
+  TH1D *TruthVerticesFilledMC_ByZPosQ2 = new TH1D ("TruthVerticesFilledMC_ByZPosQ2", "TruthVerticesFilledMC_ByZPosQ2", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledMC_ByZPosQ3 = new TH1D ("ANNVerticesFilledMC_ByZPosQ3", "ANNVerticesFilledMC_ByZPosQ3", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledMC_ByZPosQ3 = new TH1D ("TBVerticesFilledMC_ByZPosQ3", "TBVerticesFilledMC_ByZPosQ3", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledData_ByZPosQ3 = new TH1D ("ANNVerticesFilledData_ByZPosQ3", "ANNVerticesFilledData_ByZPosQ3", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledData_ByZPosQ3 = new TH1D ("TBVerticesFilledData_ByZPosQ3", "TBVerticesFilledData_ByZPosQ3", 3400, 4200, 5900);
+  TH1D *TruthVerticesFilledMC_ByZPosQ3 = new TH1D ("TruthVerticesFilledMC_ByZPosQ3", "TruthVerticesFilledMC_ByZPosQ3", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledMC_ByZPosQ4 = new TH1D ("ANNVerticesFilledMC_ByZPosQ4", "ANNVerticesFilledMC_ByZPosQ4", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledMC_ByZPosQ4 = new TH1D ("TBVerticesFilledMC_ByZPosQ4", "TBVerticesFilledMC_ByZPosQ4", 3400, 4200, 5900);
+  TH1D *ANNVerticesFilledData_ByZPosQ4 = new TH1D ("ANNVerticesFilledData_ByZPosQ4", "ANNVerticesFilledData_ByZPosQ4", 3400, 4200, 5900);
+  TH1D *TBVerticesFilledData_ByZPosQ4 = new TH1D ("TBVerticesFilledData_ByZPosQ4", "TBVerticesFilledData_ByZPosQ4", 3400, 4200, 5900);
+  TH1D *TruthVerticesFilledMC_ByZPosQ4 = new TH1D ("TruthVerticesFilledMC_ByZPosQ4", "TruthVerticesFilledMC_ByZPosQ4", 3400, 4200, 5900); */
+  //==============================================================================
+  // End - Declaring histograms
+  //==============================================================================
+
+
   // Loop entries and fill
   try
   {
-    std::map< std::string, std::vector<CVUniverse*> > error_bands;
-    std::map<std::string, std::vector<CVUniverse*> > band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_mc, CVUniverse::GetNFluxUniverses());
-    //error_bands.insert(band_flux.begin(), band_flux.end()); //Necessary to get flux integral later...
-    error_bands["cv"] = {new CVUniverse(options.m_mc)};
-    CVUniverse* data_univers = new CVUniverse(options.m_data);
-    std::vector<CVUniverse*> data_band = {data_univers};
+    std::map< std::string, std::vector<CVUniverse*> > error_bandsFilled;
+    std::map<std::string, std::vector<CVUniverse*> > band_fluxFilled = PlotUtils::GetFluxSystematicsMap<CVUniverse>(optionsFilled.m_mc, CVUniverse::GetNFluxUniverses());
+    //error_bandsFilled.insert(band_fluxFilled.begin(), band_fluxFilled.end()); //Necessary to get flux integral later...
+    error_bandsFilled["cv"] = {new CVUniverse(optionsFilled.m_mc)};
+    CVUniverse* data_universFilled = new CVUniverse(optionsFilled.m_data);
+    std::vector<CVUniverse*> data_bandFilled = {data_universFilled};
     CVUniverse::SetTruth(false);
-    LoopAndFillMC(options.m_mc, error_bands, mycuts, model);
+    LoopAndFillMC(optionsFilled.m_mc, error_bandsFilled, mycuts, model, *ANNVerticesFilledMC_ByModule, *ANNVerticesFilledMC_ByZPos, *TBVerticesFilledMC_ByModule, *TBVerticesFilledMC_ByZPos, *TruthVerticesFilledMC_ByModule, *TruthVerticesFilledMC_ByZPos, *ANNVerticesFilledMCERecoil_ByModule, *ANNVerticesFilledMCMultiplicity_ByModule, *TBVerticesFilledMCERecoil_ByModule, *TBVerticesFilledMCMultiplicity_ByModule, *TruthVerticesFilledMCERecoil_ByModule, *TruthVerticesFilledMCMultiplicity_ByModule);
     mycuts.resetStats();
     CVUniverse::SetTruth(false);
-    LoopAndFillData(options.m_data, data_band, mycuts);
+    LoopAndFillData(optionsFilled.m_data, data_bandFilled, mycuts, *ANNVerticesFilledData_ByModule, *ANNVerticesFilledData_ByZPos, *TBVerticesFilledData_ByZPos, *TBVerticesFilledData_ByModule, *ANNVerticesFilledDataERecoil_ByModule, *TBVerticesFilledDataERecoil_ByModule, *ANNVerticesFilledDataMultiplicity_ByModule, *TBVerticesFilledDataMultiplicity_ByModule);
     //std::cout << "Data cut summary:\n" << mycuts << "\n";
+    
+    std::map< std::string, std::vector<CVUniverse*> > error_bandsEmpty;
+    std::map<std::string, std::vector<CVUniverse*> > band_fluxEmpty = PlotUtils::GetFluxSystematicsMap<CVUniverse>(optionsEmpty.m_mc, CVUniverse::GetNFluxUniverses());
+    //error_bandsEmpty.insert(band_fluxEmpty.begin(), band_fluxEmpty.end()); //Necessary to get flux integral later...
+    error_bandsEmpty["cv"] = {new CVUniverse(optionsFilled.m_mc)};
+    CVUniverse* data_universeEmpty = new CVUniverse(optionsFilled.m_data);
+    std::vector<CVUniverse*> data_bandEmpty = {data_universeEmpty};
+    CVUniverse::SetTruth(false);
+    LoopAndFillMC(optionsEmpty.m_mc, error_bandsEmpty, mycuts, model, *ANNVerticesEmptyMC_ByModule, *ANNVerticesEmptyMC_ByZPos, *TBVerticesEmptyMC_ByModule, *TBVerticesEmptyMC_ByZPos, *TruthVerticesEmptyMC_ByModule, *TruthVerticesEmptyMC_ByZPos, *ANNVerticesEmptyMCERecoil_ByModule, *ANNVerticesEmptyMCMultiplicity_ByModule, *TBVerticesEmptyMCERecoil_ByModule, *TBVerticesEmptyMCMultiplicity_ByModule, *TruthVerticesEmptyMCERecoil_ByModule, *TruthVerticesEmptyMCMultiplicity_ByModule);
+    mycuts.resetStats();
+    CVUniverse::SetTruth(false);
+    LoopAndFillData(optionsEmpty.m_data, data_bandEmpty, mycuts, *ANNVerticesEmptyData_ByModule, *ANNVerticesEmptyData_ByZPos, *TBVerticesEmptyData_ByZPos, *TBVerticesEmptyData_ByModule, *ANNVerticesEmptyDataERecoil_ByModule, *TBVerticesEmptyDataERecoil_ByModule, *ANNVerticesEmptyDataMultiplicity_ByModule, *TBVerticesEmptyDataMultiplicity_ByModule);
+
 
     TFile* OutDir = TFile::Open("VertexValidations.root", "RECREATE");
-    //
-    ANNVerticesMC_ByModule->Write();
-    TBVerticesMC_ByModule->Write();
-    ANNVerticesData_ByModule->Write();
-    TBVerticesData_ByModule->Write();
-    TruthVerticesMC_ByModule->Write();
-    ANNVerticesMC_ByZPos->Write();
-    TBVerticesMC_ByZPos->Write();
-    ANNVerticesData_ByZPos->Write();
-    TBVerticesData_ByZPos->Write();
-    TruthVerticesMC_ByZPos->Write();
+    //Filled
+    ANNVerticesFilledMC_ByModule->Write();
+    TBVerticesFilledMC_ByModule->Write();
+    ANNVerticesFilledData_ByModule->Write();
+    TBVerticesFilledData_ByModule->Write();
+    TruthVerticesFilledMC_ByModule->Write();
+    ANNVerticesFilledMC_ByZPos->Write();
+    TBVerticesFilledMC_ByZPos->Write();
+    ANNVerticesFilledData_ByZPos->Write();
+    TBVerticesFilledData_ByZPos->Write();
+    TruthVerticesFilledMC_ByZPos->Write();
     //ERecoil
-    TruthVerticesMCERecoil_ByModule->Write();
-    ANNVerticesMCERecoil_ByModule->Write();
-    TBVerticesMCERecoil_ByModule->Write();
-    ANNVerticesDataERecoil_ByModule->Write();
-    TBVerticesDataERecoil_ByModule->Write();
+    TruthVerticesFilledMCERecoil_ByModule->Write();
+    ANNVerticesFilledMCERecoil_ByModule->Write();
+    TBVerticesFilledMCERecoil_ByModule->Write();
+    ANNVerticesFilledDataERecoil_ByModule->Write();
+    TBVerticesFilledDataERecoil_ByModule->Write();
     //Multiplicity
-    TruthVerticesMCMultiplicity_ByModule->Write();
-    ANNVerticesMCMultiplicity_ByModule->Write();
-    TBVerticesMCMultiplicity_ByModule->Write();
-    ANNVerticesDataMultiplicity_ByModule->Write();
-    TBVerticesDataMultiplicity_ByModule->Write();
+    TruthVerticesFilledMCMultiplicity_ByModule->Write();
+    ANNVerticesFilledMCMultiplicity_ByModule->Write();
+    TBVerticesFilledMCMultiplicity_ByModule->Write();
+    ANNVerticesFilledDataMultiplicity_ByModule->Write();
+    TBVerticesFilledDataMultiplicity_ByModule->Write();
 
-    //Confusion
-    ANNVerticesConfusion_ByModule->Write();
-    ANNVerticesConfusion_ByZPos->Write();
+    //Empty
+    ANNVerticesEmptyMC_ByModule->Write();
+    TBVerticesEmptyMC_ByModule->Write();
+    ANNVerticesEmptyData_ByModule->Write();
+    TBVerticesEmptyData_ByModule->Write();
+    TruthVerticesEmptyMC_ByModule->Write();
+    ANNVerticesEmptyMC_ByZPos->Write();
+    TBVerticesEmptyMC_ByZPos->Write();
+    ANNVerticesEmptyData_ByZPos->Write();
+    TBVerticesEmptyData_ByZPos->Write();
+    TruthVerticesEmptyMC_ByZPos->Write();
+    //ERecoil
+    TruthVerticesEmptyMCERecoil_ByModule->Write();
+    ANNVerticesEmptyMCERecoil_ByModule->Write();
+    TBVerticesEmptyMCERecoil_ByModule->Write();
+    ANNVerticesEmptyDataERecoil_ByModule->Write();
+    TBVerticesEmptyDataERecoil_ByModule->Write();
+    //Multiplicity
+    TruthVerticesEmptyMCMultiplicity_ByModule->Write();
+    ANNVerticesEmptyMCMultiplicity_ByModule->Write();
+    TBVerticesEmptyMCMultiplicity_ByModule->Write();
+    ANNVerticesEmptyDataMultiplicity_ByModule->Write();
+    TBVerticesEmptyDataMultiplicity_ByModule->Write();
 
-
-    ANNZVertexDifference->Write();
-    ANNZVertexDifferenceTracker->Write();
-    ANNZVertexDifferenceTgt2Iron->Write();
-    ANNZVertexDifferenceTgt2Lead->Write();
-    ANNZVertexDifferenceTgt3Iron->Write();
-    ANNZVertexDifferenceTgt3Lead->Write();
-    ANNZVertexDifferenceTgt3Carbon->Write();
-    ANNZVertexDifferenceTgt4Lead->Write();
-    ANNZVertexDifferenceTgt5Iron->Write();
-    ANNZVertexDifferenceTgt5Lead->Write();
-
-    auto MCPOT = new TParameter<double>("MCPOT", options.m_mc_pot);
-    MCPOT->Write();
-    auto DataPOT = new TParameter<double>("DataPOT", options.m_data_pot);
-    DataPOT->Write();
+    auto EmptyMCPOT = new TParameter<double>("EmptyMCPOT", optionsEmpty.m_mc_pot);
+    EmptyMCPOT->Write();
+    auto EmptyDataPOT = new TParameter<double>("EmptyDataPOT", optionsEmpty.m_data_pot);
+    EmptyDataPOT->Write();
+    auto FilledMCPOT = new TParameter<double>("FilledMCPOT", optionsFilled.m_mc_pot);
+    FilledMCPOT->Write();
+    auto FilledDataPOT = new TParameter<double>("FilledDataPOT", optionsFilled.m_data_pot);
+    FilledDataPOT->Write();
     OutDir->Close();
 
 
