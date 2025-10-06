@@ -83,6 +83,7 @@ enum ErrorCodes
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
 #include "PlotUtils/LowQ2PiReweighter.h"
 #include "PlotUtils/AMUDISReweighter.h"
+#include "PlotUtils/SuSAFromValencia2p2hReweighter.h"
 #include "PlotUtils/TargetUtils.h"
 
 #include "util/NukeUtils.h"
@@ -99,6 +100,11 @@ enum ErrorCodes
 #include <cstdlib> //getenv()
 #include <fstream>
 #include <sstream> //reading input files
+
+
+//These 2 variables are used when doing broken down runs to speed up running on the grid
+int nSubruns = 0;
+int nProcess = 0;
 
 //==============================================================================
 // Loop and Fill
@@ -120,7 +126,7 @@ void LoopAndFillEventSelection(
   //const int nEntries = 10000;
   //for (int i=19598; i<nEntries; ++i)
   PlotUtils::TargetUtils util;
-  for (int i=0; i<nEntries; ++i)
+  for (int i = 0; i < nEntries; ++i)
   {
     if(i%1000==0) 
       std::cout << i << " / " << nEntries << "\r" <<std::endl;
@@ -163,7 +169,8 @@ void LoopAndFillEventSelection(
           (*var->m_intChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           //(*var->m_interactionChannels)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
-        const bool isSignal = michelcuts.isSignal(*universe, weight);        if(isSignal)
+        const bool isSignal = michelcuts.isSignal(*universe, weight);
+        if(isSignal)
         {
           for(auto& study: studies) study->SelectedSignal(*universe, myevent, weight);
 
@@ -184,9 +191,8 @@ void LoopAndFillEventSelection(
         else
         {
           int bkgd_ID = -1;
-          if (universe->GetCurrent()==2)bkgd_ID=0;
-          else bkgd_ID=1;
-
+          if (universe->GetCurrent() == 2) bkgd_ID = 0;
+          else if (universe->GetTruthNuPDG() == -14) bkgd_ID = 1;
           for(auto& var: vars)
           {
             (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
@@ -214,7 +220,8 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
   const int nEntries = data->GetEntries();
   PlotUtils::TargetUtils util;
   //const int nEntries = 10000;
-  for (int i=0; i<nEntries; ++i) {
+  for (int i = 0; i < nEntries; ++i)
+  {
     for (auto universe : data_band) {
       universe->SetEntry(i);
       if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
@@ -222,7 +229,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
       //Get daisy petal
       int petal = util.GetDaisyPetal(universe->GetANNVertex().X(), universe->GetANNVertex().Y() );
-      if (petal!=inpetal && inpetal!=-1) continue;
+      if (petal!=inpetal/*  && inpetal!=-1 */) continue;
       for(auto& study: studies) study->Selected(*universe, myevent, 1); 
       //std::cout<<"petal: " <<petal << "X: " << universe->GetANNVertex().X() << "\tY: "<<universe->GetANNVertex().Y()<<std::endl;
       for(auto& var: vars)
@@ -252,7 +259,8 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
   std::cout << "Starting efficiency denominator loop...\n";
   const int nEntries = truth->GetEntries();
   //const int nEntries = 10000;
-  for (int i=0; i<nEntries; ++i)
+
+  for (int i = 0; i < nEntries; ++i)
   {
     if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
 
@@ -278,7 +286,7 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the weight for events that will use it
         
         int petal = util.GetDaisyPetal(universe->GetTrueVertex().X(), universe->GetTrueVertex().Y() ); // *10 to convert from cm to mm
-        if (petal!=inpetal && inpetal!=-1) continue;
+        if (petal!=inpetal/*  && inpetal!=-1 */) continue;
         //Fill efficiency denominator now: 
         for(auto var: vars)
         {
@@ -354,6 +362,47 @@ bool inferRecoTreeNameAndCheckTreeNames(const std::string& mcPlaylistName, const
   return areFilesOK;
 }
 
+
+std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNum) {
+    std::ifstream in(inputFile);
+    if (!in.is_open()) {
+        std::cerr << "Error opening input file: " << inputFile << std::endl;
+        return "";
+    }
+
+    // Read all lines into memory
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(in, line)) {
+        lines.push_back(line);
+    }
+    in.close();
+
+    size_t totalLines = lines.size();
+    if (totalLines == 0) {
+        std::cerr << "Input file is empty!" << std::endl;
+        return "";
+    }
+
+    // Split into 10 chunks
+    size_t chunkSize = std::floor(totalLines / numTotal);
+    std::string outfile = inputFile+"tmp"+std::to_string(thisNum)+".txt";
+    std::ofstream out(outfile);
+    if (!out.is_open()) {
+        std::cerr << "Error opening output file: " << outfile << std::endl;
+        return "";
+    }
+    int start = thisNum * chunkSize;
+    int end = (thisNum +1)* chunkSize;
+    if (thisNum == numTotal-1 ) end = lines.size();
+    for (size_t j = start; j < end; ++j) {
+        out << lines[j] << "\n";
+    }
+    out.close();
+
+    return outfile;
+}
+
 //==============================================================================
 // Main
 //==============================================================================
@@ -373,7 +422,7 @@ int main(const int argc, const char** argv)
   //Only checking the first file in each playlist because opening each file an extra time
   //remotely (e.g. through xrootd) can get expensive.
   //TODO: Look in INSTALL_DIR if files not found?
-  const std::string mc_file_list = argv[2],
+  std::string mc_file_list = argv[2],
                     data_file_list = argv[1];
   std::vector<int> petals = {};
   std::cout<<"Here2\n";
@@ -400,7 +449,16 @@ int main(const int argc, const char** argv)
     std::cerr << "Failed to find required trees in MC playlist " << mc_file_list << " and/or data playlist " << data_file_list << ".\n" << USAGE << "\n";
     return badInputFile;
   }
+  char* numSubruns = getenv("NumGridSubrums");
+  char* numProcess = getenv("PROCESS");
 
+  if (numSubruns != nullptr && numProcess != nullptr)
+  {
+    nSubruns = std::stoi(numSubruns);
+    nProcess = std::stoi(numProcess);
+    mc_file_list= breakUpInputFileList(mc_file_list, nSubruns , nProcess);
+    data_file_list= breakUpInputFileList(data_file_list, nSubruns , nProcess);
+  }
   const bool doCCQENuValidation = (reco_tree_name == "CCQENu"); //Enables extra histograms and might influence which systematics I use.
   std::cout<<"Test0\n";
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
@@ -450,19 +508,28 @@ int main(const int argc, const char** argv)
   if(LOW_Q2_PION_WARP){
   std::cout << "Turning on LowQ2PiReweighter because environment variable LOW_Q2_PION_WARP is set.\n";
   }
-
+  const bool SUSA_2P2H_WARP = (getenv("SUSA_2P2H_WARP") != nullptr);
+  if (SUSA_2P2H_WARP)
+  {
+    std::cout << "Replace LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter because environment variable SUSA_2P2H_WARP is set.\n";
+  }
 
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
   MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
   // standard - include this tune.  warping study, comment out 2p2h
-  if ( !NO_2P2H_WARP ) MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+  if (!NO_2P2H_WARP && !SUSA_2P2H_WARP)
+    MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+  if (SUSA_2P2H_WARP)
+    MnvTunev1.emplace_back(new PlotUtils::SuSAFromValencia2p2hReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
   // for a warping study, AMU DIS reweighter
-  if ( AMU_DIS_WARP ) MnvTunev1.emplace_back(new PlotUtils::AMUDISReweighter<CVUniverse, MichelEvent>());
+  if (AMU_DIS_WARP)
+    MnvTunev1.emplace_back(new PlotUtils::AMUDISReweighter<CVUniverse, MichelEvent>());
   // for a warping study, Low Q2 pion suppression (mnvtunev2)
-  if ( LOW_Q2_PION_WARP ) MnvTunev1.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT"));
+  if (LOW_Q2_PION_WARP)
+    MnvTunev1.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT"));
 
   PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
 
@@ -502,14 +569,14 @@ int main(const int argc, const char** argv)
   std::function<double(const CVUniverse &)> muonAngleDegreesTruth = [](const CVUniverse &univ) { return (univ.GetDouble("truth_muon_theta")* 180 / M_PI); };
 
 
-  vars.push_back(new Variable("tracker_pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  vars.push_back(new Variable("tracker_pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
-  vars.push_back(new Variable("tracker_Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
-  vars.push_back(new Variable("tracker_Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, ANNRecoilEGeV, q0TrueGeV)); //TODO: q0 is not the same as recoil energy without a spline correction
-  vars.push_back(new Variable("tracker_BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  vars.push_back(new Variable("nuke_beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
-  vars2D.push_back(new Variable2D("tracker_pTmu_pZmu", *vars[0], *vars[1]));
-  vars2D.push_back(new Variable2D("tracker_Emu_Erecoil", *vars[2], *vars[3]));
+  vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
+  vars.push_back(new Variable("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+  vars.push_back(new Variable("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
+  vars.push_back(new Variable("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, ANNRecoilEGeV, q0TrueGeV)); //TODO: q0 is not the same as recoil energy without a spline correction
+  vars.push_back(new Variable("BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
+  vars.push_back(new Variable("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
+  vars2D.push_back(new Variable2D("pTmu_pZmu", *vars[0], *vars[1]));
+  vars2D.push_back(new Variable2D("Emu_Erecoil", *vars[2], *vars[3]));
 
 
   std::vector<Study*> studies;
@@ -551,6 +618,7 @@ int main(const int argc, const char** argv)
       auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
 
       std::string mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
+      if (nSubruns != 0 ) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_p"+nProcess+ ".root";
       //if (ptl==-1) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) + ".root";
       //else mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
       //Write MC results
@@ -597,6 +665,8 @@ int main(const int argc, const char** argv)
       //Write data results
 
       std::string dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
+      if (nSubruns != 0 ) dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_p"+nProcess+ ".root";
+
       //if (ptl==-1) dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) + ".root";
       //else dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
       TFile* dataOutDir = TFile::Open(dataOutFileName.c_str(), "RECREATE");
@@ -619,10 +689,12 @@ int main(const int argc, const char** argv)
       //Saving 2D migration matrices
       //Putting this right at the end in case of a crash
       std::string migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
+      if (nSubruns != 0 ) migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_p"+nProcess+ ".root";
+
       //if (ptl==-1) migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) + ".root";
       //else migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
       TFile* migrationOutDir = TFile::Open(migrationOutDirName.c_str(), "RECREATE");
-      if(!dataOutDir)
+      if(!migrationOutDir)
       {
         std::cerr << "Failed to open a file named " << migrationOutDirName << " in the current directory for writing histograms.\n";
         return badOutputFile;

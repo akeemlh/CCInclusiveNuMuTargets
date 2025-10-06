@@ -13,6 +13,7 @@
 #include "PlotUtils/MnvTuneSystematics.h"
 #include "PlotUtils/MuonResolutionSystematics.h"
 #include "PlotUtils/AngleSystematics.h"
+#include "PlotUtils/MLVertexSystematics.h"
 
 typedef std::map<std::string, std::vector<CVUniverse*>> UniverseMap;
 
@@ -87,6 +88,12 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   //TODO: There's some special recoil function I need to write for the response systematics to work correctly
   /*UniverseMap bands_response = PlotUtils::GetResponseSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_response.begin(), bands_response.end());*/
+
+  //========================================================================
+  // ML Vertex uncertainty
+  //========================================================================
+  UniverseMap ml_vertex_systematics = PlotUtils::GetMLVertexSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(ml_vertex_systematics.begin(), ml_vertex_systematics.end());
 
   return error_bands;
 }

@@ -91,6 +91,7 @@ enum ErrorCodes
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
 #include "PlotUtils/LowQ2PiReweighter.h"
 #include "PlotUtils/AMUDISReweighter.h"
+#include "PlotUtils/SuSAFromValencia2p2hReweighter.h"
 #include "PlotUtils/TargetUtils.h"
 #pragma GCC diagnostic pop
 
@@ -105,13 +106,17 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 
-bool PseudoTargetBuffer = true; // To exlclude the plane immediately after either end of a nuclear target
+bool usingExtendedTargetDefintion = true; // To exlclude the plane immediately after either end of a nuclear target //Used if using extended target definiton
+
+//These 2 variables are used when doing broken down runs to speed up running on the grid
+int nSubruns = 0;
+int nProcess = 0;
 
 // Treat the plastic between planes as though they were nuclear targets themselves
 //
-int getPlasticPseudoTargetCode(int mod, int plane)
+int getPlasticPseudoTargetCode(int mod, int plane, bool extTarget = usingExtendedTargetDefintion)
 {
-  if (PseudoTargetBuffer)
+  if (extTarget) //If using extended target definition, exclude planes that would be inlcuded
   {
     if (mod == -2 && plane == 2)
       return -1;
@@ -157,50 +162,55 @@ double GetTruthSegment(CVUniverse *universe)
   return util::planecode(universe->GetTruthVtxModule(), universe->GetTruthVtxPlane());
 }
 
-int getTgtCode(CVUniverse *universe, int mode /*mc = 0, ANN = 1, TB = 2*/)
+int getTgtCode(CVUniverse *universe, bool truth )
 {
   double vtx_x, vtx_y, vtx_z;
   int mod, plane;
-  if (mode == 0) // Truth
+  if (truth) // Truth
   {
+    //First step, what target does the tuple say it's in
+    int truthTgtCode = universe->GetTruthTargetCode();
+    if (truthTgtCode != 0) return truthTgtCode; //Maybe do a more explicit check for if it's a valid target code?
+
     mod = universe->GetTruthVtxModule();
     plane = universe->GetTruthVtxPlane();
-    int pseudoTarget = getPlasticPseudoTargetCode(mod, plane);
-    if (pseudoTarget != -1)
-      return pseudoTarget;
     ROOT::Math::XYZTVector Vtx = universe->GetTrueVertex();
     vtx_x = Vtx.X();
     vtx_y = Vtx.Y();
     vtx_z = Vtx.Z();
+    //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the tuple branch, instead compare it's vertex position
+    PlotUtils::TargetUtils tgtUtil;
+    if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. )) return 6000;
   }
-  else if (mode == 1) // ANN
+  else // ANN
   {
+    //First step, what target does the tuple say it's in
+    int ANNTgtCode = universe->GetANNTargetCode();
+    if (ANNTgtCode != 0) return ANNTgtCode; //Maybe do a more explicit check for if it's a valid target code?
+
     mod = universe->GetANNVtxModule();
     plane = universe->GetANNVtxPlane();
-    int pseudoTarget = getPlasticPseudoTargetCode(mod, plane);
-    if (pseudoTarget != -1)
-      return pseudoTarget;
     ROOT::Math::XYZVector Vtx = universe->GetANNVertex();
     vtx_x = Vtx.X();
     vtx_y = Vtx.Y();
     vtx_z = Vtx.Z();
+
+    //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the regular tuple branch, instead we check if the ANN reconstruction put in the water segment (36)
+    if (universe->GetANNSegment() == 36 ) return 6000;
   }
-  else if (mode == 2) // TB
+  //Next determine if the interaction vertex is within the extended target definition (if applicable)
+  if (usingExtendedTargetDefintion)
   {
-    mod = universe->GetMADVtxModule();
-    plane = universe->GetMADVtxPlane();
-    int pseudoTarget = getPlasticPseudoTargetCode(mod, plane);
-    if (pseudoTarget != -1)
-      return pseudoTarget;
-    ROOT::Math::XYZTVector Vtx = universe->GetVertex();
-    vtx_x = Vtx.X();
-    vtx_y = Vtx.Y();
-    vtx_z = Vtx.Z();
+    int extendedTarget = util::getExtendedTarget(mod, plane, vtx_x, vtx_y);
+    if (extendedTarget!=-1) return extendedTarget;
   }
-  return util::getTargetCodeFromVtxInfo(vtx_x, vtx_y, vtx_z, mod, plane);
+  //Lastly, check if it's in a pseudotarget
+  return getPlasticPseudoTargetCode(mod, plane); 
+
+  //Return value for function will be -1 if no target or pseudotarget is determined for this event
 }
 
-int getSidebandTgtCode(CVUniverse *universe, int mode /*mc = 0, ANN = 1, TB = 2*/, int USorDS /*Some planes are both the US planes of one target but the DS planes of another and so need to be treated twice*/)
+int getSidebandTgtCode(CVUniverse *universe, int mode /*mc = 0, ANN = 1, TB = 2*/, int USorDS /*Some planes are both the US planes of one target but the DS planes of another and so need to be treated twice*/, bool removeNeighbors = true)
 {
   PlotUtils::TargetUtils tgtUtil;
   // tgtUtil.SetDistToDivCut( ??? ); //What was Anezka's + what is it in GenieXSecExtract/ Should this be tweaked?
@@ -235,28 +245,32 @@ int getSidebandTgtCode(CVUniverse *universe, int mode /*mc = 0, ANN = 1, TB = 2*
   }
 
   // Removing planes immediately up and downstream of targets
-  if (mod == -2 && plane == 2)
-    return -1;
-  if (mod == 0 && plane == 1)
-    return -1;
-  if (mod == 3 && plane == 2)
-    return -1;
-  if (mod == 5 && plane == 1)
-    return -1;
-  if (mod == 8 && plane == 2)
-    return -1;
-  if (mod == 11 && plane == 1)
-    return -1;
-  if (mod == 14 && plane == 2)
-    return -1;
-  if (mod == 15 && plane == 1)
-    return -1;
-  if (mod == 18 && plane == 2)
-    return -1;
-  if (mod == 20 && plane == 1)
-    return -1;
-  if (mod == 21 && plane == 2)
-    return -1;
+  if (removeNeighbors)
+  {
+    if (mod == -2 && plane == 2)
+      return -1;
+    if (mod == 0 && plane == 1)
+      return -1;
+    if (mod == 3 && plane == 2)
+      return -1;
+    if (mod == 5 && plane == 1)
+      return -1;
+    if (mod == 8 && plane == 2)
+      return -1;
+    if (mod == 11 && plane == 1)
+      return -1;
+    if (mod == 14 && plane == 2)
+      return -1;
+    if (mod == 15 && plane == 1)
+      return -1;
+    if (mod == 18 && plane == 2)
+      return -1;
+    if (mod == 20 && plane == 1)
+      return -1;
+    if (mod == 21 && plane == 2)
+      return -1;
+  }
+
 
   // if (mod >= -5 && mod <= -2)  return 7; //Not using upstream of target 1 because of significant rock muon contamination
   /* if (mod == 17 && plane == 2)
@@ -400,7 +414,7 @@ void LoopAndFillEventSelection(
 
   std::cout << "Starting MC reco loop...\n";
   const int nEntries = chain->GetEntries();
-  // const int nEntries = 10000;
+  //const int nEntries = 10000;
   for (int i = 0; i < nEntries; ++i)
   {
     if (i % 1000 == 0)
@@ -431,9 +445,8 @@ void LoopAndFillEventSelection(
         // std::cout<<"Here6\n";
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all())
           continue; // all is another function that will later help me with sidebands
-        // std::cout<<"Here7\n";
-        int code = getTgtCode(universe, 1);
-        int truthcode = getTgtCode(universe, 0);
+        int code = getTgtCode(universe, false);
+        int truthcode = getTgtCode(universe, true);
         // std::cout<<"Here8\n";
         int DSTargetCodeTruth = getSidebandTgtCode(universe, 0, 0); // Which, if any, target is this event truly in the DS Sideband region of?
         int USTargetCodeTruth = getSidebandTgtCode(universe, 0, 1); // Which, if any, target is this event truly in the US Sideband region of?
@@ -446,99 +459,67 @@ void LoopAndFillEventSelection(
         const double weight = model.GetWeight(*universe, myevent); // Only calculate the per-universe weight for events that will actually use it.
         // Checking if events that are reconstructed outside of our targets of interest occur in our sideband region, which we are also interested in
         // std::cout<<"Here11\n";
-        if (code != targetCode && code < 1000) // If our vertex is not in the nuclear targets
+        if (code != targetCode && code < 1000) // If our reconstructed vertex is not in the nuclear target of interest
         {
           if (USTargetCodeReco == targetCode) // Get true origins of the events reconstructed in the upsteam region of tgt x
           {
-            if (USTargetCodeTruth == USTargetCodeReco) // If the event truly occurred in the US region of tgt x
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetUSMC)[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetUSMC)[0].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
-            else if (DSTargetCodeTruth == USTargetCodeReco) // If the event truly occurred in the DS region of tgt x
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetUSMC)[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetUSMC)[1].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
-            else if (truthcode == USTargetCodeReco) // If the event truly occurred in the signal region (inside) of tgt x
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetUSMC)[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetUSMC)[2].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
-            else
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetUSMC)[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetUSMC)[-1].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
+            int USbandcode = -1; //US, DS, Signal
+            if (USTargetCodeTruth == USTargetCodeReco) USbandcode = 0; // If the event truly occurred in the US region of tgt x
+            else if (DSTargetCodeTruth == USTargetCodeReco) USbandcode = 1; // If the event truly occurred in the DS region of tgt x
+            else if (truthcode == USTargetCodeReco) USbandcode = 2; // If the event truly occurred in the signal region (inside) of tgt x
+            for (auto &var : vars)
+              (*var->m_sidebandHistSetUSMC)[USbandcode].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            for (auto &var : vars2D)
+              (*var->m_sidebandHistSetUSMC)[USbandcode].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           }
-          // std::cout<<"Here12\n";
           if (DSTargetCodeReco == targetCode) // Get true origins of the events reconstructed in the downsteam region of tgt x
           {
-            if (USTargetCodeTruth == DSTargetCodeReco) // If the event truly occurred in the US region of tgt x
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetDSMC)[0].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetDSMC)[0].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
-            else if (DSTargetCodeTruth == DSTargetCodeReco) // If the event truly occurred in the DS region of tgt x
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetDSMC)[1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetDSMC)[1].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
-            else if (truthcode == DSTargetCodeReco) // If the event truly occurred in the signal region (inside) of tgt x
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetDSMC)[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetDSMC)[2].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
-            else
-            {
-              for (auto &var : vars)
-                (*var->m_sidebandHistSetDSMC)[-1].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-              for (auto &var : vars2D)
-                (*var->m_sidebandHistSetDSMC)[-1].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-            }
+            int DSbandcode = -1; //US, DS, Signal
+            if (USTargetCodeTruth == DSTargetCodeReco) DSbandcode = 0; // If the event truly occurred in the US region of tgt x
+            else if (DSTargetCodeTruth == DSTargetCodeReco) DSbandcode = 1; // If the event truly occurred in the DS region of tgt x
+            else if (truthcode == DSTargetCodeReco) DSbandcode = 2; // If the event truly occurred in the signal region (inside) of tgt x
+            for (auto &var : vars)
+              (*var->m_sidebandHistSetDSMC)[DSbandcode].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+            for (auto &var : vars2D)
+              (*var->m_sidebandHistSetDSMC)[DSbandcode].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
           }
         }
 
-        // std::cout<<"Here13\n";
         if (code != targetCode)
           continue; // From here on, we only care about events that are reconstructed in our target of interest
-        // std::cout<<"Here14\n";
+        int DSTargetCodeTruthFull = getSidebandTgtCode(universe, 0, 0, false); // Which, if any, target is this event truly in the DS Sideband region of, including neighboring planes
+        int USTargetCodeTruthFull = getSidebandTgtCode(universe, 0, 1, false); // Which, if any, target is this event truly in the US Sideband region of, including neighboring planes
+        int origin = -1;
+        if (truthcode == targetCode) origin = 2; //Signal
+        else if (targetCode == USTargetCodeTruthFull) origin = 0; //US
+        else if (targetCode == DSTargetCodeTruthFull) origin = 1; //DS
+        else //Experimental - not sure if this will work, we'll see
+        {
+          ROOT::Math::XYZTVector trueVec = universe->GetTrueVertex();
+          if (trueVec.Z()>5153.77 && trueVec.Z()<5456.74) //Using this as an apporoximate way of getting events MC tells us it reconstructed on water tank/apparatus
+          origin = 3;
+        }
         for (auto &var : vars)
         {
           (*var->selectedMCReco).FillUniverse(universe, var->GetRecoValue(*universe), weight);
           (*var->m_interactionTypeHists)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          (*var->m_originHists)[origin].FillUniverse(universe, var->GetRecoValue(*universe), weight);
         }
-        // std::cout<<"Here15\n";
         for (auto &var : vars2D)
         {
-          // std::cout<<"Here15a\n";
           (*var->selectedMCReco).FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          // std::cout<<"Here15b\n";
           (*var->m_interactionTypeHists)[universe->GetInteractionType()].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          // std::cout<<"Here15c\n";
+          (*var->m_originHists)[origin].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
         }
-        // std::cout<<"Here16\n";
-        const bool isSignal = michelcuts.isSignal(*universe, weight);
-        if (isSignal && truthcode == targetCode) // If it is signal and is in nuclear target of interest
+        /* if (origin == -1)
         {
-          // std::cout<<"Here17\n";
+          std::cout<< "Found \"other\" origin event. Event # " << i << " targetCode: " << targetCode << " code: " << code<<" truthcode: " << truthcode << " USTargetCodeTruthFull: " << USTargetCodeTruthFull <<  " DSTargetCodeTruthFull: " << DSTargetCodeTruthFull <<std::endl;
+        } */
+        const bool isSignal = michelcuts.isSignal(*universe, weight);
+        if (isSignal) // If it is signal
+        {
           for (auto &study : studies)
             study->SelectedSignal(*universe, myevent, weight);
-          // std::cout<<"Here18\n";
           for (auto &var : vars)
           {
             // Cross section components
@@ -546,7 +527,6 @@ void LoopAndFillEventSelection(
             (*var->migration).FillUniverse(universe, var->GetRecoValue(*universe), var->GetTrueValue(*universe), weight);
             (*var->selectedSignalReco).FillUniverse(universe, var->GetRecoValue(*universe), weight);
           }
-          // std::cout<<"Here19\n";
           for (auto &var : vars2D)
           {
             // Cross section components
@@ -558,37 +538,17 @@ void LoopAndFillEventSelection(
         //------------------------------------------------------
         // Backgrounds
         //------------------------------------------------------
-        else if (!isSignal) // i.e if it passed the cuts but isn't a signal event/what we're looking for it must be a background
+        else
         {
           int bkgd_ID = -1;
-          if (universe->GetCurrent() == 2)
-            bkgd_ID = 0;
-          else
-            bkgd_ID = 1;
-          if (code > 0) // If this event is reconstructed inside a nuclear target
-          {
-            for (auto &var : vars)
-              (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-            for (auto &var : vars2D)
-              (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          }
-        }
-        else if (code != truthcode) // If the event truly came from somewhere other than where it was reconstructed
-        {
-          if (code == USTargetCodeTruth) // If it was reconstructed in tgt x but actually came from the US sideband region of tgt x
-          {
-            for (auto &var : vars)
-              (*var->m_backgroundHists)[2].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-            for (auto &var : vars2D)
-              (*var->m_backgroundHists)[2].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          }
-          else if (code == DSTargetCodeTruth) // If it was reconstructed in tgt x but actually came from the DS sideband region of tgt x
-          {
-            for (auto &var : vars)
-              (*var->m_backgroundHists)[3].FillUniverse(universe, var->GetRecoValue(*universe), weight);
-            for (auto &var : vars2D)
-              (*var->m_backgroundHists)[3].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
-          }
+          if (universe->GetCurrent() == 2) bkgd_ID = 0;
+          else if (universe->GetTruthNuPDG() == -14) bkgd_ID = 1;
+          //else if (code == USTargetCodeTruth) bkgd_ID = 2;// If it was reconstructed in tgt x but actually came from the US sideband region of tgt x
+          //else if (code == DSTargetCodeTruth) bkgd_ID = 3;// If it was reconstructed in tgt x but actually came from the DS sideband region of tgt x
+
+          for (auto &var : vars) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValue(*universe), weight);
+          for (auto &var : vars2D) (*var->m_backgroundHists)[bkgd_ID].FillUniverse(universe, var->GetRecoValueX(*universe), var->GetRecoValueY(*universe), weight);
+        
         }
       } // End band's universe loop
     } // End Band loop
@@ -605,9 +565,9 @@ void LoopAndFillData(PlotUtils::ChainWrapper *data,
                      int targetCode)
 {
   std::cout << "Starting data loop...\n";
-  // const int nEntries = 10000;
+  //const int nEntries = 10000;
   const int nEntries = data->GetEntries();
-  for (int i = 0; i < data->GetEntries(); ++i)
+  for (int i = 0; i < nEntries; ++i)
   {
     for (auto universe : data_band)
     {
@@ -618,7 +578,7 @@ void LoopAndFillData(PlotUtils::ChainWrapper *data,
       if (!michelcuts.isDataSelected(*universe, myevent).all())
         continue;
 
-      int code = getTgtCode(universe, 1);
+      int code = getTgtCode(universe, false);
       int DSTargetCodeReco = getSidebandTgtCode(universe, 1, 0); // Which, if any, target is this event reconstructed in the DS Sideband region of?
       int USTargetCodeReco = getSidebandTgtCode(universe, 1, 1); // Which, if any, target is this event reconstructed in the US Sideband region of?
 
@@ -668,7 +628,7 @@ void LoopAndFillEffDenom(PlotUtils::ChainWrapper *truth,
 
   std::cout << "Starting efficiency denominator loop...\n";
   const int nEntries = truth->GetEntries();
-  // const int nEntries = 10000;
+  //const int nEntries = 10000;
   for (int i = 0; i < nEntries; ++i)
   {
     if (i % 1000 == 0)
@@ -696,7 +656,7 @@ void LoopAndFillEffDenom(PlotUtils::ChainWrapper *truth,
           continue;                                                // Weight is ignored for isEfficiencyDenom() in all but the CV universe
         const double weight = model.GetWeight(*universe, myevent); // Only calculate the weight for events that will use it
 
-        int code = getTgtCode(universe, 0);
+        int code = getTgtCode(universe, true);
         if (code != targetCode)
           continue; // From here on, we only care about events that are really in our target of interest
         // Fill efficiency denominator now:
@@ -776,6 +736,46 @@ bool inferRecoTreeNameAndCheckTreeNames(const std::string &mcPlaylistName, const
   return areFilesOK;
 }
 
+std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNum) {
+    std::ifstream in(inputFile);
+    if (!in.is_open()) {
+        std::cerr << "Error opening input file: " << inputFile << std::endl;
+        return "";
+    }
+
+    // Read all lines into memory
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(in, line)) {
+        lines.push_back(line);
+    }
+    in.close();
+
+    size_t totalLines = lines.size();
+    if (totalLines == 0) {
+        std::cerr << "Input file is empty!" << std::endl;
+        return "";
+    }
+
+    // Split into 10 chunks
+    size_t chunkSize = std::floor(totalLines / numTotal);
+    std::string outfile = inputFile+"tmp"+std::to_string(thisNum)+".txt";
+    std::ofstream out(outfile);
+    if (!out.is_open()) {
+        std::cerr << "Error opening output file: " << outfile << std::endl;
+        return "";
+    }
+    int start = thisNum * chunkSize;
+    int end = (thisNum +1)* chunkSize;
+    if (thisNum == numTotal-1 ) end = lines.size();
+    for (size_t j = start; j < end; ++j) {
+        out << lines[j] << "\n";
+    }
+    out.close();
+
+    return outfile;
+}
+
 //==============================================================================
 // Main
 //==============================================================================
@@ -797,7 +797,7 @@ int main(const int argc, const char **argv)
   // Only checking the first file in each playlist because opening each file an extra time
   // remotely (e.g. through xrootd) can get expensive.
   // TODO: Look in INSTALL_DIR if files not found?
-  const std::string mc_file_list = argv[2],
+  std::string mc_file_list = argv[2],
                     data_file_list = argv[1];
   std::vector<int> targets = {};
   std::cout << "Here2\n";
@@ -851,6 +851,18 @@ int main(const int argc, const char **argv)
   std::cout << mc_file_list.substr(mc_label + 4, 2) << std::endl;
   std::cout << playlistname << std::endl;
   std::cout << "playlistname: " << playlistname << std::endl; // isn't all this unnecessary?
+
+  char* numSubruns = getenv("NumGridSubrums");
+  char* numProcess = getenv("PROCESS");
+
+  if (numSubruns != nullptr && numProcess != nullptr)
+  {
+    nSubruns = std::stoi(numSubruns);
+    nProcess = std::stoi(numProcess);
+    mc_file_list= breakUpInputFileList(mc_file_list, nSubruns , nProcess);
+    data_file_list= breakUpInputFileList(data_file_list, nSubruns , nProcess);
+  }
+
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, playlistname, true);
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); // TODO: Put GetPlaylist into PlotUtils::MacroUtil
 
@@ -885,13 +897,19 @@ int main(const int argc, const char **argv)
   {
     std::cout << "Turning on LowQ2PiReweighter because environment variable LOW_Q2_PION_WARP is set.\n";
   }
-
+  const bool SUSA_2P2H_WARP = (getenv("SUSA_2P2H_WARP") != nullptr);
+  if (SUSA_2P2H_WARP)
+  {
+    std::cout << "Replace LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter because environment variable SUSA_2P2H_WARP is set.\n";
+  }
   std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
   MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
   // standard - include this tune.  warping study, comment out 2p2h
-  if (!NO_2P2H_WARP)
+  if (!NO_2P2H_WARP && !SUSA_2P2H_WARP)
     MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+  if (SUSA_2P2H_WARP)
+    MnvTunev1.emplace_back(new PlotUtils::SuSAFromValencia2p2hReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
   MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
   // for a warping study, AMU DIS reweighter
@@ -944,15 +962,15 @@ int main(const int argc, const char **argv)
   std::function<double(const CVUniverse &)> muonAngleDegrees = [](const CVUniverse &univ) { return (univ.GetThetamu() * 180 / M_PI); };
   std::function<double(const CVUniverse &)> muonAngleDegreesTruth = [](const CVUniverse &univ) { return (univ.GetDouble("truth_muon_theta")* 180 / M_PI); };
 
-  nukeVars.push_back(new Variable1DNuke("nuke_pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  nukeVars.push_back(new Variable1DNuke("nuke_pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
-  nukeVars.push_back(new Variable1DNuke("nuke_Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
-  nukeVars.push_back(new Variable1DNuke("nuke_Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, ANNRecoilEGeV, q0TrueGeV)); // TODO: q0 is not the same as recoil energy without a spline correction
-  nukeVars.push_back(new Variable1DNuke("nuke_BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  nukeVars.push_back(new Variable1DNuke("nuke_segment", "segmentNum", segmentBins, &CVUniverse::GetANNSegment, &CVUniverse::GetTruthSegment)); // Just used for plotting events by detector position tbh - not for any actual physics
-  nukeVars.push_back(new Variable1DNuke("nuke_beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
-  nukeVars2D.push_back(new Variable2DNuke("nuke_pTmu_pZmu", *nukeVars[0], *nukeVars[1]));
-  nukeVars2D.push_back(new Variable2DNuke("nuke_Emu_Erecoil", *nukeVars[2], *nukeVars[3]));
+  nukeVars.push_back(new Variable1DNuke("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
+  nukeVars.push_back(new Variable1DNuke("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
+  nukeVars.push_back(new Variable1DNuke("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
+  nukeVars.push_back(new Variable1DNuke("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, ANNRecoilEGeV, q0TrueGeV)); // TODO: q0 is not the same as recoil energy without a spline correction
+  nukeVars.push_back(new Variable1DNuke("BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
+  nukeVars.push_back(new Variable1DNuke("segment", "segmentNum", segmentBins, &CVUniverse::GetANNSegment, &CVUniverse::GetTruthSegment)); // Just used for plotting events by detector position tbh - not for any actual physics
+  nukeVars.push_back(new Variable1DNuke("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
+  nukeVars2D.push_back(new Variable2DNuke("pTmu_pZmu", *nukeVars[0], *nukeVars[1]));
+  nukeVars2D.push_back(new Variable2DNuke("Emu_Erecoil", *nukeVars[2], *nukeVars[3]));
 
   std::vector<Study *> studies;
   std::function<double(const CVUniverse &, const MichelEvent &)> ptmu = [](const CVUniverse &univ, const MichelEvent & /* evt */)
@@ -1017,8 +1035,8 @@ int main(const int argc, const char **argv)
       var->InitializeDATAHists(data_band);
 
     // Loop entries and fill
-    try
-    {
+    //try
+    //{
       std::cout << "Staring event loops\n";
       CVUniverse::SetTruth(false);
       LoopAndFillEventSelection(options.m_mc, error_bands, nukeVars, nukeVars2D, studies, nukeCuts, model, tgt);
@@ -1037,6 +1055,7 @@ int main(const int argc, const char **argv)
       auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
 
       std::string mcOutFileName = MC_OUT_FILE_NAME_BASE + std::to_string(tgt) + ".root";
+      if (nSubruns != 0 ) mcOutFileName = MC_OUT_FILE_NAME_BASE + std::to_string(tgt) + "_p"+nProcess+ ".root";
       // Write MC results
       TFile *mcOutDir = TFile::Open(mcOutFileName.c_str(), "RECREATE");
       if (!mcOutDir)
@@ -1095,6 +1114,7 @@ int main(const int argc, const char **argv)
       // playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
       // Write data results
       std::string dataOutFileName = DATA_OUT_FILE_NAME_BASE + std::to_string(tgt) + ".root";
+      if (nSubruns != 0 ) dataOutFileName = DATA_OUT_FILE_NAME_BASE + std::to_string(tgt) + "_p"+nProcess+ ".root";
       TFile *dataOutDir = TFile::Open(dataOutFileName.c_str(), "RECREATE");
       if (!dataOutDir)
       {
@@ -1121,6 +1141,7 @@ int main(const int argc, const char **argv)
       // Saving 2D migration matrices
       // Putting this right at the end in case of a crash
       std::string migrationOutDirName = MIGRATION_2D_OUT_FILE_NAME_BASE + std::to_string(tgt) + ".root";
+      if (nSubruns != 0 ) migrationOutDirName = MIGRATION_2D_OUT_FILE_NAME_BASE + std::to_string(tgt) + "_p"+nProcess+ ".root";
       TFile *migrationOutDir = TFile::Open(migrationOutDirName.c_str(), "RECREATE");
       if (!migrationOutDir)
       {
@@ -1134,7 +1155,7 @@ int main(const int argc, const char **argv)
       migrationOutDir->Close();
 
       std::cout << "Success" << std::endl;
-    }
+    /* }
     catch (const ROOT::exception &e)
     {
       std::cerr << "Ending on a ROOT error message.  No histograms will be produced.\n"
@@ -1142,7 +1163,7 @@ int main(const int argc, const char **argv)
                 << e.what() << "\n"
                 << USAGE << "\n";
       return badFileRead;
-    }
+    } */
   }
   return success;
 }

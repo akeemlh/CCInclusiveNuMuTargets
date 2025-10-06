@@ -31,6 +31,7 @@ namespace util
     
     std::map<int, std::string> TargetNums = {{1, "1"}, {2, "2"}, {3, "3"}, {4, "4"}, {5, "5"}, {6, "6"}};
     std::map<int, std::string> SidebandCategories = {{0, "US"}, {1, "DS"}, {2, "Signal"}};
+    std::map<int, std::string> SidebandCategoriesExtWater = {{0, "US"}, {1, "DS"}, {2, "Signal"}, {3, "WaterTank"}};
     std::map<int, std::string> TgtCodeLabelsTracker = {{-1, "Tracker"}};
     std::map<int, std::string> TgtCodeLabelsNuke = {{1026, "1026"}, {1082, "1082"}, {2026, "2026"}, {2082, "2082"}, {3006, "3006"}, {3026, "3026"}, {3082, "3082"}, {4082, "4082"}, {5026, "5026"}, {5082, "5082"}, {6000, "Water"}, {7, "Target7"}, {8, "Target8"}, {9, "Target9"}, {10, "Target10"}, {11, "Target11"}, {12, "Target12"}};
 
@@ -43,7 +44,7 @@ namespace util
                                               {3, "DIS"}}; //kNoInteraction=0, kQEL=1, kRES=2, kDIS=3, kCOHPI=4, kAMNUGAMMA=5, kIMD=6, kNUEEL=7, k2P2H=8
 
     std::map<int, std::string> BKGLabels = {{0, "NC_Bkg"},
-					       {1, "Wrong_Sign_Bkg"}, {2, "US_Plastic"}, {3, "DS_Plastic"}};
+					       {1, "Wrong_Sign_Bkg"}};
 
     int nuOrAntiNuMode(std::string playlist)
     {
@@ -57,8 +58,8 @@ namespace util
 
     int filledOrEmptyMEPlaylist(std::string playlist)
     {
-        std::vector<std::string> filled = {"minervame1L", "minervame1M", "minervame1N", "minervame1O", "minervame1P"};
-        std::vector<std::string> empty = {"minervame1A", "minervame1B", "minervame1C", "minervame1D", "minervame1E", "minervame1F", "minervame1G"/*,  "minervame5A", "minervame6A", "minervame6B", "minervame6C", "minervame6D", "minervame6E", "minervame6F", "minervame6G", "minervame6H", "minervame6I", "minervame6J" */};
+        std::vector<std::string> filled = {"minervame1L", "minervame1M", "minervame1N", "minervame1O", "minervame1P", "1L", "1M", "1N", "1O", "1P"};
+        std::vector<std::string> empty = {"minervame1A", "minervame1B", "minervame1C", "minervame1D", "minervame1E", "minervame1F", "minervame1G", "1A", "1B", "1C", "1D", "1E", "1F", "1G"/*,  "minervame5A", "minervame6A", "minervame6B", "minervame6C", "minervame6D", "minervame6E", "minervame6F", "minervame6G", "minervame6H", "minervame6I", "minervame6J" */};
         if (std::find(std::begin(filled), std::end(filled), playlist) != std::end(filled)) return 1;
         else if (std::find(std::begin(empty), std::end(empty), playlist) != std::end(empty)) return 2;
         //Is this the most efficient way? Probably not
@@ -438,9 +439,44 @@ namespace util
 
     }
 
+    int getExtendedTarget(int mod, int plane, double vtx_x, double vtx_y) //Get which target this module and plane corresponds to if using extended target definition
+    {
+        PlotUtils::TargetUtils tgtUtil;
+        bool distanceToDivCut = true;
+        //Upstream
+        if ((mod == -2 && plane == 2) || (mod == 0 && plane == 1)) //US/DS of tgt 1
+        {
+        if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., distanceToDivCut )) return 1026;
+        else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., distanceToDivCut )) return 1082;
+        }
+        else if ((mod == 3 && plane == 2) || (mod == 5 && plane == 1)) //US/DS of tgt 2
+        {
+        if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., distanceToDivCut )) return 2026;
+        else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., distanceToDivCut )) return 2082;
+        }
+        else if ((mod == 8 && plane == 2) || (mod == 11 && plane == 1)) //US/DS of tgt 3
+        {
+        if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., distanceToDivCut )) return 3006;
+        else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., distanceToDivCut )) return 3026;
+        else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., distanceToDivCut )) return 3082;
+        }
+        else if ((mod == 18 && plane == 2) || (mod == 20 && plane == 1)) //US/DS of tgt 4 //still check the x and y vertex are within the target
+        {
+            if (tgtUtil.InLead4VolMC( vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850. )) return 4082;
+        }
+        else if ((mod == 21 && plane == 2) || (mod == 23 && plane == 1)) //US/DS of tgt 5
+        {
+        if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., distanceToDivCut )) return 5026;
+        else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., distanceToDivCut )) return 5082;
+        }
+        else if ((mod == 14 && plane == 2) || (mod == 15 && plane == 1)) //US/DS of water target //Still check the x and y vertex are within the target?
+        {
+            if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, (TargetProp::WaterTarget::Face+TargetProp::WaterTarget::Back)/2, 850. )) return 6000;
+        }
+        return -1;
+    }
 
-
-    int getTargetCodeFromVtxInfo(double vtx_x, double vtx_y, double vtx_z, int mod, int plane)
+    int getTargetCodeFromVtxInfo(double vtx_x, double vtx_y, double vtx_z, int mod, int plane, bool extendedTargetDefinition = true)
     {
         PlotUtils::TargetUtils tgtUtil;
         bool distanceToDivCut = true;
@@ -459,60 +495,7 @@ namespace util
         else if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. ) ) return 6000;
         
         //Including the planes immediate up/downstream
-        bool includingUSDSplanes = true; //true; //This is Anezka's fix
-        //Utilising methods to get the z center position of each target to determine what material the x and y positions of interactions in the US/DS planes would correspond to, eg GetTarget1CenterZMC
-        if (includingUSDSplanes)
-        {
-            //Upstream
-            if (mod == -2 && plane == 2) //US of tgt 1
-            {
-            if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1026;
-            else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1082;
-            }
-            else if (mod == 3 && plane == 2) //US of tgt 2
-            {
-            if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2026;
-            else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2082;
-            }
-            else if (mod == 8 && plane == 2) //US of tgt 3
-            {
-            if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3006;
-            else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3026;
-            else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3082;
-            }
-            else if (mod == 18 && plane == 2) return 4082; //US of tgt 4 //Should I still check the x and y vertex are within the target?
-            else if (mod == 21 && plane == 2) //US of tgt 5
-            {
-            if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
-            else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
-            }
-            else if (mod == 14 && plane == 2) return 6000; //US of water target //Should I still check the x and y vertex are within the target?
-
-            //Downstream
-            if (mod == 0 && plane == 1) //US of tgt 1
-            {
-            if (tgtUtil.InIron1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1026;
-            else if (tgtUtil.InLead1VolMC( vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true )) return 1082;
-            }
-            else if (mod == 5 && plane == 1) //US of tgt 2
-            {
-            if (tgtUtil.InIron2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2026;
-            else if (tgtUtil.InLead2VolMC( vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true )) return 2082;
-            }
-            else if (mod == 11 && plane == 1) //US of tgt 3
-            {
-            if (tgtUtil.InCarbon3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3006;
-            else if (tgtUtil.InIron3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3026;
-            else if (tgtUtil.InLead3VolMC( vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true )) return 3082;
-            }
-            else if (mod == 20 && plane == 1) return 4082; //US of tgt 4 //Should I still check the x and y vertex are within the target?
-            else if (mod == 23 && plane == 1) //US of tgt 5
-            {
-            if (tgtUtil.InIron5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5026;
-            else if (tgtUtil.InLead5VolMC( vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true )) return 5082;
-            }
-            else if (mod == 15 && plane == 1) return 6000; //US of water target //Should I still check the x and y vertex are within the target?
-        }
+        if (extendedTargetDefinition) return getExtendedTarget(mod, plane, vtx_x, vtx_y); //Get which target this module and plane corresponds to if using extended target definition
         return -1;
     }
 
@@ -530,6 +513,20 @@ namespace util
         }
     }
 
+    /* template<class HIST>
+    void AddHist(HIST* hist1, HIST* hist2, double scale = 1)
+    {
+        if (hist1->GetEntries() > 0) //If not null
+        {
+            hist1->Add(hist2, scale);
+        }
+        else //If null
+        {
+            hist1 = hist2;
+            hist1->Scale(scale);
+        }
+    } */
+
     //Helper function used to find directories containing root files
     std::vector<std::string> findContainingDirectories(std::string dir, std::string type, bool recursiveSearch = true, bool skipTest = true, int curdepth = 0, int maxdepth = 2)
     {
@@ -543,7 +540,7 @@ namespace util
                 const size_t base = path.find("runEventLoop"+type);
                 if ((base != std::string::npos) && (std::find(dirpaths.begin(), dirpaths.end(), dir) == dirpaths.end()))
                 {
-                    if (!(skipTest && (dir.find("/Test-") != std::string::npos))) dirpaths.push_back(dir); //If skipTest is false or if skipTest is true and the test string isn't found in the path, add to vector
+                    if (!(skipTest && (dir.find("/Test") != std::string::npos))) dirpaths.push_back(dir); //If skipTest is false or if skipTest is true and the test string isn't found in the path, add to vector
                 }
             }
             else if ((ft == std::filesystem::file_type::directory || ft == std::filesystem::file_type::symlink) && recursiveSearch && curdepth<=maxdepth)
@@ -613,7 +610,7 @@ namespace reco
         private:
         bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
         {
-            return (univ.GetInt("rock_muons_removed") == 1);
+            return (univ.GetInt("rock_muons_removed") != 1);
         }
     };
 
@@ -628,7 +625,7 @@ namespace reco
         private:
         bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
         {
-            return (univ.GetInt("VetoWall_event_IsVeto") == 1);
+            return (univ.GetInt("VetoWall_event_IsVeto") != 1);
         }
     };
 };
@@ -639,7 +636,8 @@ namespace util
   std::vector<double> PTBins = {0, 0.075, 0.15, 0.25, 0.325, 0.4, 0.475, 0.55, 0.7, 0.85, 1, 1.25, 1.5, 2.5, 4.5},
                       PzBins = {1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 15, 20, 40, 60},
                       EmuBins = {0,1,2,3,4,5,7,9,12,15,18,22,36,50,75,100,120},
-                      bjorkenXbins = {0.001, 0.02, 0.04, 0.06, 0.08, 0.1, 0.2, 0.3, 0.6, 1 , 2.2},
+                      //bjorkenXbins = {0.001, 0.02, 0.04, 0.06, 0.08, 0.1, 0.2, 0.3, 0.6, 1 , 2.2},
+                      bjorkenXbins = {0.001, 0.02, 0.05, 0.1, 0.2, 0.4, 1 , 2.2},
                       Erecoilbins = {0, 0.2, 0.75, 1.5, 2.5, 3.5, 5, 8, 12, 14.5, 20}; //GeV
                       //Erecoilbins = {0, 200, 750, 1500, 2500, 3500, 5000, 8000, 12000, 14500, 20000}; //MeV
 
@@ -658,7 +656,7 @@ namespace util
     cuts.emplace_back(new reco::MuonCurveSignificance<CVUniverse, MichelEvent>(5));
     cuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
     cuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(20000.0, "EMu Max"));
-    cuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40)); //Reccomended at 0.4 for P6 ML vertexing and 0.2 for P4 vertexing
+    cuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20)); //Reccomended at 0.4 for P6 ML vertexing and 0.2 for P4 vertexing
     //cuts.emplace_back(new reco::RockMuonCut<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
     //cuts.emplace_back(new reco::VetoWall<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
     return cuts;

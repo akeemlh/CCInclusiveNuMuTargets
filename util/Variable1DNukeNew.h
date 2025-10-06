@@ -36,6 +36,10 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
               GetName().c_str(), util::GENIELabels,
               GetBinVec(), truth_error_bands);
 
+      m_originHists = new util::Categorized<Hist, int>((GetName() + "_Origin").c_str(),
+        GetName().c_str(), util::SidebandCategoriesExtWater,
+        GetBinVec(), mc_error_bands);
+
       m_interactionTypeHists = new util::Categorized<Hist, int>((GetName() + "_intType").c_str(),
         GetName().c_str(), util::GENIELabels,
         GetBinVec(), mc_error_bands);
@@ -81,6 +85,8 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
     //These histograms plot the distrubution of interaction channels
     util::Categorized<Hist, int>*  m_interactionTypeHists;
     util::Categorized<Hist, int>* m_intChannelsEffDenom;
+
+    util::Categorized<Hist, int>* m_originHists;
 
     void InitializeDATAHists(std::vector<CVUniverse*>& data_error_bands)
     {
@@ -169,6 +175,12 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
                                 categ.hist->SetDirectory(&file);
                                 categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
                               });
+
+      m_originHists->visit([&file](Hist& categ)
+                              {
+                                categ.hist->SetDirectory(&file);
+                                categ.hist->Write(); //TODO: Or let the TFile destructor do this the "normal" way?                                                                                           
+                              });
     }
 
     //Only call this manually if you Draw(), Add(), or Divide() plots in this
@@ -181,6 +193,7 @@ class Variable1DNuke: public PlotUtils::VariableBase<CVUniverse>
       m_sidebandHistSetUSMC->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_sidebandHistSetDSMC->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_interactionTypeHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
+      m_originHists->visit([](Hist& categ) { categ.SyncCVHistos(); });
       m_intChannelsEffDenom->visit([](Hist& categ) { categ.SyncCVHistos(); });
       if(dataHist) dataHist->SyncCVHistos();
       if(m_US_Sideband_Data) m_US_Sideband_Data->SyncCVHistos();

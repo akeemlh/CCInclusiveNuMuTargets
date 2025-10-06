@@ -57,6 +57,8 @@
 #include "TKey.h"
 #include "TParameter.h"
 #include "TCanvas.h"
+#include "TColor.h"
+#include "TLatex.h"
 #include "string.h"
 
 // Cintex is only needed for older ROOT versions like the GPVMs.
@@ -223,7 +225,8 @@ int main(const int argc, const char **argv)
 
   std::vector<std::string> dirs = util::findContainingDirectories(indir, "Tracker", true);
 
-  std::vector<std::string> crossSectionPrefixes = {"tracker_pTmu", "tracker_pZmu", "tracker_BjorkenX", "tracker_Erecoil", "tracker_Emu"};
+  //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
+  std::vector<std::string> crossSectionPrefixes = {"pTmu"};
 
   double mcPOT = 0;
   double dataPOT = 0;
@@ -232,7 +235,7 @@ int main(const int argc, const char **argv)
 
   for (const auto &prefix : crossSectionPrefixes)
   {
-    //if (!(prefix == "tracker_Erecoil" || prefix == "tracker_pTmu")) continue; //Used for testing with only subset of prefixes
+    //if (!(prefix == "Erecoil" || prefix == "pTmu")) continue; //Used for testing with only subset of prefixes
     std::cout << "Currently working on variable: " << prefix << std::endl;
     try
     {
@@ -249,6 +252,19 @@ int main(const int argc, const char **argv)
       std::vector<PlotUtils::MnvH1D*> DaisyBackgrounds[12];
       PlotUtils::MnvH1D *DaisyEffDenom[12], *DaisyEffDenom2P2H[12], *DaisyEffDenomDIS[12], *DaisyEffDenomRES[12], *DaisyEffDenomQE[12], *DaisyEffDenomOther[12];
 
+      for (int c = 0; c<12; c++)
+      {
+        DaisyEffNum[c] = new PlotUtils::MnvH1D();
+        DaisyFolded[c] = new PlotUtils::MnvH1D();
+        DaisyMigration[c] = new PlotUtils::MnvH2D();
+        DaisyEffDenom[c] = new PlotUtils::MnvH1D();
+        DaisyEffDenom2P2H[c] = new PlotUtils::MnvH1D();
+        DaisyEffDenomDIS[c] = new PlotUtils::MnvH1D();
+        DaisyEffDenomRES[c] = new PlotUtils::MnvH1D();
+        DaisyEffDenomQE[c] = new PlotUtils::MnvH1D();
+        DaisyEffDenomOther[c] = new PlotUtils::MnvH1D();
+      }
+
       PlotUtils::MnvH1D* flux = new PlotUtils::MnvH1D();
       PlotUtils::MnvH1D* folded = new PlotUtils::MnvH1D();
       PlotUtils::MnvH2D* migration = new PlotUtils::MnvH2D();
@@ -264,86 +280,38 @@ int main(const int argc, const char **argv)
       PlotUtils::MnvH1D* BackgroundNC = new PlotUtils::MnvH1D();
       PlotUtils::MnvH1D* BackgroundOther = new PlotUtils::MnvH1D();
 
+      PlotUtils::MnvH1D* SelectedSignalReco = new PlotUtils::MnvH1D();
+
+      PlotUtils::MnvH1D* MCData = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCData2p2h = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataDIS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataRES = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataQE = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataOther = new PlotUtils::MnvH1D();
+
       std::vector<PlotUtils::MnvH1D *> backgrounds;
 
       for (int c = 0; c<dirs.size(); c++)
       {
         std::cout<<"Investigating directory " << dirs[c] << " which is " << c+1 <<"/"<<dirs.size() <<" playlists identified" <<std::endl;
-        std::string datapath = dirs[c] + "/runEventLoopTrackerData.root";
-        std::string mcpath = dirs[c] + "/runEventLoopTrackerMC.root";
-
-        auto dataFile = TFile::Open(datapath.c_str(), "READ");
-        if (!dataFile)
-        {
-          std::cerr << "Failed to open data file " << datapath.c_str() << ".\n";
-          return 2;
-        }
-
-        auto mcFile = TFile::Open(mcpath.c_str(), "READ");
-        if (!mcFile)
-        {
-          std::cerr << "Failed to open MC file " << mcpath.c_str() << ".\n";
-          return 3;
-        }
-
-        std::string playlistUsed = util::GetIngredient<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
-        int filledorempty = util::filledOrEmptyMEPlaylist(playlistUsed);
-
-        int nuoranu = util::nuOrAntiNuMode(playlistUsed);
-        int nupdg;
-        if (nuoranu==1) nupdg = 14;
-        else if (nuoranu==2) nupdg = -14;
-
-        if (pdg!=nupdg)
-        {
-          std::cout<<"Skipping this set of files because this playlist pdg is " << nupdg << " but you specified " << pdg << std::endl;
-          continue;
-        }
-        util::AddHist(*folded,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("data")), prefix));
-        util::AddHist(*migration,util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration")), prefix));
-        util::AddHist(*effNum,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator")), prefix));
-        util::AddHist(*effDenom,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator")), prefix));
-        util::AddHist(*effDenom2P2H,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix));
-        util::AddHist(*effDenomDIS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix));
-        util::AddHist(*effDenomRES,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix));
-        util::AddHist(*effDenomQE,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix));
-        util::AddHist(*effDenomOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix));
-
-        util::AddHist(*BackgroundWrongSign,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Wrong_Sign")), prefix));
-        util::AddHist(*BackgroundNC,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_NC")), prefix));
-        util::AddHist(*BackgroundOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Other")), prefix));
-
-        backgrounds.push_back(BackgroundWrongSign);
-        backgrounds.push_back(BackgroundNC);
-        backgrounds.push_back(BackgroundOther);        
-
-        mcPOT += util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
-        double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
-        dataPOT+=tempDataPOT;
-
-        playlistPOTpair.push_back(std::make_pair(playlistUsed, tempDataPOT));
-
-        PlotUtils::FluxReweighter frw_temp = PlotUtils::FluxReweighter( nupdg, use_nue_constraint, playlistUsed, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
-        auto tempIntFlux = frw_temp.GetIntegratedFluxReweighted(nupdg, effDenom, min_energy, max_energy, true)->Clone();
-        tempIntFlux->Scale(tempDataPOT);
-        util::AddHist(*fluxIntReweighted,tempIntFlux);
-
-        dataFile->Close();
-        mcFile->Close();
 
         //***********************************************
         //Daisy reweight
         //Getting ingredients
         //***********************************************
+        doDaisy = true;
         for (int petal=0; petal<12; petal++){
           std::string datapathdaisy = dirs[c] + "/runEventLoopTrackerData_petal_"+std::to_string(petal)+".root";
           std::string mcpathdaisy = dirs[c] + "/runEventLoopTrackerMC_petal_"+std::to_string(petal)+".root";
           bool petalFilesExist = std::filesystem::exists(datapathdaisy) && std::filesystem::exists(mcpathdaisy);
+          std::cout<< "petalFilesExist: "<< petalFilesExist<<std::endl;
           doDaisy = doDaisy && petalFilesExist;
         }
-        doDaisy=false;
-        if (!doDaisy) std::cout<<"Will not do daisy petal reweight in this analysis\n";
-        for (int petal=0; petal<12 && doDaisy; petal++){
+        //doDaisy=false;#
+        if (doDaisy) std::cout<<"Will do daisy petal reweight in this analysis\n";
+        else std::cout<<"Will not do daisy petal reweight in this analysis\n";
+        for (int petal=-1; petal<12 && doDaisy; petal++){
+          //std::cout<< "Here0"<<std::endl;
           std::string datapathdaisy = dirs[c] + "/runEventLoopTrackerData_petal_"+std::to_string(petal)+".root";
           std::string mcpathdaisy = dirs[c] + "/runEventLoopTrackerMC_petal_"+std::to_string(petal)+".root";
           auto dataDaisyFile = TFile::Open(datapathdaisy.c_str(), "READ");
@@ -360,30 +328,127 @@ int main(const int argc, const char **argv)
             return 3;
           }
 
+          //std::cout<< "Here1"<<std::endl;
 
-          util::AddHist(*DaisyEffNum[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_numerator")), prefix));
-          util::AddHist(*DaisyEffDenom[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator")), prefix));
-          util::AddHist(*DaisyMigration[petal], util::GetIngredient<PlotUtils::MnvH2D>(*mcDaisyFile, (std::string("migration")), prefix));
-          util::AddHist(*DaisyFolded[petal], util::GetIngredient<PlotUtils::MnvH1D>(*dataDaisyFile, (std::string("data")), prefix));
-          DaisyBackgrounds[petal].push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("background_Wrong_Sign")), prefix));
-          DaisyBackgrounds[petal].push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("background_NC")), prefix));
-          DaisyBackgrounds[petal].push_back(util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("background_Other")), prefix));
-          //Backgrounds
-          util::AddHist(*DaisyEffDenom2P2H[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix));
-          util::AddHist(*DaisyEffDenomDIS[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix));
-          util::AddHist(*DaisyEffDenomRES[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_RES")), prefix));
-          util::AddHist(*DaisyEffDenomQE[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_QE")), prefix));
-          util::AddHist(*DaisyEffDenomOther[petal], util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_Other")), prefix));
+          std::string playlistUsed = util::GetIngredient<TNamed>(*mcDaisyFile, "PlaylistUsed")->GetTitle();
+          int filledorempty = util::filledOrEmptyMEPlaylist(playlistUsed);
 
+          int nuoranu = util::nuOrAntiNuMode(playlistUsed);
+          int nupdg;
+          if (nuoranu==1) nupdg = 14;
+          else if (nuoranu==2) nupdg = -14;
+
+          if (pdg!=nupdg)
+          {
+            std::cout<<"Skipping this set of files because this playlist pdg is " << nupdg << " but you specified " << pdg << std::endl;
+            continue;
+          }
+
+          //std::cout<< "Here2"<<std::endl;
+
+          auto tmpEffNum = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_numerator")), prefix);
+          auto tmpEffDenom = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator")), prefix);
+          auto tmpMigration = util::GetIngredient<PlotUtils::MnvH2D>(*mcDaisyFile, (std::string("migration")), prefix);
+          auto tmpFolded = util::GetIngredient<PlotUtils::MnvH1D>(*dataDaisyFile, (std::string("data")), prefix);
+          auto tmpEffDenom2P2H = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix);
+          auto tmpEffDenomDIS = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix);
+          auto tmpEffDenomRES = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_RES")), prefix);
+          auto tmpEffDenomQE = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_QE")), prefix);
+          auto tmpEffDenomOther = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("efficiency_denominator_intChannels_Other")), prefix);
+
+          auto tmpBkgWS = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("background_Wrong_Sign")), prefix);
+          auto tmpBkgNC = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("background_NC")), prefix);
+          auto tmpBkgOther = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("background_Other")), prefix);
+
+          auto tmpSelectedSignalReco = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("selected_signal_reco")), prefix);
+          
+          auto tmpMCData = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("data")), prefix);
+          auto tmpMCData2p2h = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("intChannels_2p2h")), prefix);
+          auto tmpMCDataDIS = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("intChannels_DIS")), prefix);
+          auto tmpMCDataRES = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("intChannels_RES")), prefix);
+          auto tmpMCDataQE = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("intChannels_QE")), prefix);
+          auto tmpMCDataOther = util::GetIngredient<PlotUtils::MnvH1D>(*mcDaisyFile, (std::string("intChannels_Other")), prefix);
+
+          if (petal>=0)
+          {
+            //std::cout<< "Here2.1"<<std::endl;
+            std::cout<< "petal:"<<petal<<std::endl;
+            util::AddHist(*DaisyEffNum[petal], tmpEffNum);
+            //std::cout<< "Here2.11"<<std::endl;
+
+            util::AddHist(*DaisyEffDenom[petal], tmpEffDenom);
+            util::AddHist(*DaisyMigration[petal], tmpMigration);
+            util::AddHist(*DaisyFolded[petal], tmpFolded);
+            util::AddHist(*DaisyEffDenom2P2H[petal], tmpEffDenom2P2H);
+            util::AddHist(*DaisyEffDenomDIS[petal], tmpEffDenomDIS);
+            util::AddHist(*DaisyEffDenomRES[petal], tmpEffDenomRES);
+            util::AddHist(*DaisyEffDenomQE[petal], tmpEffDenomQE);
+            util::AddHist(*DaisyEffDenomOther[petal], tmpEffDenomOther);
+
+            //std::cout<< "Here2.2"<<std::endl;
+
+            DaisyBackgrounds[petal].push_back(tmpBkgWS);
+            DaisyBackgrounds[petal].push_back(tmpBkgNC);
+            DaisyBackgrounds[petal].push_back(tmpBkgOther);
+          }
+
+          backgrounds.push_back(tmpBkgWS);
+          backgrounds.push_back(tmpBkgNC);
+          backgrounds.push_back(tmpBkgOther);
+
+          //std::cout<< "Here2.3"<<std::endl;
+
+          if (petal >=0){
+          util::AddHist(*folded, tmpFolded);
+          util::AddHist(*migration,tmpMigration);
+          util::AddHist(*effNum, tmpEffNum);
+          util::AddHist(*effDenom, tmpEffDenom);
+          util::AddHist(*effDenom2P2H, tmpEffDenom2P2H);
+          util::AddHist(*effDenomDIS, tmpEffDenomDIS);
+          util::AddHist(*effDenomRES, tmpEffDenomRES);
+          util::AddHist(*effDenomQE, tmpEffDenomQE);
+          util::AddHist(*effDenomOther, tmpEffDenomOther);
+
+          util::AddHist(*BackgroundWrongSign, tmpBkgWS);
+          util::AddHist(*BackgroundNC, tmpBkgNC);
+          util::AddHist(*BackgroundOther,tmpBkgOther);
+
+          util::AddHist(*SelectedSignalReco,tmpSelectedSignalReco);
+                    
+          util::AddHist(*MCData, tmpMCData);
+          util::AddHist(*MCData2p2h, tmpMCData2p2h);
+          util::AddHist(*MCDataDIS,tmpMCDataDIS);
+          util::AddHist(*MCDataRES, tmpMCDataRES);
+          util::AddHist(*MCDataQE, tmpMCDataQE);
+          util::AddHist(*MCDataOther,tmpMCDataOther);
+          }
+
+          //std::cout<< "Here2.4"<<std::endl;
+
+
+          if (petal ==0)
+          {
+            mcPOT += util::GetIngredient<TParameter<double>>(*mcDaisyFile, "POTUsed")->GetVal();
+            double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataDaisyFile, "POTUsed")->GetVal();
+            dataPOT+=tempDataPOT;
+            playlistPOTpair.push_back(std::make_pair(playlistUsed, tempDataPOT));
+
+            PlotUtils::FluxReweighter frw_temp = PlotUtils::FluxReweighter( nupdg, use_nue_constraint, playlistUsed, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
+            auto tempIntFlux = frw_temp.GetIntegratedFluxReweighted(nupdg, effDenom, min_energy, max_energy, true)->Clone();
+            tempIntFlux->Scale(tempDataPOT);
+            util::AddHist(*fluxIntReweighted,tempIntFlux);
+          }
           dataDaisyFile->Close();
           mcDaisyFile->Close();
 
+          //std::cout<< "Here3"<<std::endl;
+
         }
       }
-
+      doDaisy = true; //Hacky
       //Normalising the integrated flux across different playlists by dataPOT
       fluxIntReweighted->Scale(1/dataPOT);
-
+      //std::cout<< "Here4"<<std::endl;
       auto simEventRate = effDenom->Clone(); // Make a copy for later
       auto simEventRate2P2H = effDenom2P2H->Clone(); // Make a copy for later
       auto simEventRateDIS = effDenomDIS->Clone(); // Make a copy for later
@@ -392,7 +457,9 @@ int main(const int argc, const char **argv)
       auto simEventRateOther = effDenomOther->Clone(); // Make a copy for later
       // There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
       folded->AddMissingErrorBandsAndFillWithCV(*migration);
+      //std::cout<< "Here5"<<std::endl;
       for (int petal=0; petal<12 && doDaisy; petal++) DaisyFolded[petal]->AddMissingErrorBandsAndFillWithCV(*(DaisyMigration[petal]));
+      //std::cout<< "Here5.1"<<std::endl;
 
       // Basing my unfolding procedure for a differential cross section on Alex's MINERvA 101 talk at https://minerva-docdb.fnal.gov/cgi-bin/private/RetrieveFile?docid=27438&filename=whatsACrossSection.pdf&version=1
 
@@ -404,6 +471,7 @@ int main(const int argc, const char **argv)
                                           return sum;
                                         });
       Plot(*toSubtract, "BackgroundSum", prefix);
+      //std::cout<< "Here5.2"<<std::endl;
 
       auto bkgSubtracted = std::accumulate(backgrounds.begin(), backgrounds.end(), folded->Clone(),
                                             [mcPOT, dataPOT](auto sum, const auto hist)
@@ -413,6 +481,7 @@ int main(const int argc, const char **argv)
                                               return sum;
                                             });
       Plot(*bkgSubtracted, "backgroundSubtracted", prefix);
+      //std::cout<< "Here6"<<std::endl;
       auto outFile = TFile::Open((prefix + "_crossSection.root").c_str(), "RECREATE");
       if (!outFile)
       {
@@ -456,7 +525,13 @@ int main(const int argc, const char **argv)
       simEventRateRES->Write("simulatedEventRateRES");
       simEventRateQE->Write("simulatedEventRateQE");
       simEventRateOther->Write("simulatedEventRateOther");
-
+      MCData->Write("mcData");
+      MCData2p2h->Write("MCData2p2h");
+      MCDataDIS->Write("MCDataDIS");
+      MCDataRES->Write("MCDataRES");
+      MCDataQE->Write("MCDataQE");
+      MCDataOther->Write("MCDataOther");
+      folded->Write("folded");
       fluxIntReweighted->Write("fluxIntReweighted");
 
       // Write a "simulated cross section" to compare to the data I just extracted.
@@ -551,16 +626,34 @@ int main(const int argc, const char **argv)
 
         }
       
-        PlotUtils::MnvH1D *fluxIntegralC, *fluxIntegralFe, *fluxIntegralPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedC, *DaisyCorrectedFe, *DaisyCorrectedPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedSimC, *DaisyCorrectedSimFe, *DaisyCorrectedSimPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedSim2p2hC, *DaisyCorrectedSim2p2hFe, *DaisyCorrectedSim2p2hPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedSimDISC, *DaisyCorrectedSimDISFe, *DaisyCorrectedSimDISPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedSimRESC, *DaisyCorrectedSimRESFe, *DaisyCorrectedSimRESPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedSimQEC, *DaisyCorrectedSimQEFe, *DaisyCorrectedSimQEPb; 
-        PlotUtils::MnvH1D *DaisyCorrectedSimOtherC, *DaisyCorrectedSimOtherFe, *DaisyCorrectedSimOtherPb; 
+        PlotUtils::MnvH1D *fluxIntegralC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *fluxIntegralFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *fluxIntegralPb = new PlotUtils::MnvH1D(); 
+        PlotUtils::MnvH1D *DaisyCorrectedC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedPb = new PlotUtils::MnvH1D(); 
+        PlotUtils::MnvH1D *DaisyCorrectedSimC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimPb = new PlotUtils::MnvH1D(); 
+        PlotUtils::MnvH1D *DaisyCorrectedSim2p2hC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSim2p2hFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSim2p2hPb = new PlotUtils::MnvH1D(); 
+        PlotUtils::MnvH1D *DaisyCorrectedSimDISC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimDISFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimDISPb = new PlotUtils::MnvH1D(); 
+        PlotUtils::MnvH1D *DaisyCorrectedSimRESC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimRESFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimRESPb = new PlotUtils::MnvH1D(); 
+        PlotUtils::MnvH1D *DaisyCorrectedSimQEC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimQEFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimQEPb = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimOtherC = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimOtherFe = new PlotUtils::MnvH1D();
+        PlotUtils::MnvH1D *DaisyCorrectedSimOtherPb = new PlotUtils::MnvH1D(); 
+        std::cout<<"ABC1\n";
         for (auto pp : playlistPOTpair)
         {
+          std::cout<<"ABC1.1\n";
           PlotUtils::FluxReweighter *frw = new PlotUtils::FluxReweighter( pdg, use_nue_constraint, pp.first, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
 
           util::AddHist(*DaisyCorrectedC, frw->GetReweightedDaisySum(14, "carbon", daisy_petal_hists, project_dir ), pp.second);
@@ -589,6 +682,7 @@ int main(const int argc, const char **argv)
           util::AddHist(*DaisyCorrectedSimOtherFe, frw->GetReweightedDaisySum(14, "iron", daisy_petal_hists_eff_denom_other, project_dir ), pp.second);
           util::AddHist(*DaisyCorrectedSimOtherPb, frw->GetReweightedDaisySum(14, "lead", daisy_petal_hists_eff_denom_other, project_dir ), pp.second);
         }
+        std::cout<<"ABC2\n";
 
         fluxIntegralC->Scale(1/dataPOT);
         fluxIntegralFe->Scale(1/dataPOT);
@@ -625,65 +719,396 @@ int main(const int argc, const char **argv)
         PlotUtils::MnvH1D *crossSectionSimCRes, *crossSectionSimFeRes, *crossSectionSimPbRes;
         PlotUtils::MnvH1D *crossSectionSimCQE, *crossSectionSimFeQE, *crossSectionSimPbQE;
         PlotUtils::MnvH1D *crossSectionSimCOther, *crossSectionSimFeOther, *crossSectionSimPbOther;
+        std::cout<<"ABC3\n";
+
+
+
+
+        int mcColors[12] = {   TColor::GetColor("#332288"), 
+                          TColor::GetColor("#117733"),
+                          TColor::GetColor("#44AA99"), 
+                          TColor::GetColor("#88CCEE"), 
+                          TColor::GetColor("#DDCC77"), 
+                          TColor::GetColor("#E2AC34"), 
+                          TColor::GetColor("#CC6677"), 
+                          TColor::GetColor("#AA4499"), 
+                          TColor::GetColor("#882255"), 
+                          TColor::GetColor("#9E92D8"), 
+                          17,
+                          12};
+
+        double normPOT = 1.12e+21;
+        { 
+          TCanvas can("Temp");
+          TLegend *leg = new TLegend(0.6,0.5,0.9,0.9);
+          leg->SetBorderSize(0);   // no border
+          leg->SetFillColorAlpha(0, 0);    // transparent background
+          for (int p = 0; p<12; p++)
+          {
+            auto tmpData = daisy_petal_hists[p]->Clone((std::string("Petal ") + std::to_string(p)).c_str());
+            auto tmpMC = daisy_petal_hists_eff_denom[p]->Clone((std::string("Petal ") + std::to_string(p)).c_str());
+            tmpData->Scale(1e-3);
+            tmpMC->Scale(1e-3);
+            tmpMC->Scale(dataPOT/mcPOT);
+
+            tmpData->SetMarkerStyle(20);
+            tmpData->SetMarkerSize(1);
+            tmpData->SetMarkerColor(mcColors[p]);
+            tmpData->SetLineWidth(1);
+            tmpData->SetLineStyle(1);
+            tmpData->SetLineColor(mcColors[p]);
+
+            tmpMC->SetLineColor(mcColors[p]);
+            tmpMC->SetLineWidth(3);
+            tmpMC->SetLineStyle(1);
+
+            std::string tmp, xaxislabel, yaxislabel;
+            if (prefix=="pTmu")
+            {
+              tmp = "Tracker Muon p_{T}";
+              xaxislabel = "p_{T, #mu} [GeV/c]";
+              yaxislabel = "Events #times 10^{3} /(GeV/c)";
+
+              tmpMC->GetXaxis()->SetRange(1, 13);
+            }
+            else if (prefix=="pZmu")
+            {
+              tmp = "Tracker  Muon p_{Z}";
+              xaxislabel = "p_{Z, #mu} [GeV/c]";
+              yaxislabel = "Events #times 10^{3} /(GeV/c)";
+              tmpMC->GetXaxis()->SetRange(1, 13);
+              tmpData->GetXaxis()->SetRange(1, 13);
+            }
+            else if (prefix=="BjorkenX")
+            {
+              tmp = "Tracker  Bjorken X";
+              xaxislabel = "X";
+              yaxislabel = "Events #times 10^{3} per unit X";
+              tmpMC->GetXaxis()->SetRange(1, 9);
+              can.SetLogx();
+            }
+            else if (prefix=="Erecoil")
+            {
+              tmp = "Tracker E_{recoil}";
+              xaxislabel = "E_{recoil} [GeV]";
+              yaxislabel = "Events #times 10^{3} /(GeV/c)";
+
+            } 
+            else if (prefix=="Emu")
+            {
+              tmp = "Tracker  E_{#mu}";
+              xaxislabel = "E_{#mu} [GeV]";
+              yaxislabel = "Events #times 10^{3} /(GeV/c)";
+              tmpMC->GetXaxis()->SetRange(1, 11);
+            }
+            tmpMC->GetYaxis()->SetTitle(yaxislabel.c_str());
+            tmpMC->GetXaxis()->SetTitle(xaxislabel.c_str());
+            tmpMC->GetXaxis()->SetTitleSize(0.04);
+            tmpMC->SetTitle(tmp.c_str());
+            tmpMC->Scale(1, "Width");
+            tmpData->Scale(1, "Width");
+            tmpMC->SetMaximum(tmpMC->GetMaximum()*1.4);
+            tmpMC->Draw("HIST SAME");
+            tmpData->Draw("P SAME");
+
+            std::stringstream POTstr;
+            POTstr << std::fixed << std::scientific << std::setprecision(2) << dataPOT;
+            std::string potstr = std::string("POT Normalised: ")+POTstr.str();
+
+            TLatex latex;
+            latex.SetNDC();               // use normalized coordinates (0–1 across pad)
+            latex.SetTextSize(0.02);      // text size
+            latex.SetTextAlign(31);       // align top-left
+            //latex.SetTextColor(12);
+            latex.SetTextFont(62);
+            latex.DrawLatex(0.93, 0.94, potstr.c_str());
+            TLatex latex2;
+            latex2.SetNDC();               // use normalized coordinates (0–1 across pad)
+            latex2.SetTextSize(0.04);      // text size
+            latex2.SetTextAlign(22);       // align top-left
+            latex2.SetTextFont(62);       // align top-left
+            //latex2.SetTextColor(12);
+            latex2.DrawLatex(0.5, 0.95, tmp.c_str());
+
+            leg->AddEntry(tmpMC, (std::string("Petal ") + std::to_string(p)).c_str(), "l");
+          }
+          leg->Draw();
+          PlotUtils::MnvPlotter plotter;
+          plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+          plotter.WritePreliminary( 0.4, 0.87, 0.035, false);
+
+          can.Print((prefix+"_EvRate.png").c_str());
+        }
+
+
+
+        { //Plotting event rates
+          TCanvas can("Temp");
+          // Uncertainty summary
+          PlotUtils::MnvPlotter plotter;
+          plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+          plotter.axis_label_font=43;
+          plotter.axis_label_size = 25;
+          plotter.headroom = 1.2;
+          /* plotter.axis_title_font_y=43;
+          plotter.axis_title_size_y = 35;
+          plotter.axis_title_font_x=43;
+          plotter.axis_title_size_x = 35;
+ */
+          plotter.ApplyAxisStyle();
+          //plotter.axis_maximum = 0.4;
+          auto temp2p2h = MCData2p2h->Clone();
+          auto tempdis = MCDataDIS->Clone();
+          auto tempres = MCDataRES->Clone();
+          auto tempqe = MCDataQE->Clone();
+          auto tempChannelOther = MCDataOther->Clone();
+
+          auto tempWS = BackgroundWrongSign->Clone();
+          auto tempNC = BackgroundNC->Clone();
+          auto tempBackgroundOther = BackgroundOther->Clone();
+          auto tempsignal = SelectedSignalReco->Clone();
+
+          auto tempevrate = folded->Clone();
+          auto tempsim = MCData->Clone();
+
+          tempWS->SetTitle("Wrong Sign");
+          tempNC->SetTitle("Neutral Current");
+          tempBackgroundOther->SetTitle("Other");
+          tempsignal->SetTitle("Signal");
+
+
+          temp2p2h->Scale(1e-3);
+          tempdis->Scale(1e-3);
+          tempres->Scale(1e-3);
+          tempqe->Scale(1e-3);
+          tempChannelOther->Scale(1e-3);
+
+          tempWS->Scale(1e-3);
+          tempNC->Scale(1e-3);
+          tempBackgroundOther->Scale(1e-3);
+          tempsim->Scale(1e-3);
+          tempsignal->Scale(1e-3);
+
+          tempevrate->Scale(1e-3);
+
+          //double normPOT = 1.12e+21;
+
+          temp2p2h->Scale(dataPOT/mcPOT);
+          tempdis->Scale(dataPOT/mcPOT);
+          tempres->Scale(dataPOT/mcPOT);
+          tempqe->Scale(dataPOT/mcPOT);
+          tempChannelOther->Scale(dataPOT/mcPOT);
+
+          tempWS->Scale(dataPOT/mcPOT);
+          tempNC->Scale(dataPOT/mcPOT);
+          tempBackgroundOther->Scale(dataPOT/mcPOT);
+          tempsignal->Scale(dataPOT/mcPOT);
+
+          tempsim->Scale(dataPOT/mcPOT);
+          //std::cout<<"dataScale = " << normPOT << "/" << dataPOT << " = " << normPOT/dataPOT << std::endl;
+          //std::cout<<"mcScale = " << normPOT << "/" << mcPOT << " = " << normPOT/mcPOT << std::endl;
+
+          //tempevrate->Scale(normPOT/dataPOT);
+
+          TObjArray* channelArr = new TObjArray();
+          channelArr->Add(temp2p2h);
+          channelArr->Add(tempdis);
+          channelArr->Add(tempres);
+          channelArr->Add(tempqe);
+          channelArr->Add(tempChannelOther);
+
+          TObjArray* bkgArr = new TObjArray();
+          bkgArr->Add(tempWS);
+          bkgArr->Add(tempNC);
+          bkgArr->Add(tempBackgroundOther);
+          bkgArr->Add(tempsignal);
+
+          std::string tmp; 
+          std::string y_title="Events#times10^{3}";
+          std::cout<<"Here2.n";
+          double xmax = -1111; //Default value
+          std::string xaxislabel = "";
+          if (prefix=="pTmu")
+          {
+            tmp = "Muon p_{T}";
+            xaxislabel = "Reconstructed p_{T, #mu} [GeV/c]";
+            y_title += " /(GeV/c)";
+            xmax = 13;
+            tempsim->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="pZmu")
+          {
+            tmp = "Muon p_{Z}";
+            xaxislabel = "Reconstructed p_{Z, #mu} [GeV/c]";
+            y_title += " /(GeV/c)";
+            xmax = 13;
+            tempsim->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="BjorkenX")
+          {
+            tmp = "Bjorken X";
+            xaxislabel = "Reconstructed Bjorken X";
+            y_title += " per unit X";
+            xmax = 7;
+            tempsim->GetXaxis()->SetRange(1, xmax);
+            can.SetLogx();
+          }
+          else if (prefix=="Erecoil")
+          {
+            tmp = "E_{recoil}";
+            y_title += " /GeV";
+            xaxislabel = "Reconstructed E_{recoil} [GeV]";
+          } 
+          else if (prefix=="Emu")
+          {
+            tmp = "E_{#mu}";
+            y_title += " /GeV";
+            xaxislabel = "Reconstructed E_{#mu} [GeV]";
+            xmax = 11;
+            tempsim->GetXaxis()->SetRange(1, xmax);
+          } 
+
+          std::string title = tmp + " Plastic Tracker";
+          plotter.axis_title_size_y=0.03;
+          plotter.axis_title_offset_y=1.8;
+
+          plotter.DrawErrorSummary(tempsim);
+          can.Print((prefix+"_EvRateErrors.png").c_str());
+          can.Clear();
+
+
+          // Adjust pad heights manually (top bigger, bottom smaller)
+          TPad *pad1 = new TPad("pad1","pad1",0,0.35,1,1.0); // top pad
+          TPad *pad2 = new TPad("pad2","pad2",0,0.05,1,0.35); // bottom pad
+          pad1->SetBottomMargin(0); // remove x-axis label space for top
+          pad2->SetTopMargin(0);
+          pad2->SetBottomMargin(0.25);
+          pad1->Draw();
+          pad2->Draw();
+
+          if (prefix=="BjorkenX")
+          {
+            pad1->SetLogx();
+            pad2->SetLogx();
+          }
+
+          double defaultmin = plotter.axis_minimum;
+          plotter.legend_offset_x = 0.1325;
+          plotter.legend_border_size = 0;
+          plotter.legend_text_size = 0.03;
+
+          plotter.mc_line_width=0;
+          std::stringstream POTstr;
+          POTstr << std::fixed << std::scientific << std::setprecision(2) << dataPOT;
+          std::string potstr = std::string("POT Normalised: ")+POTstr.str();
+          plotter.WritePreliminary( 0.5, 0.15, 0.035, true);
+          plotter.AddPlotLabel(potstr.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
+          plotter.AddPlotLabel(title.c_str() , 0.5, 0.97, 25, 1, 53, 22, 0);
+          plotter.AddPlotLabel(y_title.c_str() , 0.08, 0.9, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel("Data/MC" , 0.08, 0.3, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel(xaxislabel.c_str() , 0.9, 0.08, 0.03, 1, 42, 33, 0);
+
+          //Interaction Type
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempevrate, channelArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempevrate->Draw("AXIS SAME");
+          can.cd();
+
+          can.Print((prefix+"_EvRateByIntType.png").c_str());
+
+          //Backgrounds
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+          plotter.DrawDataStackedMC(tempevrate, bkgArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempevrate->Draw("AXIS SAME");
+          can.cd();
+          can.Print((prefix+"_EvRateByBackgrounds.png").c_str());
+          can.SetLogx(0);
+          can.SetLogy(0);
+        }
+
+
+
+
+
+
+
 
         //Carbon
         {
-          DaisyCorrectedC->Write((prefix+"DaisyCorrectedC").c_str());
-          crossSectionC = normalize(DaisyCorrectedC, fluxIntegralC, nnucleonsData, dataPOT);
           outFileDaisy->cd();
+          DaisyCorrectedC->Write((prefix+"_DaisyCorrectedC").c_str());
+          //fluxIntegralC->Write((prefix+"_fluxIntegralC").c_str());
+          //DaisyCorrectedSimC->Write((prefix+"_DaisyCorrectedSimC").c_str());
+          //DaisyCorrectedSim2p2hC->Write((prefix+"_DaisyCorrectedSim2p2hC").c_str());
+          crossSectionC = normalize(DaisyCorrectedC, fluxIntegralC, nnucleonsData, dataPOT);
           crossSectionC->Write((prefix+"_C_CrossSection").c_str());
           crossSectionSimC = normalize(DaisyCorrectedSimC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimC->Write((prefix+"_C_CrossSectionSimulated").c_str());
-          crossSectionSimC2p2h = normalize(DaisyCorrectedSim2p2hC, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimC2p2h = normalize(DaisyCorrectedSim2p2hC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimC2p2h->Write((prefix+"_C_CrossSectionSimulated2p2h").c_str());
-          crossSectionSimCDIS = normalize(DaisyCorrectedSimDISC, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimCDIS = normalize(DaisyCorrectedSimDISC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimCDIS->Write((prefix+"_C_CrossSectionSimulatedDIS").c_str());
-          crossSectionSimCRes = normalize(DaisyCorrectedSimRESC, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimCRes = normalize(DaisyCorrectedSimRESC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimCRes->Write((prefix+"_C_CrossSectionSimulatedRES").c_str());
-          crossSectionSimCQE = normalize(DaisyCorrectedSimQEC, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimCQE = normalize(DaisyCorrectedSimQEC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimCQE->Write((prefix+"_C_CrossSectionSimulatedQE").c_str());
-          crossSectionSimCOther= normalize(DaisyCorrectedSimOtherC, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimCOther= normalize(DaisyCorrectedSimOtherC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimCOther->Write((prefix+"_C_CrossSectionSimulatedOther").c_str());
         }
+        std::cout<<"ABC4\n";
 
         //Iron
         {
+          outFileDaisy->cd();
           DaisyCorrectedFe->Write((prefix+"DaisyCorrectedFe").c_str());
           crossSectionFe = normalize(DaisyCorrectedFe, fluxIntegralFe, nnucleonsData, dataPOT);
-          outFileDaisy->cd();
           crossSectionFe->Write((prefix+"_Fe_CrossSection").c_str());
           crossSectionSimFe = normalize(DaisyCorrectedSimFe, fluxIntegralFe, nnucleons, mcPOT);
           crossSectionSimFe->Write((prefix+"_Fe_CrossSectionSimulated").c_str());
-          /* crossSectionSimFe2p2h = normalize(DaisyCorrectedSim2p2hFe, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimFe2p2h = normalize(DaisyCorrectedSim2p2hFe, fluxIntegralFe, nnucleons, mcPOT);
           crossSectionSimFe2p2h->Write((prefix+"_Fe_CrossSectionSimulated2p2h").c_str());
-          crossSectionSimFeDIS = normalize(DaisyCorrectedSimDISFe, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimFeDIS = normalize(DaisyCorrectedSimDISFe, fluxIntegralFe, nnucleons, mcPOT);
           crossSectionSimFeDIS->Write((prefix+"_Fe_CrossSectionSimulatedDIS").c_str());
-          crossSectionSimFeRes = normalize(DaisyCorrectedSimRESFe, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimFeRes = normalize(DaisyCorrectedSimRESFe, fluxIntegralFe, nnucleons, mcPOT);
           crossSectionSimFeRes->Write((prefix+"_Fe_CrossSectionSimulatedRES").c_str());
-          crossSectionSimFeQE = normalize(DaisyCorrectedSimQEFe, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimFeQE = normalize(DaisyCorrectedSimQEFe, fluxIntegralFe, nnucleons, mcPOT);
           crossSectionSimFeQE->Write((prefix+"_Fe_CrossSectionSimulatedQE").c_str());
-          crossSectionSimFeOther= normalize(DaisyCorrectedSimOtherFe, fluxIntegral, nnucleons, mcPOT);
-          crossSectionSimFeOther->Write((prefix+"_Fe_CrossSectionSimulatedOther").c_str()); */
+          crossSectionSimFeOther= normalize(DaisyCorrectedSimOtherFe, fluxIntegralFe, nnucleons, mcPOT);
+          crossSectionSimFeOther->Write((prefix+"_Fe_CrossSectionSimulatedOther").c_str());
         }
 
         //Lead
         {
+          outFileDaisy->cd();
           DaisyCorrectedPb->Write((prefix+"DaisyCorrectedPb").c_str());
           crossSectionPb = normalize(DaisyCorrectedPb, fluxIntegralPb, nnucleonsData, dataPOT);
-          outFileDaisy->cd();
           crossSectionPb->Write((prefix+"_Pb_CrossSection").c_str());
           crossSectionSimPb = normalize(DaisyCorrectedSimPb, fluxIntegralPb, nnucleons, mcPOT);
           crossSectionSimPb->Write((prefix+"_Pb_CrossSectionSimulated").c_str());
-          /* crossSectionSimPb2p2h = normalize(DaisyCorrectedSim2p2hPb, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimPb2p2h = normalize(DaisyCorrectedSim2p2hPb, fluxIntegralPb, nnucleons, mcPOT);
           crossSectionSimPb2p2h->Write((prefix+"_Pb_CrossSectionSimulated2p2h").c_str());
-          crossSectionSimPbDIS = normalize(DaisyCorrectedSimDISPb, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimPbDIS = normalize(DaisyCorrectedSimDISPb, fluxIntegralPb, nnucleons, mcPOT);
           crossSectionSimPbDIS->Write((prefix+"_Pb_CrossSectionSimulatedDIS").c_str());
-          crossSectionSimPbRes = normalize(DaisyCorrectedSimRESPb, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimPbRes = normalize(DaisyCorrectedSimRESPb, fluxIntegralPb, nnucleons, mcPOT);
           crossSectionSimPbRes->Write((prefix+"_Pb_CrossSectionSimulatedRES").c_str());
-          crossSectionSimPbQE = normalize(DaisyCorrectedSimQEPb, fluxIntegral, nnucleons, mcPOT);
+          crossSectionSimPbQE = normalize(DaisyCorrectedSimQEPb, fluxIntegralPb, nnucleons, mcPOT);
           crossSectionSimPbQE->Write((prefix+"_Pb_CrossSectionSimulatedQE").c_str());
-          crossSectionSimPbOther= normalize(DaisyCorrectedSimOtherPb, fluxIntegral, nnucleons, mcPOT);
-          crossSectionSimPbOther->Write((prefix+"_Pb_CrossSectionSimulatedOther").c_str()); */
+          crossSectionSimPbOther= normalize(DaisyCorrectedSimOtherPb, fluxIntegralPb, nnucleons, mcPOT);
+          crossSectionSimPbOther->Write((prefix+"_Pb_CrossSectionSimulatedOther").c_str());
         }
 
         outFileDaisy->Close();
@@ -696,19 +1121,19 @@ int main(const int argc, const char **argv)
           plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
           //plotter.axis_maximum = 0.4;
           std::string tmp; 
-          if (prefix=="tracker_pTmu")
+          if (prefix=="pTmu")
           {
             tmp = "Muon p_{T}";
             //tempxsec->GetXaxis()->SetRange(1, 13);
           }
-          else if (prefix=="tracker_pZmu")
+          else if (prefix=="pZmu")
           {
             tmp = "Muon p_{Z}";
             //tempxsec->GetXaxis()->SetRange(1, 13);
           }
-          else if (prefix=="tracker_BjorkenX") tmp = "{X}";
-          else if (prefix=="tracker_Erecoil") tmp = "E_{recoil}";
-          else if (prefix=="tracker_Emu")
+          else if (prefix=="BjorkenX") tmp = "{X}";
+          else if (prefix=="Erecoil") tmp = "E_{recoil}";
+          else if (prefix=="Emu")
           {
             tmp = "E_{#mu}";
             //tempxsec->GetXaxis()->SetRange(1, 11);
