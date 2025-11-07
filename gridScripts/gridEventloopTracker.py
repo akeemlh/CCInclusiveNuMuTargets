@@ -179,17 +179,6 @@ if __name__ == '__main__':
             if not (os.path.isdir(outdirplaylist)):
                 print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
                 os.mkdir(outdirplaylist)
-            else:
-                #We cannot overwrite on persistent so I'm making sure the files we want to write out dont exist
-                migrationpath = outdirplaylist+"/runEventLoopTrackerMigration_petal_"+petal+".root"
-                datapath = outdirplaylist+"/runEventLoopTrackerData_petal_"+petal+".root"
-                mcpath = outdirplaylist+"/runEventLoopTrackerMC_petal_"+petal+".root"
-                """ if (os.path.exists(migrationpath)):
-                    os.remove(migrationpath)
-                if (os.path.exists(datapath)):
-                    os.remove(datapath)
-                if (os.path.exists(mcpath)):
-                    os.remove(mcpath) """
             # Create wrapper
             wrapper_name = "wrapper-EvLoopTracker"+playlist+petal+".sh"
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name

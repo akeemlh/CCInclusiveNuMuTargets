@@ -78,13 +78,13 @@ def submit_with_retries(command_in, max_retries, delay):
     return False
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser( prog='gridEventLoopTracker',
-                    description='automates the submission of runEventLoopTracker to fermigrid')
+    parser = argparse.ArgumentParser( prog='gridEventLoopTargets',
+                    description='automates the submission of runEventLoopTargetsNew to fermigrid')
     parser.add_argument('data', nargs=1, help="the data input directory")
     parser.add_argument('mc', nargs=1, help="the data input directory")
     parser.add_argument('out', nargs=1, help="the output directory")
     parser.add_argument('-p', '--playlists', nargs='*', help="the playlists to run")
-    parser.add_argument('-t', '--petals', nargs='*', help="the petals to run")
+    parser.add_argument('-t', '--targets', nargs='*', help="the target materials to run")
     parser.add_argument('-s', '--skipsys', action='store_true', help="skip systematics? Used in warping studies")
     parser.add_argument('--no2p2hwarp', action='store_true', help="Turning off LowRecoil2p2hReweighter")
     parser.add_argument('--amudiswarp', action='store_true', help="Turning on AMUDISReweighter")
@@ -164,34 +164,23 @@ if __name__ == '__main__':
 
 
     print("Submitting playlists: ", vettedPlaylists)
-    petals = args.petals
-    if not petals:
-        petals = ["-1", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
-        print("No target petals specified - defaulting to all")
-    print("Submitting targets: ", " ".join(petals))
+    targets = args.targets
+    if not targets:
+        targets = [""]
+        print("No target specified")
+    print("Submitting targets: ", " ".join(targets))
     #exit()
     failingPlaylist = []
-    failingPetals = []
-    for petal in petals:
+    failingTarget = []
+    for target in targets:
         for playlist in vettedPlaylists:
             outdirplaylist = outDir+"/"+playlist
             #Checking if the target output directory exists and if not attempting to create it
             if not (os.path.isdir(outdirplaylist)):
                 print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
                 os.mkdir(outdirplaylist)
-            else:
-                #We cannot overwrite on persistent so I'm making sure the files we want to write out dont exist
-                migrationpath = outdirplaylist+"/runEventLoopTrackerMigration_petal_"+petal+".root"
-                datapath = outdirplaylist+"/runEventLoopTrackerData_petal_"+petal+".root"
-                mcpath = outdirplaylist+"/runEventLoopTrackerMC_petal_"+petal+".root"
-                """ if (os.path.exists(migrationpath)):
-                    os.remove(migrationpath)
-                if (os.path.exists(datapath)):
-                    os.remove(datapath)
-                if (os.path.exists(mcpath)):
-                    os.remove(mcpath) """
             # Create wrapper
-            wrapper_name = "wrapper-EvLoopTracker"+playlist+petal+".sh"
+            wrapper_name = "wrapper-EvLoopTargets"+playlist+target+".sh"
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
@@ -211,13 +200,14 @@ if __name__ == '__main__':
                 my_wrapper.write("export SUSA_2P2H_WARP=True\n")
             tuneStr ="export MnvTune="+tune+"\n"
             my_wrapper.write(tuneStr)
+            my_wrapper.write("export SUSA_2P2H_WARP=True\n")
             if numOfSubRuns != 0:
-                subrunstr = "export NumGridSubruns="+str(numOfSubRuns)+"n"
+                subrunstr = "export NumGridSubruns="+str(numOfSubRuns)+"\n"
                 my_wrapper.write(subrunstr)
             if specifySubrun!= None:
-                subrunstr = "export NumGridSubruns="+str(specifySubrunTotal)+"n"
+                subrunstr = "export NumGridSubruns="+str(specifySubrunTotal)+"\n"
                 my_wrapper.write(subrunstr)
-                subrunstr = "export PROCESS="+str(specifySubrun)+"n"
+                subrunstr = "export PROCESS="+str(specifySubrun)+"\n"
                 my_wrapper.write(subrunstr)
             my_wrapper.write("export XRD_NETWORKSTACK=IPv4\n")
             my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-v0.22.0-fermi/setup-env.sh\n")
@@ -237,13 +227,14 @@ if __name__ == '__main__':
             my_wrapper.write("echo Setting up environment - DONE\n")
             my_wrapper.write("echo Running event loop\n")
 
+            #Auto-retry up-to 3 times if job fails/exits with non-zero exit code
             my_wrapper.write("MAX_RETRIES=3\n")
             my_wrapper.write("SLEEP=10\n")
             my_wrapper.write("attempt=1\n")
 
             my_wrapper.write("while true; do\n")
             my_wrapper.write("    echo \"Attempt ${attempt} of ${MAX_RETRIES}\"\n")
-            my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopTracker ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+petal+"\n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
+            my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopTargets ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+target+" \n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
             my_wrapper.write("    status=$?\n")
             my_wrapper.write("    if [ $status -eq 0 ]; then\n")
             my_wrapper.write("        echo \"Success on attempt $attempt\"\n")
@@ -260,13 +251,15 @@ if __name__ == '__main__':
 
             my_wrapper.write("echo Running event loop - DONE\n")
             my_wrapper.write("echo Copying files back to persistent\n")
-            my_wrapper.write("ifdh cp ./runEventLoopTracker* "+outdirplaylist+"\n")
+            my_wrapper.write("ifdh cp ./runEventLoopTargets* "+outdirplaylist+"\n")
             my_wrapper.write("echo Copying files back to persistent - DONE\n")
             my_wrapper.write("echo SUCCESS\n")
             my_wrapper.close()
-            logpath = outdirplaylist+"/LogPetal"+petal+".log"
+            logpath = outdirplaylist+"/LogTgt"+target+".log"
+            #cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines=+FERMIHTC_AutoRelease=True --lines=+FERMIHTC_GraceMemory=1024 --lines=+FERMIHTC_GraceLifetime=1800 -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt --tar_file_name dropbox://%s" % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist, tarballpath )    
             cmd = "jobsub_submit --group=minerva"
             cmd+= " --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True"
+            cmd += " --append_condor_requirements='(regexp(\".*fnpc7.*\",Machine)==FALSE)'"
             cmd+= " --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest"
             cmd+= f" -L {logpath}"
             cmd+= f" --expected-lifetime {lifetime}h"
@@ -281,7 +274,7 @@ if __name__ == '__main__':
             cmd+= f" --tar_file_name dropbox://{tarballpath}"
             #cmd+= f" -f /{dataInDir}/{playlist}-Data.txt -f /{mcInDir}/{playlist}-MC.txt"
             #cmd+= f" --tar_file_name /{tarballpath}"
-            
+
             if numOfSubRuns != 0:
                 subrunstr = " -N "+str(numOfSubRuns)
                 cmd += subrunstr
@@ -296,15 +289,16 @@ if __name__ == '__main__':
             print("Done")
             if not success:
                 failingPlaylist.append(playlist)
-                failingPetals.append(petal)
+                failingTarget.append(target)
 
-    if len(failingPetals)>0:
+    if len(failingTarget)>0:
         print("Failed to submit jobs:")
         for i in range(len(failingPlaylist)):
             print("Playlist: ", failingPlaylist[i])
-            print("Petal: ", failingPetals[i])
+            print("Target: ", failingTarget[i])
     else:
         print("All jobs submitted successfully")
 
     cmd = "rm -r "+tarballfolder
     os.system(cmd)
+

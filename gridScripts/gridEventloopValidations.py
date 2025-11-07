@@ -165,17 +165,6 @@ if __name__ == '__main__':
         if not (os.path.isdir(outdirplaylist)):
             print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
             os.mkdir(outdirplaylist)
-        else:
-            #We cannot overwrite on persistent so I'm making sure the files we want to write out dont exist
-            #migrationpath = outdirplaylist+"/runEventLoopTargets2DMigration"+target+".root"
-            #datapath = outdirplaylist+"/runEventLoopTargetsData"+target+".root"
-            #mcpath = outdirplaylist+"/runEventLoopTargetsMC"+target+".root"
-            """ if (os.path.exists(migrationpath)):
-                os.remove(migrationpath)
-            if (os.path.exists(datapath)):
-                os.remove(datapath)
-            if (os.path.exists(mcpath)):
-                os.remove(mcpath) """
         # Create wrapper
         wrapper_name = "wrapper-EvLoopValidation"+playlist+".sh"
         wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
@@ -226,7 +215,7 @@ if __name__ == '__main__':
 
         my_wrapper.write("while true; do\n")
         my_wrapper.write("    echo \"Attempt ${attempt} of ${MAX_RETRIES}\"\n")
-        my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopValidationsNew ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt || exit $?\n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
+        my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopValidations ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt || exit $?\n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
         my_wrapper.write("    status=$?\n")
         my_wrapper.write("    if [ $status -eq 0 ]; then\n")
         my_wrapper.write("        echo \"Success on attempt $attempt\"\n")
