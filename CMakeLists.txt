@@ -63,14 +63,14 @@ include_directories(${GENIEXSecExtract_INCLUDE_DIR})
 add_subdirectory(playlists)
 add_subdirectory(util)
 #TODO: Split these directories' headers into .cpp files
-add_subdirectory(event)
+#add_subdirectory(event)
 #add_subdirectory(cuts)
 #add_subdirectory(studies)
 #add_subdirectory(systematics)
 
 #Build main executables
 add_executable(runEventLoop runEventLoop.cpp)
-target_link_libraries(runEventLoop ${ROOT_LIBRARIES} util event MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+target_link_libraries(runEventLoop ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoop DESTINATION bin)
 
 #add_executable(runEventLoopTargets runEventLoopTargets.cpp)
@@ -78,7 +78,7 @@ install(TARGETS runEventLoop DESTINATION bin)
 #install(TARGETS runEventLoopTargets DESTINATION bin)
 
 add_executable(runEventLoopTargetsNew runEventLoopTargetsNew.cpp)
-target_link_libraries(runEventLoopTargetsNew ${ROOT_LIBRARIES} util event MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
+target_link_libraries(runEventLoopTargetsNew ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopTargetsNew DESTINATION bin)
 
 add_executable(runEventLoopTracker runEventLoopTracker.cpp)
