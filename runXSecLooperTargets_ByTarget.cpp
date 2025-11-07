@@ -73,7 +73,8 @@ public:
     //std::cout<<"runxsecloop apothem check: x " << true_muon_vtx_x << " y " << true_muon_vtx_y <<std::endl;
 
     //bool inZRange = true_muon_vtx_z > PlotUtils::TargetProp::NukeRegion::Face && true_muon_vtx_z < PlotUtils::TargetProp::NukeRegion::Back;
-
+    //std::cout<<"truth_muon_E: " << truth_muon_E << std::endl;
+    //std::cout<<"theta: " << theta << std::endl;
     bool inERange = (truth_muon_E>2000) && (truth_muon_E<50000);
     if(inAngle  && inERange ) return true;
     return false;
@@ -88,6 +89,7 @@ public:
     double true_muon_vtx_y   = (double)chw.GetValue("mc_vtx",entry,1);
     double true_muon_vtx_z   = (double)chw.GetValue("mc_vtx",entry,2);
 
+    //std::cout<<"entry: "<<entry<<" truth_target_code: "<<(int)chw.GetValue("truth_target_code", entry)<<std::endl;
 
     if((int)chw.GetValue("mc_incoming", entry)!=14) return false;
     if((int)chw.GetValue("mc_current", entry)!=1) return false;
@@ -98,8 +100,11 @@ public:
     }
     if (!inTarget( chw, entry ))
     {
+      //std::cout<<"Failed target check\n";
       return false;
     }
+    
+    //std::cout<<"entry: "<<entry<<" truth_target_code: "<<(int)chw.GetValue("truth_target_code", entry)<<std::endl;
     /* if ((int)chw.GetValue("truth_target_code", entry) != fTargetCode)
     {
       if (fTargetCode == 6008 ||fTargetCode == 6001)
@@ -108,7 +113,7 @@ public:
       }
       else return false;
     }    */
-
+    //std::cout<<"Passes cuts\n";
     //if(!PassTrueDistToDivisionCut( chw, entry, target, nucleus, 25.0)) return false;
     return true;
   }
@@ -153,6 +158,11 @@ public:
       double vtx_z   = (double)chw.GetValue("mc_vtx",entry,2);
       int mod   = (int)chw.GetValue("truth_vtx_module",entry);
       int plane   = (int)chw.GetValue("truth_vtx_plane",entry);
+      /* std::cout<<"vtx_x "<<vtx_x<<"\n";
+      std::cout<<"vtx_y "<<vtx_y<<"\n";
+      std::cout<<"vtx_z "<<vtx_z<<"\n";
+      std::cout<<"mod "<<mod<<"\n";
+      std::cout<<"plane "<<plane<<"\n"; */
       int tgtCode = util::getTargetCodeFromVtxInfo(vtx_x, vtx_y, vtx_z, mod, plane);
       bool inTgt = false;
       if (fTargetCode=="Iron")
@@ -169,10 +179,26 @@ public:
       }
       else
       {
+        //std::cout<<"Here1\n";
+        //std::cout<<"fTargetCode "<<fTargetCode<<"\n";
         inTgt = std::stoi(fTargetCode) == tgtCode;
+        //std::cout<<"tgtCode "<<tgtCode<<"\n";
+        //std::cout<<"inTgt "<<inTgt<<"\n";
       }
       return inTgt;
     }
+};
+
+
+class XSecLooperExt : public XSecLooper
+{
+  public:
+  XSecLooperExt(const char* inputFileGlob) : XSecLooper(inputFileGlob){};
+  
+  bool isFiducial(ChainWrapper& chw, int entry)
+  {
+      return true;
+  }
 };
 
 double GetNormValue( std::string tgt)
@@ -249,13 +275,13 @@ int main(const int argc, const char** argv)
   //std::vector<int> targetCodes = { 2026, 2082, 3006, 3026, 3082, 4082, 5026, 5082, 6000};
   //std::vector<std::string> targetCodes = { "2026", "2082", "3006", "3026", "3082", "4082", "5026", "5082", "6000 ,7", "8", "9", "10", "11", "12","Iron", "Lead", "Carbon"};
   //std::vector<std::string> targetCodes = { "Iron", "Lead", "Carbon"};
-  std::vector<std::string> targetCodes = { "2026"};
+  std::vector<std::string> targetCodes = { "3006"};
   for (auto const& tgtCode : targetCodes)
   {
     std::cout<< "Target: " << tgtCode << std::endl;
     // Create the XSecLooper and tell it the input files
     // Inputs should be the merged ntuples:
-    XSecLooper loop(playlistFile.c_str());
+    XSecLooperExt loop(playlistFile.c_str());
 
     double norm = GetNormValue( tgtCode);
   /* 
