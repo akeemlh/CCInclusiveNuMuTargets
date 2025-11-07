@@ -84,7 +84,12 @@ enum ErrorCodes
 #include "PlotUtils/LowQ2PiReweighter.h"
 #include "PlotUtils/AMUDISReweighter.h"
 #include "PlotUtils/SuSAFromValencia2p2hReweighter.h"
+#include "PlotUtils/FSIReweighter.h"
 #include "PlotUtils/TargetUtils.h"
+
+#include "util/COHPionReweighter.h"
+#include "util/DiffractiveReweighter.h"
+#include "PlotUtils/BodekRitchieReweighter.h"
 
 #include "util/NukeUtils.h"
 #pragma GCC diagnostic pop
@@ -514,25 +519,135 @@ int main(const int argc, const char** argv)
     std::cout << "Replace LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter because environment variable SUSA_2P2H_WARP is set.\n";
   }
 
-  std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTunev1;
-  MnvTunev1.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
-  MnvTunev1.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
-  // standard - include this tune.  warping study, comment out 2p2h
-  if (!NO_2P2H_WARP && !SUSA_2P2H_WARP)
-    MnvTunev1.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
-  if (SUSA_2P2H_WARP)
-    MnvTunev1.emplace_back(new PlotUtils::SuSAFromValencia2p2hReweighter<CVUniverse, MichelEvent>());
-  MnvTunev1.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
-  MnvTunev1.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
-  // for a warping study, AMU DIS reweighter
+  //Tune version vA.B.C
+  int tuneA = 1;
+  int tuneB = 0;
+  int tuneC = 0;
+  const char* mnvTuneIn =  getenv("MnvTune");
+  if (mnvTuneIn != nullptr)
+  {
+    std::string mnvTuneStr = std::string(mnvTuneIn);
+    if (mnvTuneStr.size()!=3 || !std::isdigit(mnvTuneStr[0]) || !std::isdigit(mnvTuneStr[1]) || !std::isdigit(mnvTuneStr[2])) "Unrecognised tune, using default";
+    else
+    { 
+      int tune = std::stoi(mnvTuneStr);
+      tuneC=tune%10;
+      tuneB = ((tune-tuneC)/10)%10;
+      tuneA = (tune -(tuneC + tuneB*10))/100;
+    }
+  }
+  std::cout<< "Using minerva tune v" << tuneA << "."<< tuneB << "."<< tuneC << "\n";
+
+  std::vector<std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>> MnvTune;
+  //Setting the A component of mnvtune vA.B.C
+  if (tuneA == 1)
+  {
+    MnvTune.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
+    MnvTune.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+  }
+  if (tuneA == 2)
+  {
+    MnvTune.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
+    MnvTune.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT")); //Is JOINT the correct option for mnvtune2?
+  }
+  if (tuneA == 3)
+  {
+    MnvTune.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, false));
+    MnvTune.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::SuSAFromValencia2p2hReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::BodekRitchieReweighter<CVUniverse, MichelEvent>(2)); //Is 2 the right mode?
+  }
+  if (tuneA == 4)
+  {
+    PlotUtils::MinervaUniverse::SetReadoutVolume("Nuke");
+    PlotUtils::MinervaUniverse::SetMHRWeightNeutronCVReweight( true );
+    PlotUtils::MinervaUniverse::SetMHRWeightElastics( true );
+    MnvTune.emplace_back(new PlotUtils::FluxAndCVReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::GENIEReweighter<CVUniverse, MichelEvent>(true, true));
+    MnvTune.emplace_back(new PlotUtils::MINOSEfficiencyReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::RPAReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::LowRecoil2p2hReweighter<CVUniverse, MichelEvent>());
+    //Other decisions to add for MnvTunev4.3.1
+  }
+  //Setting the B component of mnvtune vA.B.C
+  if (tuneB == 3)
+  {
+    MnvTune.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("MENU1PI"));
+    MnvTune.emplace_back(new PlotUtils::DiffractiveReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::COHPionReweighter<CVUniverse, MichelEvent>());
+  }
+  //Setting the C component of mnvtune vA.B.C
+  if (tuneC == 1)
+  {
+    MnvTune.emplace_back(new PlotUtils::FSIReweighter<CVUniverse, MichelEvent>(true, true));
+  }
+
+
+  //Warps
+  if (SUSA_2P2H_WARP) //Replacing LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter
+  {
+    auto it = find_if(MnvTune.begin(), MnvTune.end(), [] (auto& w) { return w->GetName() == "LowRecoil2p2hTune"; } );
+    if (it!=MnvTune.end())
+    {
+      std::cout<<"Applying SUSA_2P2H_WARP - replacing LowRecoil2p2hTune with SuSAFromValencia2p2hReweighter\n";
+      (*it) = std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>(new PlotUtils::SuSAFromValencia2p2hReweighter<CVUniverse, MichelEvent>());
+    }
+    else
+    {
+      auto it2 = find_if(MnvTune.begin(), MnvTune.end(), [] (auto& w) { return w->GetName() == "SuSA2p2h"; } );
+      if (it2==MnvTune.end())
+      {
+        std::cout<<"WARNING - SUSA_2P2H_WARP - no LowRecoil2p2hTune found to replace, applying SuSAFromValencia2p2hReweighter anyway\n";
+        MnvTune.emplace_back(new PlotUtils::SuSAFromValencia2p2hReweighter<CVUniverse, MichelEvent>());
+      }
+      else
+      {
+        std::cout<<"WARNING - SUSA_2P2H_WARP - no LowRecoil2p2hTune found to replace and  SuSA2p2h already set, so I'm doing nothing\n";
+      }
+    }
+  }
+  if (NO_2P2H_WARP) //Removing LowRecoil2p2hReweighter
+  {
+    auto it = find_if(MnvTune.begin(), MnvTune.end(), [] (auto& w) { return w->GetName() == "LowRecoil2p2hTune"; } );
+    if (it!=MnvTune.end())
+    {
+      MnvTune.erase(it);
+      std::cout<<"Applying NO_2P2H_WARP - removing found LowRecoil2p2hReweighter\n";
+    }
+    else std::cout<<"Warning - NO_2P2H_WARP - Could not apply warp since there were no 2p2h reweighters found\n";
+  }
   if (AMU_DIS_WARP)
-    MnvTunev1.emplace_back(new PlotUtils::AMUDISReweighter<CVUniverse, MichelEvent>());
-  // for a warping study, Low Q2 pion suppression (mnvtunev2)
-  if (LOW_Q2_PION_WARP)
-    MnvTunev1.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT"));
+  {
+    std::cout<<"Applying no AMU_DIS_WARP - Applying AMUDISReweighter\n";
+    MnvTune.emplace_back(new PlotUtils::AMUDISReweighter<CVUniverse, MichelEvent>());
+  }
+  if (LOW_Q2_PION_WARP)  // Low Q2 pion suppression (mnvtunev2)
+  {
+    std::cout<<"Applying no LOW_Q2_PION_WARP - Applying LowQ2PiReweighter\n";
+    MnvTune.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("JOINT"));
+  }
+  std::cout<<"Tune components applied:\n";
+  for (auto&& t : MnvTune) std::cout<< "\t"<< t->GetName() <<std::endl;
+  //Do we need all this for v 4.3.1? I found it somewhere else but idk if I need it here
+  //https://github.com/MinervaExpt/LowRecoilPions/blob/902f51bd72e1dff74d26e0df7158f27750947521/studies2DEventLoop.cpp
+  //Could also wrap all v431 cuts in one reweighter like https://github.com/MinervaExpt/LowRecoilPions/blob/902f51bd72e1dff74d26e0df7158f27750947521/twoDEventLoopSide.cpp
+  //MnvTunev4.emplace_back(new PlotUtils::GeantNeutronCVReweighter<CVUniverse, MichelEvent>());
+  //MnvTunev4.emplace_back(new PlotUtils::TargetMassReweighter<CVUniverse, MichelEvent>());
 
-  PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTunev1));
+  //What about this?
+  //MnvTunev4.emplace_back(new PlotUtils::PionReweighter<CVUniverse,MichelEvent>());
 
+  PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTune));
+  
   // Make a map of systematic universes
   // Leave out systematics when making validation histograms
   const bool doSystematics = (getenv("MNV101_SKIP_SYST") == nullptr);
@@ -559,25 +674,31 @@ int main(const int argc, const char** argv)
   //const double RecoilBinWidth = 50; //MeV
   //for(int whichBin = 0; whichBin < 100 + 1; ++whichBin) RecoilBins.push_back(RecoilBinWidth * whichBin);
 
+  const double numsegments = 180;
+  for (double whichBin = 0; whichBin < numsegments; whichBin++)
+    segmentBins.push_back(whichBin - 0.5);
+
   const double nAngleBins = 170;
   for (double whichBin = 0; whichBin < nAngleBins+1; whichBin++)
     angleBins.push_back(0.1*whichBin);
 
-  std::function<double(const CVUniverse&)> ANNRecoilEGeV = [](const CVUniverse& univ) { return univ.GetANNRecoilE()/1000;};
+  //std::function<double(const CVUniverse&)> ANNRecoilEGeV = [](const CVUniverse& univ) { return univ.GetANNRecoilE()/1000;};
   std::function<double(const CVUniverse&)> q0TrueGeV = [](const CVUniverse& univ) { return univ.Getq0True()/1000;};
   std::function<double(const CVUniverse &)> muonAngleDegrees = [](const CVUniverse &univ) { return (univ.GetThetamu() * 180 / M_PI); };
   std::function<double(const CVUniverse &)> muonAngleDegreesTruth = [](const CVUniverse &univ) { return (univ.GetDouble("truth_muon_theta")* 180 / M_PI); };
 
-
-  vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetMuonPT, &CVUniverse::GetMuonPTTrue));
-  vars.push_back(new Variable("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetMuonPz, &CVUniverse::GetMuonPzTrue));
-  vars.push_back(new Variable("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetEmuGeV, &CVUniverse::GetElepTrueGeV));
-  vars.push_back(new Variable("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, ANNRecoilEGeV, q0TrueGeV)); //TODO: q0 is not the same as recoil energy without a spline correction
+  vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetANNMuonPTGeV, &CVUniverse::GetMuonPTTrue));
+  vars.push_back(new Variable("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetANNMuonPzGeV, &CVUniverse::GetMuonPzTrue));
+  vars.push_back(new Variable("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetANNEmuGeV, &CVUniverse::GetElepTrueGeV));
+  vars.push_back(new Variable("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, &CVUniverse::GetANNRecoilEGeV, q0TrueGeV)); // TODO: q0 is not the same as recoil energy without a spline correction
   vars.push_back(new Variable("BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
+  vars.push_back(new Variable("BjorkenY", "Y", util::bjorkenYbins, &CVUniverse::GetBjorkenY, &CVUniverse::GetBjorkenYTrue));
+  vars.push_back(new Variable("segment", "segmentNum", segmentBins, &CVUniverse::GetANNSegment, &CVUniverse::GetTruthSegment)); // Just used for plotting events by detector position tbh - not for any actual physics
   vars.push_back(new Variable("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
   vars2D.push_back(new Variable2D("pTmu_pZmu", *vars[0], *vars[1]));
   vars2D.push_back(new Variable2D("Emu_Erecoil", *vars[2], *vars[3]));
-
+  vars2D.push_back(new Variable2D("BjorkenX_BjorkenY", *vars[4], *vars[5])); 
+  //Probe some more variables?????
 
   std::vector<Study*> studies;
 
@@ -618,7 +739,7 @@ int main(const int argc, const char** argv)
       auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
 
       std::string mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      if (nSubruns != 0 ) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_p"+nProcess+ ".root";
+      if (nSubruns != 0 ) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_n"+nProcess+ ".root";
       //if (ptl==-1) mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) + ".root";
       //else mcOutFileName = std::string(MC_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
       //Write MC results
@@ -636,7 +757,9 @@ int main(const int argc, const char** argv)
       //Playlist name - Used for flux calculations later on
       playlistStr->Write();
       //Protons On Target
-      auto mcPOT = new TParameter<double>("POTUsed", options.m_mc_pot);
+      double mcpot = options.m_mc_pot;
+      if (numSubruns != nullptr) mcpot/=nSubruns;
+      auto mcPOT = new TParameter<double>("POTUsed", mcpot);
       mcPOT->Write();
 
       PlotUtils::TargetUtils targetInfo;
@@ -665,7 +788,7 @@ int main(const int argc, const char** argv)
       //Write data results
 
       std::string dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      if (nSubruns != 0 ) dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_p"+nProcess+ ".root";
+      if (nSubruns != 0 ) dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_n"+nProcess+ ".root";
 
       //if (ptl==-1) dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) + ".root";
       //else dataOutFileName = std::string(DATA_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
@@ -681,7 +804,9 @@ int main(const int argc, const char** argv)
 
       playlistStr->Write();
       //Protons On Target
-      auto dataPOT = new TParameter<double>("POTUsed", options.m_data_pot);
+      double datapot = options.m_data_pot;
+      if (numSubruns != nullptr) datapot/=nSubruns;
+      auto dataPOT = new TParameter<double>("POTUsed", datapot);
       dataPOT->Write();
 
       dataOutDir->Close();
@@ -689,7 +814,7 @@ int main(const int argc, const char** argv)
       //Saving 2D migration matrices
       //Putting this right at the end in case of a crash
       std::string migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";
-      if (nSubruns != 0 ) migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_p"+nProcess+ ".root";
+      if (nSubruns != 0 ) migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl) + "_n"+nProcess+ ".root";
 
       //if (ptl==-1) migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) + ".root";
       //else migrationOutDirName = std::string(MIGRATION_2D_OUT_FILE_NAME_BASE) +"_petal_"+ std::to_string(ptl)+".root";

@@ -6,7 +6,6 @@ using q3Signal = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetTrueq3>;*/ /
 
 //PlotUtils includes
 #include "PlotUtils/Cut.h"
-#include "util/PlasticSidebands.h"
 
 //Package includes
 #include "event/CVUniverse.h"
@@ -49,6 +48,20 @@ namespace truth
   };
 
   template <class UNIVERSE>
+  class MuonEnergyMinGeV: public PlotUtils::SignalConstraint<UNIVERSE>
+  {
+    public:
+      MuonEnergyMinGeV(const double val, const std::string& name): PlotUtils::SignalConstraint<UNIVERSE>(name), fVal(val) {}
+
+    private:
+      bool checkConstraint(const UNIVERSE& univ) const override
+      {
+        return (univ.GetTruthMuE()/1000) > fVal;
+      }
+      double fVal;
+  };
+
+  template <class UNIVERSE>
   class MuonEnergyMax: public PlotUtils::SignalConstraint<UNIVERSE>
   {
     public:
@@ -61,69 +74,19 @@ namespace truth
       }
       double fVal;
   };
-}
 
-namespace reco
-{
-
-  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
-  class ANNConfidenceCut: public PlotUtils::Cut<UNIVERSE, EVENT>
+  template <class UNIVERSE>
+  class MuonEnergyMaxGeV: public PlotUtils::SignalConstraint<UNIVERSE>
   {
     public:
-      ANNConfidenceCut(const double conf): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("ANN confidence > ") + std::to_string(conf)), fConf(conf) {}
+      MuonEnergyMaxGeV(const double val, const std::string& name): PlotUtils::SignalConstraint<UNIVERSE>(name), fVal(val) {}
 
     private:
-      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      bool checkConstraint(const UNIVERSE& univ) const override
       {
-        return univ.GetANNProb() > fConf; 
+        return (univ.GetTruthMuE()/1000) < fVal;
       }
-      const double fConf;
-  };
-
-  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
-  using MuonEnergyMax = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetEmu, EVENT>;
-
-  //Is this vertex upstream of a nuclear target
-  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
-  class USScintillator: public PlotUtils::Cut<UNIVERSE, EVENT>
-  {
-    public:
-      USScintillator(): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Upstream scintillator sideband")) {}
-
-    private:
-      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
-      {
-        //To do
-      }
-  };
-
-  //Is this vertex downstream of a nuclear target
-  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
-  class DSScintillator: public PlotUtils::Cut<UNIVERSE, EVENT>
-  {
-    public:
-      DSScintillator(): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Downstream scintillator sideband")) {}
-
-    private:
-      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
-      {
-        //To do 
-      }
-  };
-
-  //Is this cut below right?? 
-  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
-  class RecoInteractionMaterialCut: public PlotUtils::Cut<UNIVERSE, EVENT>
-  {
-    public:
-      RecoInteractionMaterialCut(const int mat): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Is in material ") + std::to_string(mat) +std::string("?")), fMat(mat) {}
-
-    private:
-      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
-      {
-        return univ.GetANNProb() > fMat; 
-      }
-      const int fMat;
+      double fVal;
   };
 }
 #endif //SIGNALDEFINITION_H

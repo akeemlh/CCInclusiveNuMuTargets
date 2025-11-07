@@ -11,6 +11,7 @@
 #include "PlotUtils/Cutter.h"
 #include "PlotUtils/TargetUtils.h"
 #include "cuts/SignalDefinition.h"
+#include "cuts/CCInclCuts.h"
 #include "PlotUtils/CCInclusiveCuts.h"
 #include "PlotUtils/CCInclusiveSignal.h"
 #include "PlotUtils/Reweighter.h"
@@ -46,6 +47,9 @@ namespace util
     std::map<int, std::string> BKGLabels = {{0, "NC_Bkg"},
 					       {1, "Wrong_Sign_Bkg"}};
 
+    std::map<int, std::string> BKGLabelsWithPlasticSidebands = {{0, "NC_Bkg"},
+					       {1, "Wrong_Sign_Bkg"}, {2, "Upstream_Plastic_Bkg"}, {3, "Downstream_Plastic_Bkg"}, {4, "Water_Tank_Bkg"}, {5, "True_In_Other_Target_Bkg"}, {6, "True_Vtx_Elsewhere_Bkg"}};
+
     int nuOrAntiNuMode(std::string playlist)
     {
         std::vector<std::string> nuVector = {"minervame1A", "minervame1B", "minervame1C", "minervame1D", "minervame1E", "minervame1F", "minervame1G", "minervame1L", "minervame1M", "minervame1N", "minervame1O", "minervame1P"};
@@ -64,6 +68,225 @@ namespace util
         else if (std::find(std::begin(empty), std::end(empty), playlist) != std::end(empty)) return 2;
         //Is this the most efficient way? Probably not
         return 0;
+    }
+
+
+    double getZPosFromSegment(int segment)
+    {
+        if (segment ==1) return 4293.04;
+        if (segment == 2) return 4313.68;
+        if (segment == 3) return 4337.25;
+        if (segment == 4) return 4357.9;
+        if (segment == 5) return 4381.47;
+        if (segment == 6) return 4402.11;
+        if (segment == 7) return 4425.68;
+        if (segment == 8) return 4446.33;
+        if (segment == 9) return 4481.21; //Target 1
+        if (segment == 10) return 4514.11;
+        if (segment == 11) return 4534.76;
+        if (segment == 12) return 4558.33;
+        if (segment == 13) return 4578.97;
+        if (segment == 14) return 4602.54;
+        if (segment == 15) return 4623.19;
+        if (segment == 16) return 4646.76;
+        if (segment == 17) return 4667.4;
+        if (segment == 18) return 4702.29; //Target 2
+        if (segment == 19) return 4735.19;
+        if (segment == 20) return 4755.83;
+        if (segment == 21) return 4779.4;
+        if (segment == 22) return 4800.05;
+        if (segment == 23) return 4823.62;
+        if (segment == 24) return 4844.26;
+        if (segment == 25) return 4867.83;
+        if (segment == 26) return 4888.48;
+        if (segment == 27) return 4923.36; //Target 3
+        if (segment == 28) return 5000.48;
+        if (segment == 29) return 5021.12;
+        if (segment == 30) return 5044.69;
+        if (segment == 31) return 5065.34;
+        if (segment == 32) return 5088.91;
+        if (segment == 33) return 5109.55;
+        if (segment == 34) return 5133.12;
+        if (segment == 35) return 5153.77;
+        if (segment == 36) return 5310; //Water Target -- Find better number, this is a guesstimate
+        if (segment == 37) return 5456.74;
+        if (segment == 38) return 5477.38;
+        if (segment == 39) return 5500.95;
+        if (segment == 40) return 5521.6;
+        if (segment == 41) return 5545.17;
+        if (segment == 42) return 5565.81;
+        if (segment == 43) return 5589.38;
+        if (segment == 44) return 5610.02;
+        if (segment == 45) return 5644.91; //Target 4
+        if (segment == 46) return 5677.81;
+        if (segment == 47) return 5698.45;
+        if (segment == 48) return 5722.03;
+        if (segment == 49) return 5742.67;
+        if (segment == 50) return 5777.55; //Target 5
+        if (segment == 51) return 5810.45;
+        if (segment == 52) return 5831.1;
+        if (segment == 53) return 5855.68;
+        if (segment == 54) return 5876.33;
+        if (segment == 55) return 5900.91;
+        if (segment == 56) return 5921.56;
+        if (segment == 57) return 5946.14;
+        if (segment == 58) return 5966.79;
+        if (segment == 59) return 5991.37;
+        if (segment == 60) return 6012.01;
+        if (segment == 61) return 6036.6;
+        if (segment == 62) return 6057.24;
+        if (segment == 63) return 6081.83;
+        if (segment == 64) return 6102.47;
+        if (segment == 65) return 6127.06;
+        if (segment == 66) return 6147.7;
+        if (segment == 67) return 6172.29;
+        if (segment == 68) return 6192.93;
+        if (segment == 69) return 6217.52;
+        if (segment == 70) return 6238.16;
+        if (segment == 71) return 6262.74;
+        if (segment == 72) return 6283.39;
+        if (segment == 73) return 6307.97;
+        if (segment == 74) return 6328.62;
+        if (segment == 75) return 6353.2;
+        if (segment == 76) return 6373.85;
+        if (segment == 77) return 6398.43;
+        if (segment == 78) return 6419.08;
+        if (segment == 79) return 6443.66;
+        if (segment == 80) return 6464.3;
+        if (segment == 81) return 6488.89;
+        if (segment == 82) return 6509.53;
+        if (segment == 83) return 6534.12;
+        if (segment == 84) return 6554.76;
+        if (segment == 85) return 6579.35;
+        if (segment == 86) return 6599.99;
+        if (segment == 87) return 6624.58;
+        if (segment == 88) return 6645.22;
+        if (segment == 89) return 6669.81;
+        if (segment == 90) return 6690.45;
+        if (segment == 91) return 6715.03;
+        if (segment == 92) return 6735.68;
+        if (segment == 93) return 6760.26;
+        if (segment == 94) return 6780.91;
+        if (segment == 95) return 6805.49;
+        if (segment == 96) return 6826.14;
+        if (segment == 97) return 6850.72;
+        if (segment == 98) return 6871.37;
+        if (segment == 99) return 6895.95;
+        if (segment == 100) return 6916.59;
+        if (segment == 101) return 6941.18;
+        if (segment == 102) return 6961.82;
+        if (segment == 103) return 6986.41;
+        if (segment == 104) return 7007.05;
+        if (segment == 105) return 7031.64;
+        if (segment == 106) return 7052.28;
+        if (segment == 107) return 7076.87;
+        if (segment == 108) return 7097.51;
+        if (segment == 109) return 7122.1;
+        if (segment == 110) return 7142.74;
+        if (segment == 111) return 7167.32;
+        if (segment == 112) return 7187.97;
+        if (segment == 113) return 7212.55;
+        if (segment == 114) return 7233.2;
+        if (segment == 115) return 7257.78;
+        if (segment == 116) return 7278.43;
+        if (segment == 117) return 7303.01;
+        if (segment == 118) return 7323.66;
+        if (segment == 119) return 7348.24;
+        if (segment == 120) return 7368.88;
+        if (segment == 121) return 7393.47;
+        if (segment == 122) return 7414.11;
+        if (segment == 123) return 7438.7;
+        if (segment == 124) return 7459.34;
+        if (segment == 125) return 7483.93;
+        if (segment == 126) return 7504.57;
+        if (segment == 127) return 7529.16;
+        if (segment == 128) return 7549.8;
+        if (segment == 129) return 7574.39;
+        if (segment == 130) return 7595.03;
+        if (segment == 131) return 7619.61;
+        if (segment == 132) return 7640.26;
+        if (segment == 133) return 7664.84;
+        if (segment == 134) return 7685.49;
+        if (segment == 135) return 7710.07;
+        if (segment == 136) return 7730.72;
+        if (segment == 137) return 7755.3;
+        if (segment == 138) return 7775.95;
+        if (segment == 139) return 7800.53;
+        if (segment == 140) return 7821.17;
+        if (segment == 141) return 7845.76;
+        if (segment == 142) return 7866.4;
+        if (segment == 143) return 7890.99;
+        if (segment == 144) return 7911.63;
+        if (segment == 145) return 7936.22;
+        if (segment == 146) return 7956.86;
+        if (segment == 147) return 7981.45;
+        if (segment == 148) return 8002.09;
+        if (segment == 149) return 8026.68;
+        if (segment == 150) return 8047.32;
+        if (segment == 151) return 8071.9;
+        if (segment == 152) return 8092.55;
+        if (segment == 153) return 8117.13;
+        if (segment == 154) return 8137.78;
+        if (segment == 155) return 8162.36;
+        if (segment == 156) return 8183.01;
+        if (segment == 157) return 8207.59;
+        if (segment == 158) return 8228.24;
+        if (segment == 159) return 8252.82;
+        if (segment == 160) return 8273.46;
+        if (segment == 161) return 8298.05;
+        if (segment == 162) return 8318.69;
+        if (segment == 163) return 8343.28;
+        if (segment == 164) return 8363.92;
+        if (segment == 165) return 8388.51;
+        if (segment == 166) return 8409.15;
+        if (segment == 167) return 8433.74;
+        if (segment == 168) return 8454.38;
+        if (segment == 169) return 8478.97;
+        if (segment == 170) return 8499.61;
+        if (segment == 171) return 8524.19;
+        if (segment == 172) return 8544.84;
+        if (segment == 173) return 8569.42;
+        if (segment == 174) return 8590.07;
+        if (segment == 175) return 8614.65;
+        if (segment == 176) return 8635.3;
+        if (segment == 177) return 8659.46;
+        if (segment == 178) return 8680.1;
+        if (segment == 179) return 8704.26;
+        if (segment == 180) return 8724.9;
+        if (segment == 181) return 8749.06;
+        if (segment == 182) return 8769.71;
+        if (segment == 183) return 8793.86;
+        if (segment == 184) return 8814.51;
+        if (segment == 185) return 8838.67;
+        if (segment == 186) return 8859.31;
+        if (segment == 187) return 8883.47;
+        if (segment == 188) return 8904.11;
+        if (segment == 189) return 8928.27;
+        if (segment == 190) return 8948.92;
+        if (segment == 191) return 8973.08;
+        if (segment == 192) return 8993.72;
+        if (segment == 193) return 9017.88;
+        if (segment == 194) return 9038.52;
+        if (segment == 195) return 9088.08;
+        if (segment == 196) return 9135.41;
+        if (segment == 197) return 9182.75;
+        if (segment == 198) return 9230.08;
+        if (segment == 199) return 9277.41;
+        if (segment == 200) return 9324.74;
+        if (segment == 201) return 9372.08;
+        if (segment == 202) return 9419.41;
+        if (segment == 203) return 9466.74;
+        if (segment == 204) return 9514.07;
+        if (segment == 205) return 9561.41;
+        if (segment == 206) return 9608.74;
+        if (segment == 207) return 9656.07;
+        if (segment == 208) return 9703.4;
+        if (segment == 209) return 9750.74;
+        if (segment == 210) return 9798.07;
+        if (segment == 211) return 9845.4;
+        if (segment == 212) return 9892.73;
+        if (segment == 213) return 9940.07;
+        if (segment == 214) return 9987.4;
     }
 
     //Taken from Oscar's code (/exp/minerva/app/users/omorenop/cmtuser/git-Mat/Personal/Test/InclusiveUtils.h)
@@ -508,7 +731,7 @@ namespace util
         }
         else //If null
         {
-            hist1 = *hist2;
+            hist1 = *(hist2->Clone());
             hist1.Scale(scale);
         }
     }
@@ -554,8 +777,283 @@ namespace util
         }
         std::sort(dirpaths.begin(), dirpaths.end());
         return dirpaths;
+    }
+
+    // Treat the plastic between planes as though they were nuclear targets themselves
+    //
+    int getPlasticPseudoTargetCode(int mod, int plane, bool extTarget = true)
+    {
+    if (extTarget) //If using extended target definition, exclude planes that would be inlcuded
+    {
+        if (mod == -2 && plane == 2)
+        return -1;
+        if (mod == 0 && plane == 1)
+        return -1;
+        if (mod == 3 && plane == 2)
+        return -1;
+        if (mod == 5 && plane == 1)
+        return -1;
+        if (mod == 8 && plane == 2)
+        return -1;
+        if (mod == 11 && plane == 1)
+        return -1;
+        if (mod == 14 && plane == 2)
+        return -1;
+        if (mod == 15 && plane == 1)
+        return -1;
+        if (mod == 18 && plane == 2)
+        return -1;
+        if (mod == 20 && plane == 1)
+        return -1;
+        if (mod == 21 && plane == 2)
+        return -1;
+    }
+    if (mod >= -5 && mod <= -2)
+        return 7;
+    else if (mod >= 0 && mod <= 3)
+        return 8;
+    else if (mod >= 5 && mod <= 8)
+        return 9;
+    else if (mod >= 11 && mod <= 14)
+        return 10;
+    else if (mod >= 15 && mod <= 18)
+        return 11;
+    else if (mod >= 20 && mod <= 21)
+        return 12;
+
+    //Segmenting the tracker region for the sake of CH-CH comparisons
+    if (mod>=23 && mod <27) return 13;
+    else if (mod>=27 && mod <81)
+    {   
+        //int num = 13+std::floor((mod - 23)/3);
+        int num = 14+std::floor((mod - 24)/12);
+        //std::cout<<"NUM: "<<num<<std::endl;
+        return (num);
+    }
+    else if (mod>=81 && mod <=84) return 19;
+    else
+        return -1;
+    }
+
+    int getTgtCode(const CVUniverse *universe, bool truth, bool useExtendedTarget )
+    {
+    double vtx_x, vtx_y, vtx_z;
+    int mod, plane;
+    if (truth) // Truth
+    {
+        //First step, what target does the tuple say it's in
+        int truthTgtCode = universe->GetTruthTargetCode();
+        if (truthTgtCode > 0) return truthTgtCode; //Maybe do a more explicit check for if it's a valid target code?
+
+        mod = universe->GetTruthVtxModule();
+        plane = universe->GetTruthVtxPlane();
+        ROOT::Math::XYZTVector Vtx = universe->GetTrueVertex();
+        vtx_x = Vtx.X();
+        vtx_y = Vtx.Y();
+        vtx_z = Vtx.Z();
+        //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the tuple branch, instead compare it's vertex position
+        //if (universe->GetTruthVtxModule() == -999 && universe->GetTruthVtxPlane() == -999  && (mcTgtZ = 6 || mcTgtZ == 1) ) return 6000;
+        //if (universe->GetTruthVtxModule() == 15 && universe->GetTruthVtxPlane() == 1  && (mcTgtZ = 6 || mcTgtZ == 1) ) return 6000;
+        PlotUtils::TargetUtils tgtUtil;
+        if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. )) return 6000;
+    }
+    else // ANN
+    {
+        //First step, what target does the tuple say it's in
+        int ANNTgtCode = universe->GetANNTargetCode();
+        if (ANNTgtCode > 0) return ANNTgtCode; //Maybe do a more explicit check for if it's a valid target code?
+
+        //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the regular tuple branch, instead we check if the ANN reconstruction put in the water segment (36)
+        //if (universe->GetANNSegment() == 36 ) return 6000;
+
+        mod = universe->GetANNVtxModule();
+        plane = universe->GetANNVtxPlane();
+        ROOT::Math::XYZVector Vtx = universe->GetANNVertex();
+        vtx_x = Vtx.X();
+        vtx_y = Vtx.Y();
+        vtx_z = Vtx.Z();
+        PlotUtils::TargetUtils tgtUtil;
+        if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. )) return 6000;
+    }
+    //Next determine if the interaction vertex is within the extended target definition (if applicable)
+    if (useExtendedTarget && mod <24)
+    {
+        int extendedTarget = util::getExtendedTarget(mod, plane, vtx_x, vtx_y);
+        if (extendedTarget!=-1) return extendedTarget;
+    }
+    //Lastly, check if it's in a pseudotarget
+    return getPlasticPseudoTargetCode(mod, plane); 
+
+    //Return value for function will be -1 if no target or pseudotarget is determined for this event
+    }
+
+
+    bool isTargetSideband(CVUniverse *universe, int mode /*mc = 0, ANN = 1, TB = 2*/, int targetCode, int USorDS /*Some planes are both the US planes of one target but the DS planes of another and so need to be treated twice*/, bool removeNeighbors = true)
+    {
+        PlotUtils::TargetUtils tgtUtil;
+        double vtx_x, vtx_y, vtx_z;
+        int mod, plane;
+        if (mode == 0) // Truth
+        {
+            mod = universe->GetTruthVtxModule();
+            plane = universe->GetTruthVtxPlane();
+            ROOT::Math::XYZTVector Vtx = universe->GetTrueVertex();
+            vtx_x = Vtx.X();
+            vtx_y = Vtx.Y();
+            vtx_z = Vtx.Z();
+        }
+        else if (mode == 1) // ANN
+        {
+            mod = universe->GetANNVtxModule();
+            plane = universe->GetANNVtxPlane();
+            ROOT::Math::XYZVector Vtx = universe->GetANNVertex();
+            vtx_x = Vtx.X();
+            vtx_y = Vtx.Y();
+            vtx_z = Vtx.Z();
+        }
+        else if (mode == 2) // TB
+        {
+            mod = universe->GetMADVtxModule();
+            plane = universe->GetMADVtxPlane();
+            ROOT::Math::XYZTVector Vtx = universe->GetVertex();
+            vtx_x = Vtx.X();
+            vtx_y = Vtx.Y();
+            vtx_z = Vtx.Z();
         }
 
+        //Sideband for psuedotargets - experimental
+        if (targetCode < 1000) return false; //No sideband for tracker pseudotargets
+        if (targetCode<12)
+        {
+            if (targetCode==7 && !USorDS) return false;
+            if (targetCode==7 && USorDS && mod == -2 && plane == 2) return true;
+            if (targetCode==8 && USorDS && mod == 3 && plane == 2) return true;
+            if (targetCode==8 && !USorDS && mod == 0 && plane == 1) return true;
+            if (targetCode==9 && USorDS && mod == 8 && plane == 2) return true;
+            if (targetCode==9 && !USorDS && mod == 5 && plane == 1) return true;
+            if (targetCode==10 && USorDS && mod == 14 && plane == 2) return true;
+            if (targetCode==10 && !USorDS && mod == 11 && plane == 1) return true;
+            if (targetCode==11 && USorDS && mod == 18 && plane == 2) return true;
+            if (targetCode==11 && !USorDS && mod == 15 && plane == 1) return true;
+            if (targetCode==12 && USorDS && mod == 21 && plane == 2) return true;
+            if (targetCode==12 && !USorDS && mod == 20 && plane == 1) return true;
+        }
+
+        // Removing planes immediately up and downstream of targets if we're looking at a nuclear target
+        if (removeNeighbors && targetCode > 1000)
+        {
+            if (mod == -2 && plane == 2)
+            return false;
+            if (mod == 0 && plane == 1)
+            return false;
+            if (mod == 3 && plane == 2)
+            return false;
+            if (mod == 5 && plane == 1)
+            return false;
+            if (mod == 8 && plane == 2)
+            return false;
+            if (mod == 11 && plane == 1)
+            return false;
+            if (mod == 14 && plane == 2)
+            return false;
+            if (mod == 15 && plane == 1)
+            return false;
+            if (mod == 18 && plane == 2)
+            return false;
+            if (mod == 20 && plane == 1)
+            return false;
+            if (mod == 21 && plane == 2)
+            return false;
+        }
+        if (mod >= 0 && mod <= 3) // DS of target 1 (Iron and Lead) and US of target 2 (Iron and Lead)
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of tgt2
+            {
+                if (targetCode == 2026 && tgtUtil.InIron2VolMC(vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true)) return true;
+                else if (targetCode == 2082 && tgtUtil.InLead2VolMC(vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true)) return true;
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of tgt1
+            {
+                if (targetCode == 1026 && tgtUtil.InIron1VolMC(vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true)) return true;
+                else if (targetCode == 1082 && tgtUtil.InLead1VolMC(vtx_x, vtx_y, tgtUtil.GetTarget1CenterZMC(), 850., true)) return true;
+            }
+        }
+        if (mod >= 5 && mod <= 8) // DS of target 2 (Iron and Lead) and US of target 3 (Carbon, iron and Lead)
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of tgt3
+            {
+                if (targetCode == 3006 && tgtUtil.InCarbon3VolMC(vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true)) return true;
+                else if (targetCode == 3026 && tgtUtil.InIron3VolMC(vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true)) return true;
+                else if (targetCode == 3082 && tgtUtil.InLead3VolMC(vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true)) return true;
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of tgt2
+            {
+                if (targetCode == 2026 && tgtUtil.InIron2VolMC(vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true)) return true;
+                else if (targetCode == 2082 && tgtUtil.InLead2VolMC(vtx_x, vtx_y, tgtUtil.GetTarget2CenterZMC(), 850., true)) return true;
+            }
+        }
+        if (mod >= 11 && mod <= 14) // DS of target 3 (Carbon, iron and Lead) and US of water target
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of water
+            {
+                if (targetCode == 6000 && tgtUtil.InWaterTargetVolMC(vtx_x, vtx_y, (PlotUtils::TargetProp::WaterTarget::Face + PlotUtils::TargetProp::WaterTarget::Back) / 2, 850.)) return true;
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of tgt3
+            {
+                if (targetCode == 3006 && tgtUtil.InCarbon3VolMC(vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true)) return true;
+                else if (targetCode == 3026 && tgtUtil.InIron3VolMC(vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true)) return true;
+                else if (targetCode == 3082 && tgtUtil.InLead3VolMC(vtx_x, vtx_y, tgtUtil.GetTarget3CenterZMC(), 850., true)) return true;
+            }
+        }
+        if (mod >= 15 && mod <= 18) // DS of water target and US of target 4 ( Lead)
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of target 4
+            {
+                if (targetCode == 4082 && tgtUtil.InLead4VolMC(vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850.)) return true;
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of water target
+            {
+                if (targetCode == 6000 && tgtUtil.InWaterTargetVolMC(vtx_x, vtx_y, (PlotUtils::TargetProp::WaterTarget::Face + PlotUtils::TargetProp::WaterTarget::Back) / 2, 850.)) return true;
+            }
+        }
+        if (mod >= 20 && mod <= 21) // DS of target 4 (Lead) and US of target 5 (Iron and Lead)
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of tgt3
+            {
+                if (targetCode == 5026 && tgtUtil.InIron5VolMC(vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true)) return true;
+                else if (targetCode == 5082 && tgtUtil.InLead5VolMC(vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true)) return true;
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of tgt4
+            {
+                if (targetCode == 4082 && tgtUtil.InLead4VolMC(vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850.)) return true;
+            }
+        }
+        if (mod >= 20 && mod <= 21) // DS of target 4 (Lead) and US of target 5 (Iron and Lead)
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of tgt3
+            {
+                if (targetCode == 5026 && tgtUtil.InIron5VolMC(vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true)) return true;
+                else if (targetCode == 5082 && tgtUtil.InLead5VolMC(vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true)) return true;
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of tgt4
+            {
+                if (targetCode == 4082 && tgtUtil.InLead4VolMC(vtx_x, vtx_y, tgtUtil.GetTarget4CenterZMC(), 850.)) return true;
+            }
+        }
+        if (mod >= 23 && mod <= 26) // DS of target 5 (Iron and Lead)
+        {
+            if (USorDS) // If true we're looking for US Planes therefore we're looking at US of tgt3
+            {
+                return false; // This is immedaitely after target 5 and before the tracker region, so these planes are not the upstream region for any targets
+            }
+            else // If false we're looking for DS Planes therefore we're looking at DS of tgt4
+            {
+                if (targetCode == 5026 && tgtUtil.InIron5VolMC(vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true)) return true;
+                else if (targetCode == 5082 && tgtUtil.InLead5VolMC(vtx_x, vtx_y, tgtUtil.GetTarget5CenterZMC(), 850., true)) return true;
+            }
+        }
+        return false;
+    }
 };
 
 namespace reco
@@ -628,6 +1126,52 @@ namespace reco
             return (univ.GetInt("VetoWall_event_IsVeto") != 1);
         }
     };
+
+    template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+    class IsInTarget: public PlotUtils::Cut<UNIVERSE, EVENT>
+    {
+        public:
+        IsInTarget(int targetCode, bool useExtendedTarget): PlotUtils::Cut<UNIVERSE, EVENT>("Is In Target " + std::to_string(targetCode)), fTargetCode(targetCode), fUseExtendedTarget(useExtendedTarget)
+        {
+        }
+
+        private:
+        bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+        {   
+            int tgt = util::getTgtCode(&univ, false, fUseExtendedTarget);
+            //std::cout<< "Target code: " << fTargetCode << std::endl;
+            //std::cout<< "Target code1: " << tgt << std::endl;
+            return tgt == fTargetCode;
+        }
+        int fTargetCode;
+        bool fUseExtendedTarget;
+    };
+
+    template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+    using ANNMuonEnergyMinGeV = PlotUtils::Minimum<UNIVERSE, double, &UNIVERSE::GetANNEmuGeV, EVENT>;
+    template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+    using ANNMuonEnergyMaxGeV = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetANNEmuGeV, EVENT>;
+};
+
+
+namespace truth
+{
+  template <class UNIVERSE>
+  class IsInTarget: public PlotUtils::SignalConstraint<UNIVERSE>
+  {
+    public:
+      IsInTarget(const int targetCode, const bool useExtendedTarget): PlotUtils::SignalConstraint<UNIVERSE>("Is In Target " + std::to_string(targetCode)), fTargetCode(targetCode), fUseExtendedTarget(useExtendedTarget)
+      {
+      }
+
+    private:
+      bool checkConstraint(const UNIVERSE& univ) const override
+      {
+        return util::getTgtCode(&univ, true, fUseExtendedTarget) == fTargetCode;
+      }
+    int fTargetCode;
+    bool fUseExtendedTarget;
+  };
 };
 
 namespace util
@@ -635,12 +1179,12 @@ namespace util
 
   std::vector<double> PTBins = {0, 0.075, 0.15, 0.25, 0.325, 0.4, 0.475, 0.55, 0.7, 0.85, 1, 1.25, 1.5, 2.5, 4.5},
                       PzBins = {1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10, 15, 20, 40, 60},
-                      EmuBins = {0,1,2,3,4,5,7,9,12,15,18,22,36,50,75,100,120},
+                      EmuBins = {/* 0,1, */2,3,4,5,7,9,12,15,20},
                       //bjorkenXbins = {0.001, 0.02, 0.04, 0.06, 0.08, 0.1, 0.2, 0.3, 0.6, 1 , 2.2},
                       bjorkenXbins = {0.001, 0.02, 0.05, 0.1, 0.2, 0.4, 1 , 2.2},
+                      bjorkenYbins = {0.001, 0.02, 0.05, 0.1, 0.2, 0.4, 1 , 2.2},
                       Erecoilbins = {0, 0.2, 0.75, 1.5, 2.5, 3.5, 5, 8, 12, 14.5, 20}; //GeV
                       //Erecoilbins = {0, 200, 750, 1500, 2500, 3500, 5000, 8000, 12000, 14500, 20000}; //MeV
-
 
   //Boiler plate precuts for CC inclusive NuMu ME Analysis
   const double apothem = 850; //All in mm
@@ -654,11 +1198,11 @@ namespace util
     if (pdg>0)  cuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
     else if (pdg<0)  cuts.emplace_back(new reco::IsAntiNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
     cuts.emplace_back(new reco::MuonCurveSignificance<CVUniverse, MichelEvent>(5));
-    cuts.emplace_back(new reco::MuonEnergyMin<CVUniverse, MichelEvent>(2000.0, "EMu Min"));
-    cuts.emplace_back(new reco::MuonEnergyMax<CVUniverse, MichelEvent>(20000.0, "EMu Max"));
-    cuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20)); //Reccomended at 0.4 for P6 ML vertexing and 0.2 for P4 vertexing
-    //cuts.emplace_back(new reco::RockMuonCut<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
-    //cuts.emplace_back(new reco::VetoWall<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
+    cuts.emplace_back(new reco::ANNMuonEnergyMinGeV<CVUniverse, MichelEvent>(2, "EMu Min"));
+    cuts.emplace_back(new reco::ANNMuonEnergyMaxGeV<CVUniverse, MichelEvent>(20, "EMu Max"));
+    cuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40)); //Reccomended at 0.4 for P6 ML vertexing and 0.2 for P4 vertexing
+    cuts.emplace_back(new reco::RockMuonCut<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
+    cuts.emplace_back(new reco::VetoWall<CVUniverse, MichelEvent>()); //Reccomended for P6 ML vertexing
     return cuts;
   }
 
@@ -667,9 +1211,30 @@ namespace util
     PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t phasespace;
     phasespace.emplace_back(new truth::Apothem<CVUniverse>(apothem));
     phasespace.emplace_back(new truth::MuonAngle<CVUniverse>(17.));
-    phasespace.emplace_back(new truth::MuonEnergyMin<CVUniverse>(2000.0, "EMu Min"));
-    phasespace.emplace_back(new truth::MuonEnergyMax<CVUniverse>(20000.0, "EMu Max"));
+    phasespace.emplace_back(new truth::MuonEnergyMinGeV<CVUniverse>(2, "EMu Min"));
+    phasespace.emplace_back(new truth::MuonEnergyMaxGeV<CVUniverse>(20, "EMu Max"));
     return phasespace;
   }
 };
+
+/* namespace truth
+{
+
+  template <class UNIVERSE>
+  class PZMuMin: public PlotUtils::SignalConstraint<UNIVERSE>
+  {
+    public:
+      PZMuMin(const double min): PlotUtils::SignalConstraint<UNIVERSE>(std::string("PzMu > ") + std::to_string(min)), fMin(min)
+      {
+      }
+
+    private:
+      bool checkConstraint(const UNIVERSE& univ) const override
+      {
+        return univ.GetPlepTrue() * cos(univ.GetThetalepTrue()) >= fMin;
+      }
+
+      const double fMin;
+  };
+}; */
 #endif //UTIL_NUKEUTILS_H

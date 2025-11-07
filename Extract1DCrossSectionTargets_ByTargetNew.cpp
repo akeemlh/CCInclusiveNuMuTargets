@@ -82,6 +82,7 @@
 #include <exception>
 #include <algorithm>
 #include <numeric>
+#include <filesystem>
 
 // Convince the STL to talk to TIter so I can use std::find_if()
 namespace std
@@ -146,6 +147,14 @@ double getChi2( const double * val )
     return chiSq;
 }
 
+bool isNumber(const std::string& str) {
+  for (char c : str) {
+    if (!std::isdigit(c)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 // Plot a step in cross section extraction.
 void Plot(PlotUtils::MnvH1D &hist, const std::string &stepName, const std::string &prefix, const std::string &target)
@@ -250,6 +259,8 @@ int main(const int argc, const char **argv)
   
   std::vector<std::string> dirs = util::findContainingDirectories(indir, "Targets", true);
 
+  if (dirs.size()==0) dirs = {"./"};
+
   std::vector<std::string> targets;
   if (intgt == "ALL" || intgt == "all")
   {
@@ -259,14 +270,59 @@ int main(const int argc, const char **argv)
   {
     targets = {intgt};
   }
-  for (std::string &tgt : targets)
+  for (std::string &tgtname : targets)
   {
-    //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
-    std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
+    //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", /* "BjorkenX", "Erecoil", "Emu" , "beamAngle", "segment" */};
+    std::vector<std::string> crossSectionPrefixes = {"pTmu"};
+    //std::vector<std::string> crossSectionPrefixes = {"beamAngle"};
     //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu"};
 
     for (const auto &prefix : crossSectionPrefixes)
     {
+
+      PlotUtils::MnvH1D *fluxIntReweighted = new PlotUtils::MnvH1D();
+
+      PlotUtils::MnvH1D* flux = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* folded = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH2D* migration = new PlotUtils::MnvH2D();
+      PlotUtils::MnvH1D* effNum = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* effDenom = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* effDenom2P2H = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* effDenomDIS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* effDenomRES = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* effDenomQE = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* effDenomOther = new PlotUtils::MnvH1D();
+
+      PlotUtils::MnvH1D* USSidebandSignal = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* USSidebandDS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* USSidebandUS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* USSidebandOther = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DSSidebandSignal = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DSSidebandDS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DSSidebandUS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DSSidebandOther = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DataUSSideband = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DataDSSideband = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* DataSignal = new PlotUtils::MnvH1D();
+
+      PlotUtils::MnvH1D* SelectedSignalReco = new PlotUtils::MnvH1D();
+
+      PlotUtils::MnvH1D* BackgroundWrongSign = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundNC = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundOther = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundWaterTank = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundUSPlastic = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundDSPlastic = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundOtherTarget = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* BackgroundVtxElsewhere = new PlotUtils::MnvH1D();
+
+      PlotUtils::MnvH1D* MCData = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCData2p2h = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataDIS = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataRES = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataQE = new PlotUtils::MnvH1D();
+      PlotUtils::MnvH1D* MCDataOther = new PlotUtils::MnvH1D();
+
       //if (!(prefix == "Erecoil" || prefix == "pTmu")) continue; //Used for testing with only subset of prefixes
       std::cout << "Currently working on prefix: " << prefix << std::endl;
       try
@@ -277,22 +333,22 @@ int main(const int argc, const char **argv)
         double waterEmptyPOTData = 0;
         double waterFilledPOTMC = 0;
         double waterEmptyPOTMC = 0;
-
+        std::cout<<"Investigating directory\n";
         std::vector <std::string> targetsInTgt;
-        if (tgt=="Iron") targetsInTgt = {"2026", "3026", "5026"};
-        else if (tgt=="Carbon") targetsInTgt = {"3006"};
-        else if (tgt=="Lead") targetsInTgt = {"2082", "3082", "4082", "5082"};
-        else if (tgt=="WaterEmpty")
+        if (tgtname=="Iron") targetsInTgt = {"2026", "3026", "5026"};
+        else if (tgtname=="Carbon") targetsInTgt = {"3006"};
+        else if (tgtname=="Lead") targetsInTgt = {"2082", "3082", "4082", "5082"};
+        else if (tgtname=="WaterEmpty")
         {
           targetsInTgt = {"6000"};
           waterFilledEmpty = 2;
         }
-        else if (tgt=="WaterFull")
+        else if (tgtname=="WaterFull")
         {
           targetsInTgt = {"6000"};
           waterFilledEmpty = 1;
         }
-        else if (tgt=="Water")
+        else if (tgtname=="Water")
         {
           targetsInTgt = {"6000"};
           waterFilledEmpty = 0; //Do subtractive analysis
@@ -336,62 +392,18 @@ int main(const int argc, const char **argv)
           std::cout<<"Total Data POT Filled: "<< waterFilledPOTData << std::endl;
           std::cout<<"Total Data POT Empty: "<< waterEmptyPOTData << std::endl;
         }
-        else targetsInTgt = {tgt};
-
+        else targetsInTgt = {tgtname};
+        std::cout<<"Investigating directory1\n";
         //Flux parameters
         int n_flux_universes = 100; // Is this right
         const bool use_nue_constraint = true;
         const std::string project_dir = "targets_2345_jointNueIMD";
         double min_energy = 0;
         double max_energy = 100;
-        
-        PlotUtils::MnvH1D *fluxIntReweighted = new PlotUtils::MnvH1D();
-
-        PlotUtils::MnvH1D* flux = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* folded = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH2D* migration = new PlotUtils::MnvH2D();
-        PlotUtils::MnvH1D* effNum = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* effDenom = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* effDenom2P2H = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* effDenomDIS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* effDenomRES = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* effDenomQE = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* effDenomOther = new PlotUtils::MnvH1D();
-
-        PlotUtils::MnvH1D* USSidebandSignal = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* USSidebandDS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* USSidebandUS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* USSidebandOther = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DSSidebandSignal = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DSSidebandDS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DSSidebandUS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DSSidebandOther = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DataUSSideband = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DataDSSideband = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* DataSignal = new PlotUtils::MnvH1D();
-
-        PlotUtils::MnvH1D* SelectedSignalReco = new PlotUtils::MnvH1D();
-
-        PlotUtils::MnvH1D* OriginSignal = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* OriginUS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* OriginDS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* OriginTank = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* OriginOther = new PlotUtils::MnvH1D();
-
-        PlotUtils::MnvH1D* BackgroundWrongSign = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* BackgroundNC = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* BackgroundOther = new PlotUtils::MnvH1D();
-
-        PlotUtils::MnvH1D* MCData = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* MCData2p2h = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* MCDataDIS = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* MCDataRES = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* MCDataQE = new PlotUtils::MnvH1D();
-        PlotUtils::MnvH1D* MCDataOther = new PlotUtils::MnvH1D();
 
         double mcPOT = 0;
         double dataPOT = 0;
-
+        std::cout<<"Investigating directory2\n";
         //Only needed for water subtractive analysis
         double scaleFactor = 1e18;
 
@@ -402,7 +414,7 @@ int main(const int argc, const char **argv)
         double culmulativeMCPOT = 0; //Only needed for water subtractive analysis
         double culmulativeDataPOT = 0;
 
-        
+        std::cout<<"dirs " << dirs.size()<<"\n";
         for (int c = 0; c<dirs.size(); c++)
         {
           std::cout<<"Investigating directory " << dirs[c] << " which is " << c+1 <<"/"<<dirs.size() <<" playlists identified" <<std::endl;
@@ -478,18 +490,16 @@ int main(const int argc, const char **argv)
             util::AddHist(*DSSidebandOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Other"))), mcscale);
             util::AddHist(*DataUSSideband,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_US_Sideband"))), datascale);
             util::AddHist(*DataDSSideband,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_DS_Sideband"))), datascale);
-            util::AddHist(*DataSignal,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_data"))), dataPOT);
+            util::AddHist(*DataSignal,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_data"))), datascale);
 
             util::AddHist(*SelectedSignalReco,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("selected_signal_reco")), prefix), mcscale);
-
-            util::AddHist(*OriginSignal,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Origin_Signal")), prefix), mcscale);
-            util::AddHist(*OriginUS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Origin_US")), prefix), mcscale);
-            util::AddHist(*OriginDS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Origin_DS")), prefix), mcscale);
-            util::AddHist(*OriginTank,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Origin_WaterTank")), prefix), mcscale);
-            util::AddHist(*OriginOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("Origin_Other")), prefix), mcscale);
-
             util::AddHist(*BackgroundWrongSign,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Wrong_Sign_Bkg")), prefix), mcscale);
             util::AddHist(*BackgroundNC,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_NC_Bkg")), prefix), mcscale);
+            util::AddHist(*BackgroundWaterTank,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Water_Tank_Bkg")), prefix), mcscale);
+            util::AddHist(*BackgroundDSPlastic,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Downstream_Plastic_Bkg")), prefix), mcscale);
+            util::AddHist(*BackgroundUSPlastic,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Upstream_Plastic_Bkg")), prefix), mcscale);
+            util::AddHist(*BackgroundOtherTarget,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_True_In_Other_Target_Bkg")), prefix), mcscale);
+            util::AddHist(*BackgroundVtxElsewhere,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_True_Vtx_Elsewhere_Bkg")), prefix), mcscale);
             util::AddHist(*BackgroundOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Other")), prefix), mcscale);
 
             util::AddHist(*MCData,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("data")), prefix), mcscale);
@@ -523,11 +533,140 @@ int main(const int argc, const char **argv)
 
         //Normalising the integrated flux across different playlists by dataPOT
         fluxIntReweighted->Scale(1/dataPOT);
-        Plot(*folded, "folded", prefix, tgt);
+        Plot(*folded, "folded", prefix, tgtname);
         //************************************************
         //Sideband chisq minimisation - single scale factor across a given sideband region
         //************************************************
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(8), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(8), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(8), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(8), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(8), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(8), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(8), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(8), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(8), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(8), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(10), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(10), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(10), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(10), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(10), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(10), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(10), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(10), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(10), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(10), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(17), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(17), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(17), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(17), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(17), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(17), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(17), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(17), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(17), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(17), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(19), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(19), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(19), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(19), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(19), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(19), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(19), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(19), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(19), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(19), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(26), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(26), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(26), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(26), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(26), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(26), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(26), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(26), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(26), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(26), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(28), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(28), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(28), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(28), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(28), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(28), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(28), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(28), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(28), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(28), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(35), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(35), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(35), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(35), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(35), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(35), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(35), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(35), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(35), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(35), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(37), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(37), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(37), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(37), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(37), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(37), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(37), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(37), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(37), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(37), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(44), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(44), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(44), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(44), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(44), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(44), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(44), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(44), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(44), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(44), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(46), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(46), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(46), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(46), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(46), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(46), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(46), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(46), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(46), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(46), -1);
+
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(49), -1);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(49), -1);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(49), -1);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(49), -1);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(49), -1);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(49), -1);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(49), -1);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(49), -1);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(49), -1);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(49), -1);
+
         bool doMinimiser = true;
+
+
+        if (isNumber(tgtname))
+        {
+          int tgtCode = std::stoi(tgtname);
+          if (tgtCode>=7 && tgtCode <= 19) doMinimiser = false; // No plastic sideband tuning possible for the pseudotargets
+        } 
         double USScaleFactor = 1;
         double DSScaleFactor = 1;
         if (doMinimiser)
@@ -547,8 +686,8 @@ int main(const int argc, const char **argv)
           g_combinedMCHist = combinedUS;
           g_dataHist = DataUSSideband;
 
-          //Plot(*combinedUS, "combinedUS", prefix, tgt);
-          //Plot(*DataUSSideband, "DataUSSideband", prefix, tgt);
+          //Plot(*combinedUS, "combinedUS", prefix, tgtname);
+          //Plot(*DataUSSideband, "DataUSSideband", prefix, tgtname);
           double minValUS, minValDS;
           {          //US Sideband
             ROOT::Math::Minimizer* minimizer = ROOT::Math::Factory::CreateMinimizer("Minuit2");
@@ -602,27 +741,28 @@ int main(const int argc, const char **argv)
 
         // TODO: Remove these debugging plots when done
 
-        PlotUtils::MnvH1D* OriginUSScaled = OriginUS->Clone();
-        OriginUSScaled->Scale(USScaleFactor);
-        PlotUtils::MnvH1D* OriginDSScaled = OriginDS->Clone();
-        OriginDSScaled->Scale(DSScaleFactor);
-        std::vector<PlotUtils::MnvH1D*> sidebandScaled = {OriginUSScaled, OriginDSScaled};
 
-        std::vector<PlotUtils::MnvH1D*> backgrounds = { BackgroundWrongSign, BackgroundNC, BackgroundOther};
+        //USScaleFactor = 1.05;
+        //DSScaleFactor = 1.05;
+
+        BackgroundUSPlastic->Scale(USScaleFactor);
+        BackgroundDSPlastic->Scale(DSScaleFactor);
+        std::vector<PlotUtils::MnvH1D*> sidebandScaled = {BackgroundUSPlastic, BackgroundDSPlastic};
+        std::vector<PlotUtils::MnvH1D*> backgrounds = { BackgroundWrongSign, BackgroundNC, BackgroundOther, BackgroundWaterTank, BackgroundOtherTarget, BackgroundVtxElsewhere};
         auto toSubtract = std::accumulate(std::next(backgrounds.begin()), backgrounds.end(), (*backgrounds.begin())->Clone(),
                                           [](auto sum, const auto hist)
                                           {
                                             sum->Add(hist);
                                             return sum;
                                           });
-        Plot(*toSubtract, "BackgroundSum", prefix, tgt);
+        Plot(*toSubtract, "BackgroundSum", prefix, tgtname);
         auto toSubtractSideband = std::accumulate(std::next(sidebandScaled.begin()), sidebandScaled.end(), (*sidebandScaled.begin())->Clone(),
                                           [](auto sum, const auto hist)
                                           {
                                             sum->Add(hist);
                                             return sum;
                                           });
-        Plot(*toSubtractSideband, "sidebandScaledSum", prefix, tgt);
+        Plot(*toSubtractSideband, "sidebandScaledSum", prefix, tgtname);
 
         //sum up backgrounds without sideband scaling
         auto bkgSubtracted = std::accumulate(backgrounds.begin(), backgrounds.end(), folded->Clone(),
@@ -650,11 +790,11 @@ int main(const int argc, const char **argv)
                                                 return sum;
                                               });
 
-        Plot(*bkgSubtracted, "backgroundSubtracted", prefix, tgt);
-        Plot(*bkgScaledSubtracted, "backgroundSubtractedScaled", prefix, tgt);
-        Plot(*sidebandScaledSubtracted, "sidebandScaledSubtracted", prefix, tgt);
+        Plot(*bkgSubtracted, "backgroundSubtracted", prefix, tgtname);
+        Plot(*bkgScaledSubtracted, "backgroundSubtractedScaled", prefix, tgtname);
+        Plot(*sidebandScaledSubtracted, "sidebandScaledSubtracted", prefix, tgtname);
 
-        auto outFile = TFile::Open((tgt + prefix + "_crossSection.root").c_str(), "RECREATE");
+        auto outFile = TFile::Open((tgtname + prefix + "_crossSection.root").c_str(), "RECREATE");
         if (!outFile)
         {
           std::cerr << "Could not create a file called " << prefix + "_crossSection.root" << ".  Does it already exist?\n";
@@ -686,44 +826,38 @@ int main(const int argc, const char **argv)
         bkgSubtracted->Write("backgroundSubtracted");
         bkgScaledSubtracted->Write("backgroundSubtractedSidebandScaled");
 
-        OriginUS->Write("OriginUS");
-        OriginDS->Write("OriginDS");
-        OriginTank->Write("OriginTank");
-        OriginOther->Write("OriginOther");
-        OriginSignal->Write("OriginSignal");
 
         // d'Aogstini unfolding
         auto unfolded = UnfoldHist(bkgSubtracted, migration, nIterations);
         if (!unfolded)
           throw std::runtime_error(std::string("Failed to unfold ") + folded->GetName() + " using " + migration->GetName());
-        Plot(*unfolded, "unfolded", prefix, tgt);
+        Plot(*unfolded, "unfolded", prefix, tgtname);
         unfolded->Clone()->Write("unfolded"); // TODO: Seg fault first appears when I uncomment this line
         auto unfolded_tuned = UnfoldHist(bkgScaledSubtracted, migration, nIterations);
         if (!unfolded_tuned)
           throw std::runtime_error(std::string("Failed to unfold ") + folded->GetName() + " using " + migration->GetName());
-        Plot(*unfolded_tuned, "unfolded_sidebandTuned", prefix, tgt);
+        Plot(*unfolded_tuned, "unfolded_sidebandTuned", prefix, tgtname);
         unfolded_tuned->Clone()->Write("unfolded_sidebandTuned"); // TODO: Seg fault first appears when I uncomment this line
         std::cout << "Survived writing the unfolded histogram.\n"
                   << std::flush; // This is evidence that the problem is on the final file Write() and not unfolded->Clone()->Write().
 
         effNum->Divide(effNum, effDenom); // Only the 2 parameter version of MnvH1D::Divide()
                                           // handles systematics correctly.
-        Plot(*effNum, "efficiency", prefix, tgt);
+        Plot(*effNum, "efficiency", prefix, tgtname);
 
         unfolded->Divide(unfolded, effNum);
-        Plot(*unfolded, "efficiencyCorrected", prefix, tgt);
+        Plot(*unfolded, "efficiencyCorrected", prefix, tgtname);
 
         unfolded_tuned->Divide(unfolded_tuned, effNum);
-        Plot(*unfolded_tuned, "efficiencyCorrected_sidebandTuned", prefix, tgt);
+        Plot(*unfolded_tuned, "efficiencyCorrected_sidebandTuned", prefix, tgtname);
 
         // double nnucleons = nNucleons->GetVal()/numMergedPlaylists;
         double nnucleons = 0;
 
-        std::string tgtname = tgt;
-        const size_t base = tgt.find("Scaled");
+        const size_t base = tgtname.find("Scaled");
         if (base != std::string::npos)
         {
-          tgtname= tgt.substr(0, base);
+          tgtname= tgtname.substr(0, base);
         }
 
         std::string material = "tracker";
@@ -738,6 +872,7 @@ int main(const int argc, const char **argv)
         double nnucleonsData;
         std::cout<<"material: " << material << std::endl;
         PlotUtils::TargetUtils targetInfo;
+        targetInfo.SetDistToDivCut(25);
 
         if (tgtname == "Lead")
         {
@@ -769,7 +904,7 @@ int main(const int argc, const char **argv)
           nnucleons = targetInfo.GetPassiveTargetNNucleons(6, 1, true);
           nnucleonsData = targetInfo.GetPassiveTargetNNucleons(6, 1, false);
         }
-        else
+        else if (isNumber(tgtname))
         {
           std::cout<<"Here1.n";
           int tgtCode = std::stoi(tgtname);
@@ -780,26 +915,42 @@ int main(const int argc, const char **argv)
             tgtMat = 1;
             tgtNum = 6;
           }
-          if (tgtNum<7 && tgtCode>1000) nnucleons = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, true);
-          else
+          if (tgtNum<7 && tgtCode>1000)
           {
-            if (tgtNum==7) nnucleons = targetInfo.GetTrackerNNucleons( 7, true); 
-            if (tgtNum==8) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
-            if (tgtNum==9) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
-            if (tgtNum==10) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
-            if (tgtNum==11) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
-            if (tgtNum==12) nnucleons = targetInfo.GetTrackerNNucleons( 2, true); 
+            nnucleons = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, true);
+            nnucleonsData = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, false);
           }
-          if (tgtNum<7 && tgtCode>1000) nnucleonsData = targetInfo.GetPassiveTargetNNucleons(tgtNum, tgtMat, false);
-          else
+          else if (tgtCode>=7 && tgtCode <= 19)
           {
-            if (tgtNum==7) nnucleonsData = targetInfo.GetTrackerNNucleons( 7, false); 
-            if (tgtNum==8) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
-            if (tgtNum==9) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
-            if (tgtNum==10) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
-            if (tgtNum==11) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
-            if (tgtNum==12) nnucleonsData = targetInfo.GetTrackerNNucleons( 2, false); 
+            std::cout<<"tgtCode: " << tgtCode <<std::endl;
+            if (tgtCode==7) nnucleons = targetInfo.GetTrackerNNucleons( 7, true); 
+            if (tgtCode==8) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
+            if (tgtCode==9) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
+            if (tgtCode==10) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
+            if (tgtCode==11) nnucleons = targetInfo.GetTrackerNNucleons( 6, true); 
+            if (tgtCode==12) nnucleons = targetInfo.GetTrackerNNucleons( 2, true); 
+            if (tgtCode==7) nnucleonsData = targetInfo.GetTrackerNNucleons( 7, false); 
+            if (tgtCode==8) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
+            if (tgtCode==9) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
+            if (tgtCode==10) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
+            if (tgtCode==11) nnucleonsData = targetInfo.GetTrackerNNucleons( 6, false); 
+            if (tgtCode==12) nnucleonsData = targetInfo.GetTrackerNNucleons( 2, false); 
+            if (tgtCode==13) nnucleons = targetInfo.GetTrackerNNucleons( 8, true); 
+            if (tgtCode==13) nnucleonsData = targetInfo.GetTrackerNNucleons( 8, false); 
+            if (tgtCode==14) nnucleons = targetInfo.GetTrackerNNucleons( 24, true); 
+            if (tgtCode==14) nnucleonsData = targetInfo.GetTrackerNNucleons( 24, false); 
+            if (tgtCode==15) nnucleons = targetInfo.GetTrackerNNucleons( 24, true); 
+            if (tgtCode==15) nnucleonsData = targetInfo.GetTrackerNNucleons( 24, false); 
+            if (tgtCode==16) nnucleons = targetInfo.GetTrackerNNucleons( 24, true); 
+            if (tgtCode==16) nnucleonsData = targetInfo.GetTrackerNNucleons( 24, false); 
+            if (tgtCode==17) nnucleons = targetInfo.GetTrackerNNucleons( 24, true); 
+            if (tgtCode==17) nnucleonsData = targetInfo.GetTrackerNNucleons( 24, false); 
+            if (tgtCode==18) nnucleons = targetInfo.GetTrackerNNucleons( 24, true); 
+            if (tgtCode==18) nnucleonsData = targetInfo.GetTrackerNNucleons( 24, false); 
+            if (tgtCode==19) nnucleons = targetInfo.GetTrackerNNucleons( 18, true); 
+            if (tgtCode==19) nnucleonsData = targetInfo.GetTrackerNNucleons( 18, false); 
           }
+
         }
 
         std::cout<<"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
@@ -817,15 +968,15 @@ int main(const int argc, const char **argv)
 
 
         std::string tgtString = "";
-        if (tgt == "WaterEmpty") tgtString = "Water (Empty Playlists - Approx 63% of ME POT)";
-        else if (tgt == "WaterFull") tgtString = "Water (Filled Playlists - Approx 37% of ME POT)";
-        else if (tgt == "Water") tgtString = "Water (Filled - Empty)";
-        else if (tgt == "Iron") tgtString = "Iron";
-        else if (tgt == "Carbon") tgtString = "Carbon";
-        else if (tgt == "Lead") tgtString = "Lead";
+        if (tgtname == "WaterEmpty") tgtString = "Water (Empty Playlists - Approx 63% of ME POT)";
+        else if (tgtname == "WaterFull") tgtString = "Water (Filled Playlists - Approx 37% of ME POT)";
+        else if (tgtname == "Water") tgtString = "Water (Filled - Empty)";
+        else if (tgtname == "Iron") tgtString = "Iron";
+        else if (tgtname == "Carbon") tgtString = "Carbon";
+        else if (tgtname == "Lead") tgtString = "Lead";
         else
         {
-          int tgtInt = std::stoi(tgt);
+          int tgtInt = std::stoi(tgtname);
           int tgtZ = tgtInt%1000;
           int tgtNum = (tgtInt-tgtZ)/1000;
           if (tgtNum==6) tgtString = "Water Target";
@@ -862,11 +1013,12 @@ int main(const int argc, const char **argv)
         //PlotUtils::MnvH1D *Integrated_fluxGenie = frw->GetIntegratedFluxReweighted_FromInputFlux(flux2, simEventRate, min_energy, max_energy);
         //PlotUtils::MnvH1D *Integrated_fluxGenie2 = frw->GetIntegratedFluxReweighted_FromInputFlux(flux, simEventRate, min_energy, max_energy);
         outFile->cd();
+        fluxIntReweighted->Write("fluxIntReweighted");
         auto crossSection = normalize(unfolded, fluxIntReweighted, nnucleonsData, dataPOT);
-        Plot(*crossSection, "crossSection", prefix, tgt);
+        Plot(*crossSection, "crossSection", prefix, tgtname);
         crossSection->Write("crossSection");
         auto crossSectionTuned = normalize(unfolded_tuned, fluxIntReweighted, nnucleonsData, dataPOT);
-        //Plot(*crossSectionTuned, "crossSectionTuned", prefix, tgt);
+        Plot(*crossSectionTuned, "crossSectionTuned", prefix, tgtname);
         crossSectionTuned->Write("crossSectionTuned");
         simEventRate->Write("simulatedEventRate");
         fluxIntReweighted->Write("fluxIntReweighted");
@@ -914,30 +1066,33 @@ int main(const int argc, const char **argv)
           auto tempqe = MCDataQE->Clone();
           auto tempChannelOther = MCDataOther->Clone();
 
-          auto tempUS = OriginUS->Clone();
-          auto tempDS = OriginDS->Clone();
-          auto tempTank = OriginTank->Clone();
-          auto tempOriginOther = OriginOther->Clone();
-          auto tempOriginSignal = OriginSignal->Clone();
-
+          auto tempUS = BackgroundUSPlastic->Clone();
+          auto tempDS = BackgroundDSPlastic->Clone();
+          auto tempTank = BackgroundWaterTank->Clone();
           auto tempWS = BackgroundWrongSign->Clone();
           auto tempNC = BackgroundNC->Clone();
           auto tempBackgroundOther = BackgroundOther->Clone();
+          auto tempOtherTgt = BackgroundOtherTarget->Clone();
+          auto tempVtxElsewhere = BackgroundVtxElsewhere->Clone();
+          tempBackgroundOther->Add(BackgroundWaterTank);
           auto tempsignal = SelectedSignalReco->Clone();
 
           auto tempevrate = folded->Clone();
           auto tempevrateScaled = bkgScaledSubtracted->Clone();
+          auto tempevrateSidebandSubtracted = sidebandScaledSubtracted->Clone();
+          
           auto tempsim = MCData->Clone();
 
           tempUS->SetTitle("Upstream Plastic");
           tempDS->SetTitle("Downstream Plastic");
-          tempOriginSignal->SetTitle("Signal");
-          tempTank->SetTitle("Water Tank");
-          tempOriginOther->SetTitle("Other");
+          //tempTank->SetTitle("Water Tank");
 
           tempWS->SetTitle("Wrong Sign");
           tempNC->SetTitle("Neutral Current");
           tempBackgroundOther->SetTitle("Other");
+          tempOtherTgt->SetTitle("Different Target");
+          tempVtxElsewhere->SetTitle("True elsewhere");
+          tempBackgroundOther->Add(BackgroundWaterTank);
           tempsignal->SetTitle("Signal");
 
 
@@ -949,26 +1104,28 @@ int main(const int argc, const char **argv)
 
           tempUS->Scale(1e-3);
           tempDS->Scale(1e-3);
-          tempOriginSignal->Scale(1e-3);
-          tempOriginOther->Scale(1e-3);
-
+          //tempTank->Scale(1e-3);
           tempWS->Scale(1e-3);
           tempNC->Scale(1e-3);
           tempBackgroundOther->Scale(1e-3);
+          tempOtherTgt->Scale(1e-3);
+          tempVtxElsewhere->Scale(1e-3);
+
+
           tempsim->Scale(1e-3);
-          tempTank->Scale(1e-3);
           tempsignal->Scale(1e-3);
 
 
           tempevrate->Scale(1e-3);
           tempevrateScaled->Scale(1e-3);
+          tempevrateSidebandSubtracted->Scale(1e-3);
 
 
           double normPOT = 1.12e+21;
           double dataPOTforScale = dataPOT;
           double mcPOTforScale = mcPOT;
 
-          if (tgt == "Water")
+          if (tgtname == "Water")
           {
             dataPOTforScale = waterFilledPOTData;
             mcPOTforScale = waterFilledPOTMC;
@@ -982,13 +1139,13 @@ int main(const int argc, const char **argv)
 
           tempUS->Scale(dataPOTforScale/mcPOTforScale);
           tempDS->Scale(dataPOTforScale/mcPOTforScale);
-          tempTank->Scale(dataPOTforScale/mcPOTforScale);
-          tempOriginOther->Scale(dataPOTforScale/mcPOTforScale);
-          tempOriginSignal->Scale(dataPOTforScale/mcPOTforScale);
+          //tempTank->Scale(dataPOTforScale/mcPOTforScale);
 
           tempWS->Scale(dataPOTforScale/mcPOTforScale);
           tempNC->Scale(dataPOTforScale/mcPOTforScale);
           tempBackgroundOther->Scale(dataPOTforScale/mcPOTforScale);
+          tempOtherTgt->Scale(dataPOTforScale/mcPOTforScale);
+          tempVtxElsewhere->Scale(dataPOTforScale/mcPOTforScale);
           tempsignal->Scale(dataPOTforScale/mcPOTforScale);
 
           tempsim->Scale(dataPOTforScale/mcPOTforScale);
@@ -1002,17 +1159,15 @@ int main(const int argc, const char **argv)
           channelArr->Add(tempqe);
           channelArr->Add(tempChannelOther);
 
-          TObjArray* originArr = new TObjArray();
-          originArr->Add(tempUS);
-          originArr->Add(tempDS);
-          originArr->Add(tempTank);
-          originArr->Add(tempOriginOther);
-          originArr->Add(tempOriginSignal);
-
           TObjArray* bkgArr = new TObjArray();
+          bkgArr->Add(tempUS);
+          bkgArr->Add(tempDS);
+          //bkgArr->Add(tempTank);
           bkgArr->Add(tempWS);
           bkgArr->Add(tempNC);
           bkgArr->Add(tempBackgroundOther);
+          bkgArr->Add(tempOtherTgt);
+          bkgArr->Add(tempVtxElsewhere);
           bkgArr->Add(tempsignal);
 
           std::string tmp; 
@@ -1027,6 +1182,7 @@ int main(const int argc, const char **argv)
             y_title += " /(GeV/c)";
             xmax = 13;
             tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsignal->GetXaxis()->SetRange(1, xmax);
           }
           else if (prefix=="pZmu")
           {
@@ -1035,6 +1191,7 @@ int main(const int argc, const char **argv)
             y_title += " /(GeV/c)";
             xmax = 13;
             tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsignal->GetXaxis()->SetRange(1, xmax);
           }
           else if (prefix=="BjorkenX")
           {
@@ -1043,6 +1200,7 @@ int main(const int argc, const char **argv)
             y_title += " per unit X";
             xmax = 7;
             tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsignal->GetXaxis()->SetRange(1, xmax);
             can.SetLogx();
           }
           else if (prefix=="Erecoil")
@@ -1058,6 +1216,7 @@ int main(const int argc, const char **argv)
             xaxislabel = "Reconstructed E_{#mu} [GeV]";
             xmax = 11;
             tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsignal->GetXaxis()->SetRange(1, xmax);
           } 
 
           std::string title = tmp + " " + tgtString;
@@ -1065,7 +1224,7 @@ int main(const int argc, const char **argv)
           plotter.axis_title_offset_y=1.8;
 
           plotter.DrawErrorSummary(tempsim);
-          can.Print((tgt+prefix+"_EvRateErrors.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_EvRateErrors.png").c_str());
           can.Clear();
 
 
@@ -1090,15 +1249,15 @@ int main(const int argc, const char **argv)
           plotter.legend_text_size = 0.03;
 
           plotter.mc_line_width=0;
-          if (tgt == "Water")
+          if (tgtname == "Water")
           {
             std::stringstream POTstrFilled, POTstrEmpty;
             POTstrFilled << std::fixed << std::scientific << std::setprecision(2) << waterFilledPOTData;
             POTstrEmpty << std::fixed << std::scientific << std::setprecision(2) << waterEmptyPOTData;
             std::cout << "waterFilledPOTData: "<< waterFilledPOTData <<std::endl;
             std::cout << "waterEmptyPOTData: "<< waterEmptyPOTData <<std::endl;
-            std::string potstrFilled = std::string("Filled Target POT: ")+POTstrFilled.str();
-            std::string potstrEmpty = std::string("Empty Target POT: ")+POTstrEmpty.str();// + " (Scaled to match filled)";
+            std::string potstrFilled = std::string("Water Filled POT ")+POTstrFilled.str();
+            std::string potstrEmpty = std::string("Water Empty POT: ")+POTstrEmpty.str();// + " (Scaled to match filled)";
             plotter.AddPlotLabel(potstrFilled.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
             plotter.AddPlotLabel(potstrEmpty.c_str() , 0.18, 0.90, 0.025, 1, 42, 13, 0);
           }
@@ -1129,7 +1288,91 @@ int main(const int argc, const char **argv)
           tempevrate->Draw("AXIS SAME");
           can.cd();
 
-          can.Print((tgt+prefix+"_EvRateByIntType.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_EvRateByIntType.png").c_str());
+
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+          plotter.DrawDataStackedMC(tempevrate, channelArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempevrate->Draw("AXIS SAME"); //!!??
+          can.cd();
+          can.Print((tgtname+"_"+prefix+"_EvRateByIntType.png").c_str());
+
+          //Backgrounds
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+          int bkgColArr[9] = {TColor::GetColor("#ee6677"), TColor::GetColor("#228833"),/*  TColor::GetColor("#4477aa"), */ TColor::GetColor("#ccbb44"), TColor::GetColor("#66ccee"), TColor::GetColor("#aa3377"), TColor::GetColor("#bbbbbb"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6")};
+          plotter.DrawDataStackedMC(tempevrate, bkgArr, bkgColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempevrate->Draw("AXIS SAME");
+          can.cd();
+          can.Print((tgtname+"_"+prefix+"_EvRateByBackgrounds.png").c_str());
+          can.SetLogx(0);
+          can.SetLogy(0);
+
+          //Backgrounds With Sideband Scale Applied
+          TObjArray* bkgArrScaled = new TObjArray();
+          auto tempUSScaled = tempUS->Clone();
+          auto tempDSScaled = tempDS->Clone();
+          tempUSScaled->Scale(USScaleFactor);
+          tempDSScaled->Scale(DSScaleFactor);
+          bkgArrScaled->Add(tempUSScaled);
+          bkgArrScaled->Add(tempDSScaled);
+          //bkgArrScaled->Add(tempTank);
+          bkgArrScaled->Add(tempWS);
+          bkgArrScaled->Add(tempNC);
+          bkgArrScaled->Add(tempBackgroundOther);
+          bkgArrScaled->Add(tempOtherTgt);
+          bkgArrScaled->Add(tempVtxElsewhere);
+          bkgArrScaled->Add(tempsignal);
+
+          auto tmpScaledMCSummed = tempsignal->Clone();
+          tmpScaledMCSummed->Add(tempUSScaled);
+          tmpScaledMCSummed->Add(tempDSScaled);
+          tmpScaledMCSummed->Add(tempWS);
+          tmpScaledMCSummed->Add(tempNC);
+          tmpScaledMCSummed->Add(tempBackgroundOther);
+          tmpScaledMCSummed->Add(tempOtherTgt);
+          tmpScaledMCSummed->Add(tempVtxElsewhere);
+
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+          plotter.DrawDataStackedMC(tempevrate, bkgArrScaled, bkgColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempevrate, tmpScaledMCSummed, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempevrate->Draw("AXIS SAME");
+          can.cd();
+          can.Print((tgtname+"_"+prefix+"_EvRateByBackgroundsSidebandScaled.png").c_str());
+          can.SetLogx(0);
+          can.SetLogy(0);
+
+          //Background subtracted
+          
+          //Interaction Type
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+
+          plotter.DrawDataStackedMC(tempevrateScaled, channelArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempevrateScaled, tempsim, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempevrateScaled->Draw("AXIS SAME");
+          can.cd();
+
+          can.Print((tgtname+"_"+prefix+"_EvRateByIntType_BackgroundSubtracted.png").c_str());
 
           pad1->cd(); 
           plotter.axis_minimum=0.001;
@@ -1141,38 +1384,55 @@ int main(const int argc, const char **argv)
           pad1->cd();
           tempevrateScaled->Draw("AXIS SAME"); //!!??
           can.cd();
-          can.Print((tgt+prefix+"_EvRateByIntTypeSidebandScaled.png").c_str());
-          
-          //Event Origin
+          can.Print((tgtname+"_"+prefix+"_EvRateByIntTypeSidebandScaled_BackgroundSubtracted.png").c_str());
+
+          //Backgrounds
+          TObjArray* bkgArr2 = new TObjArray();
+          bkgArr2->Add(tempsignal);
+
           pad1->cd(); 
           plotter.axis_minimum=0.001;
-          int originColArr[4] = {TColor::GetColor("#d35565"), TColor::GetColor("#59D8C5"), TColor::GetColor("#9191c2"), TColor::GetColor("#f2c261")};
-          plotter.DrawDataStackedMC(tempevrate, originArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          int bkgColArr2[7] = {TColor::GetColor("#ee6677"), TColor::GetColor("#228833")};
+          plotter.DrawDataStackedMC(tempevrateScaled, bkgArr2, bkgColArr2, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
           pad2->cd();
           plotter.axis_minimum=defaultmin;
-          plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
+          plotter.DrawDataMCRatio(tempevrateScaled, tempsignal, 1, true, true, 0.5, 1.5, "");
           can.SetLogx();
           pad1->cd();
-          tempevrate->Draw("AXIS SAME");
+          tempevrateScaled->Draw("AXIS SAME");
           can.cd();
-          can.Print((tgt+prefix+"_EvRateByOrigin.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_EvRateByBackgrounds_BackgroundSubtracted.png").c_str());
           can.SetLogx(0);
           can.SetLogy(0);
 
-          //Backgrounds
+
+
+          TObjArray* bkgArr3 = new TObjArray();
+          bkgArr3->Add(tempWS);
+          bkgArr3->Add(tempNC);
+          bkgArr3->Add(tempBackgroundOther);
+          bkgArr3->Add(tempOtherTgt);
+          bkgArr3->Add(tempVtxElsewhere);
+          bkgArr3->Add(tempsignal);
+
+          //bkgArr3->Add(tempsignal);
+
           pad1->cd(); 
           plotter.axis_minimum=0.001;
-          plotter.DrawDataStackedMC(tempevrate, bkgArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          int bkgColArr3[7] = {TColor::GetColor("#ee6677"), TColor::GetColor("#228833"),/*  TColor::GetColor("#4477aa"), */ TColor::GetColor("#ccbb44"), TColor::GetColor("#66ccee"), TColor::GetColor("#aa3377"), TColor::GetColor("#bbbbbb")};
+          plotter.DrawDataStackedMC(tempevrateScaled, bkgArr3, bkgColArr3, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
           pad2->cd();
           plotter.axis_minimum=defaultmin;
-          plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
+          plotter.DrawDataMCRatio(tempevrateScaled, tempsignal, 1, true, true, 0.5, 1.5, "");
           can.SetLogx();
           pad1->cd();
-          tempevrate->Draw("AXIS SAME");
+          tempWS->Draw("AXIS SAME");
           can.cd();
-          can.Print((tgt+prefix+"_EvRateByBackgrounds.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_EvRateByBackgrounds_SidebandScaledAndSubtracted.png").c_str());
           can.SetLogx(0);
           can.SetLogy(0);
+
+          
         }
 
         auto simulatedCrossSection = normalize(simEventRate, fluxIntReweighted, nnucleons, mcPOT);
@@ -1196,7 +1456,7 @@ int main(const int argc, const char **argv)
         //Plotting stuff - Should move this elsewhere long-term
 
 
-        { //Plotting cross sections
+        /* { //Plotting cross sections
           TCanvas can("Temp");
           // Uncertainty summary
           PlotUtils::MnvPlotter plotter;
@@ -1295,7 +1555,7 @@ int main(const int argc, const char **argv)
           can.Update();
           can.Print((tgt+prefix+"_CrossSectionRatio.pdf").c_str());
           can.Print((tgt+prefix+"_CrossSectionRatio.png").c_str());
-        }
+        } */
 
         { //Plotting sidebands
           TCanvas can("Temp");
@@ -1315,7 +1575,7 @@ int main(const int argc, const char **argv)
           arr->Add(tempUSOther);
           auto tmpUSData = DataUSSideband;
           tmpUSData->GetXaxis()->SetRange(1, 81);
-          std::string title =  tgt + " Upstream Plastic Sideband";
+          std::string title =  tgtname + " Upstream Plastic Sideband";
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_size_x=0.03;
           plotter.axis_title_offset_x=1.8;
@@ -1323,8 +1583,8 @@ int main(const int argc, const char **argv)
           plotter.DrawDataStackedMC(tmpUSData, arr, (dataPOT/mcPOT), "TR", "Data", 2, 1, 3001, "MINER#nuA Segment", "# of Events");
           plotter.AddHistoTitle(title.c_str(), 0.039);
           can.Update();
-          can.Print((tgt+prefix+"_USSideband.pdf").c_str());
-          can.Print((tgt+prefix+"_USSideband.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_USSideband.pdf").c_str());
+          can.Print((tgtname+"_"+prefix+"_USSideband.png").c_str());
 
 
           can.Clear();
@@ -1334,11 +1594,11 @@ int main(const int argc, const char **argv)
           plotter.axis_title_offset_x=1.8;
           plotter.axis_title_offset_y=1.8;
           plotter.DrawDataStackedMC(tmpUSData, arr, USScaleFactor*(dataPOT/mcPOT), "TR", "Data", 2, 1, 3001, "MINER#nuA Segment", "# of Events");
-          title =  tgt + " Upstream Plastic Sideband Tuned";
+          title =  tgtname + " Upstream Plastic Sideband Tuned";
           plotter.AddHistoTitle(title.c_str(), 0.039);
           can.Update();
-          can.Print((tgt+prefix+"_USSidebandScaled.pdf").c_str());
-          can.Print((tgt+prefix+"_USSidebandScaled.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_USSidebandScaled.pdf").c_str());
+          can.Print((tgtname+"_"+prefix+"_USSidebandScaled.png").c_str());
         }
         { //Plotting sidebands
           TCanvas can("Temp");
@@ -1358,7 +1618,7 @@ int main(const int argc, const char **argv)
           arr->Add(tempUSOther);
           auto tmpUSData = DataDSSideband;
           tmpUSData->GetXaxis()->SetRange(1, 81);
-          std::string title =  tgt + " Downstream Plastic Sideband";
+          std::string title =  tgtname + " Downstream Plastic Sideband";
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_size_x=0.03;
           plotter.axis_title_offset_x=1.8;
@@ -1366,8 +1626,8 @@ int main(const int argc, const char **argv)
           plotter.DrawDataStackedMC(tmpUSData, arr, (dataPOT/mcPOT), "TR", "Data", 2, 1, 3001, "MINER#nuA Segment", "# of Events");
           plotter.AddHistoTitle(title.c_str(), 0.039);
           can.Update();
-          can.Print((tgt+prefix+"_DSSideband.pdf").c_str());
-          can.Print((tgt+prefix+"_DSSideband.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_DSSideband.pdf").c_str());
+          can.Print((tgtname+"_"+prefix+"_DSSideband.png").c_str());
 
 
           can.Clear();
@@ -1377,11 +1637,178 @@ int main(const int argc, const char **argv)
           plotter.axis_title_offset_x=1.8;
           plotter.axis_title_offset_y=1.8;
           plotter.DrawDataStackedMC(tmpUSData, arr, DSScaleFactor*(dataPOT/mcPOT), "TR", "Data", 2, 1, 3001, "MINER#nuA Segment", "# of Events");
-          title =  tgt + " Downstream Plastic Sideband Tuned";
+          title =  tgtname + " Downstream Plastic Sideband Tuned";
           plotter.AddHistoTitle(title.c_str(), 0.039);
           can.Update();
-          can.Print((tgt+prefix+"_DSSidebandScaled.pdf").c_str());
-          can.Print((tgt+prefix+"_DSSidebandScaled.png").c_str());
+          can.Print((tgtname+"_"+prefix+"_DSSidebandScaled.pdf").c_str());
+          can.Print((tgtname+"_"+prefix+"_DSSidebandScaled.png").c_str());
+        }
+
+        { //Plotting cross-sections
+          TCanvas can("Temp");
+          // Uncertainty summary
+          PlotUtils::MnvPlotter plotter;
+          plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.axis_label_font=43;
+          plotter.axis_label_size = 25;
+          plotter.headroom = 1.2;
+          /* plotter.axis_title_font_y=43;
+          plotter.axis_title_size_y = 35;
+          plotter.axis_title_font_x=43;
+          plotter.axis_title_size_x = 35;
+          */
+          plotter.ApplyAxisStyle();
+          //plotter.axis_maximum = 0.4;
+
+
+          TObjArray* arr = new TObjArray();
+          auto temp2p2h = simulatedCrossSection2P2H->Clone();
+          auto tempdis = simulatedCrossSectionDIS->Clone();
+          auto tempres = simulatedCrossSectionRES->Clone();
+          auto tempqe = simulatedCrossSectionQE->Clone();
+          auto tempother = simulatedCrossSectionOther->Clone();
+          auto tempsimxsec = simulatedCrossSection->Clone();
+          auto tempxsec = crossSectionTuned->Clone();
+          temp2p2h->Scale(1e39);
+          tempdis->Scale(1e39);
+          tempres->Scale(1e39);
+          tempqe->Scale(1e39);
+          tempother->Scale(1e39);
+          tempxsec->Scale(1e39);
+          tempsimxsec->Scale(1e39);
+          double dataPOTforScale = dataPOT;
+          double mcPOTforScale = mcPOT;
+
+          if (tgtname == "Water")
+          {
+            dataPOTforScale = waterFilledPOTData;
+            mcPOTforScale = waterFilledPOTMC;
+          }
+
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
+
+          double defaultmin = plotter.axis_minimum;
+          plotter.legend_offset_x = 0.0825;
+          plotter.legend_border_size = 0;
+          plotter.legend_text_size = 0.03;
+
+          plotter.mc_line_width=0;
+
+          std::string tmp; 
+          std::string y_title="Events#times10^{3}";
+          std::cout<<"Here2.n";
+          double xmax = -1111; //Default value
+          std::string xaxislabel = "";
+          if (prefix=="pTmu")
+          {
+            tmp = "Muon p_{T}";
+            xaxislabel = "Reconstructed p_{T, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{t} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="pZmu")
+          {
+            tmp = "Muon p_{Z}";
+            xaxislabel = "Reconstructed p_{Z, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{Z} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="BjorkenX")
+          {
+            tmp = "Bjorken X";
+            xaxislabel = "Reconstructed Bjorken X";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/Nucleon)";
+            xmax = 6;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+            can.SetLogx();
+          }
+          else if (prefix=="Erecoil")
+          {
+            tmp = "E_{recoil}";
+            y_title="d#sigma/dE_{recoil} (x10^{-39}) (cm^{2}/GeV/Nucleon)";
+            xaxislabel = "Reconstructed E_{recoil} [GeV]";
+          } 
+          else if (prefix=="Emu")
+          {
+            tmp = "E_{#mu}";
+            y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xaxislabel = "Reconstructed E_{#mu} [GeV]";
+            xmax = 11;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          } 
+
+          std::string title = tmp + " " + tgtString;
+          plotter.axis_title_size_y=0.03;
+          plotter.axis_title_offset_y=1.8;
+
+          plotter.DrawErrorSummary(tempsimxsec, "TR", true, true,  0.00001, false, "", true, "", true);
+
+          can.Print((tgtname+"_"+prefix+"_XSecErrors.png").c_str());
+          can.Clear();
+
+
+          // Adjust pad heights manually (top bigger, bottom smaller)
+          TPad *pad1 = new TPad("pad1","pad1",0,0.35,1,1.0); // top pad
+          TPad *pad2 = new TPad("pad2","pad2",0,0.05,1,0.35); // bottom pad
+          pad1->SetBottomMargin(0); // remove x-axis label space for top
+          pad2->SetTopMargin(0);
+          pad2->SetBottomMargin(0.25);
+          pad1->Draw();
+          pad2->Draw();
+
+          if (prefix=="BjorkenX")
+          {
+            pad1->SetLogx();
+            pad2->SetLogx();
+          }
+
+
+          if (tgtname == "Water")
+          {
+            std::stringstream POTstrFilled, POTstrEmpty;
+            POTstrFilled << std::fixed << std::scientific << std::setprecision(2) << waterFilledPOTData;
+            POTstrEmpty << std::fixed << std::scientific << std::setprecision(2) << waterEmptyPOTData;
+            std::cout << "waterFilledPOTData: "<< waterFilledPOTData <<std::endl;
+            std::cout << "waterEmptyPOTData: "<< waterEmptyPOTData <<std::endl;
+            std::string potstrFilled = std::string("Water Filled POT ")+POTstrFilled.str();
+            std::string potstrEmpty = std::string("Water Empty POT: ")+POTstrEmpty.str();// + " (Scaled to match filled)";
+            plotter.AddPlotLabel(potstrFilled.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
+            plotter.AddPlotLabel(potstrEmpty.c_str() , 0.18, 0.90, 0.025, 1, 42, 13, 0);
+          }
+          else
+          {
+            std::stringstream POTstr;
+            POTstr << std::fixed << std::scientific << std::setprecision(2) << dataPOTforScale;
+            std::string potstr = std::string("POT Used: ")+POTstr.str();
+            plotter.AddPlotLabel(potstr.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
+          }
+          plotter.WritePreliminary( 0.5, 0.15, 0.035, true);
+          plotter.AddPlotLabel(title.c_str() , 0.5, 0.97, 25, 1, 53, 22, 0);
+          plotter.AddPlotLabel(y_title.c_str() , 0.08, 0.9, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel("Data/MC" , 0.08, 0.3, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel(xaxislabel.c_str() , 0.9, 0.08, 0.03, 1, 42, 33, 0);
+
+          //Interaction Type
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempxsec, tempsimxsec, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempxsec->Draw("AXIS SAME");
+          can.cd();
+          can.Print((tgtname+"_"+prefix+"_CrossSection.png").c_str());
         }
         { //Plotting migration
           TCanvas can("Temp");
@@ -1474,7 +1901,8 @@ int main(const int argc, const char **argv)
             tmp = "E_{#mu}";
             yaxislabel = "True E_{#mu} [GeV]";
             xaxislabel = "Reconstructed E_{#mu} [GeV]";
-            //tempevrate->GetXaxis()->SetRange(1, 11);
+            migration->GetXaxis()->SetRange(1, 11);
+            migration->GetYaxis()->SetRange(1, 11);
           } 
 
           //Int_t colors[] = {0, 1};
@@ -1496,51 +1924,75 @@ int main(const int argc, const char **argv)
             ); */
           //plotter.AddHistoTitle(title.c_str(), 0.039);
           can.Update();
-          //can.Print((tgt+prefix+"_DSSidebandScaled.pdf").c_str());
-          can.Print((tgt+prefix+"_migrationTest.png").c_str());
+          //can.Print((tgtname+"_"+prefix+"_DSSidebandScaled.pdf").c_str());
+          can.Print((tgtname+"_"+prefix+"_migration.png").c_str());
           can.SetLogx(0);
           can.SetLogy(0);
         }
-        /*
 
-
-
-
-          auto trackerFile = TFile::Open("./tracker_BjorkenX_Daisy_crossSection.root", "READ");
+        std::string daisyFilepath = "./"+prefix+"_Daisy_crossSection.root";
+        std::string trackerNoDaisyFilepath = "./"+prefix+"_crossSection.root";
+        if (std::filesystem::exists(daisyFilepath))
+        {
+          auto trackerFile = TFile::Open(daisyFilepath.c_str());
           if (!trackerFile)
           {
             std::cerr << "Failed to open tracker file\n";
             return 2;
           }
-          auto trackerFileNoDaisy = TFile::Open("./tracker_Emu_crossSection.root", "READ");
+          auto trackerFileNoDaisy = TFile::Open(trackerNoDaisyFilepath.c_str());
           if (!trackerFileNoDaisy)
           {
-            std::cerr << "Failed to open tracker no daisy file\n";
+            std::cerr << "Failed to open tracker file\n";
             return 2;
           }
+          std::cout<<"Tracker extracted cross sections found - plotting material/CH ratios\n";
           std::string titlebase;
           PlotUtils::MnvH1D* plasticxsec;
-          if (tgt == "Iron")
+          if (tgtname == "Iron" || tgtname == "2026" || tgtname == "3026")
           {
             titlebase = "Fe";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, "tracker_Emu_Fe_CrossSection");
+            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Fe_CrossSection");
           }
-          if (tgt == "Lead")
+          if (tgtname == "Lead")
           {
             titlebase="Pb";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, "tracker_Emu_Pb_CrossSection");
+            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Pb_CrossSection");
           }
-          if (tgt == "Carbon")
+          if (tgtname == "Carbon")
           {
             titlebase="C";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, "tracker_Emu_C_CrossSection");
+            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, prefix+"_C_CrossSection");
           }
-          if (tgt == "6000")
+           if (tgtname == "Water")
           {
             titlebase="H_{2}O";
             plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFileNoDaisy, "crossSection");
+          } 
+          titlebase+="/CH Ratio in "+prefix;
+          
+
+          if (prefix=="pTmu")
+          {
+            plasticxsec->GetXaxis()->SetRange(1, 13);
           }
-          titlebase+="/CH Ratio in E_#mu";
+          else if (prefix=="pZmu")
+          {
+            plasticxsec->GetXaxis()->SetRange(1, 13);
+          }
+          else if (prefix=="BjorkenX")
+          {
+            plasticxsec->GetXaxis()->SetRange(1, 6);
+          }
+          else if (prefix=="Erecoil")
+          {
+          } 
+          else if (prefix=="Emu")
+          {
+            plasticxsec->GetXaxis()->SetRange(1, 11);
+          } 
+
+
           TCanvas can("Temp");
           // Uncertainty summary
           PlotUtils::MnvPlotter plotter;
@@ -1548,21 +2000,70 @@ int main(const int argc, const char **argv)
           //plotter.axis_maximum = 0.4;
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_offset_y=1.8;
-          plotter.DrawDataMCRatio(crossSectionTuned, plasticxsec, 1, "TR", "Data");
+          plotter.DrawDataMCRatio(crossSectionTuned, plasticxsec, 1, true, true, 0.5, 1.5);
           plotter.AddHistoTitle(titlebase.c_str(), 0.039);
           can.Update();
-          can.Print((prefix+"_"+tgt+"CHRatio.pdf").c_str());
-          can.Print((prefix+"_"+tgt+"CHRatio.png").c_str());
- */
+          can.Print((tgtname+"CHRatio_"+prefix+".pdf").c_str());
+          can.Print((tgtname+"CHRatio_"+prefix+".png").c_str());
+        }
+        else std::cout<<"No tracker extracted cross sections found - Not plotting material/CH ratios\n";
+
+
+
+
+
+
+
 
         outFile->Close();
       }
       catch (const std::runtime_error &e)
       {
-        std::cerr << "Failed to extract a cross section for prefix " << prefix << " and target " << tgt << " : " << e.what() << "\n";
+        std::cerr << "Failed to extract a cross section for prefix " << prefix << " and target " << tgtname << " : " << e.what() << "\n";
         return 4;
         // break;
       }
+
+      delete fluxIntReweighted;
+
+      delete flux;
+      delete folded;
+      delete migration;
+      delete effNum;
+      delete effDenom;
+      delete effDenom2P2H;
+      delete effDenomDIS;
+      delete effDenomRES;
+      delete effDenomQE;
+      delete effDenomOther;
+
+      delete USSidebandSignal;
+      delete USSidebandDS;
+      delete USSidebandUS;
+      delete USSidebandOther;
+      delete DSSidebandSignal;
+      delete DSSidebandDS;
+      delete DSSidebandUS;
+      delete DSSidebandOther;
+      delete DataUSSideband;
+      delete DataDSSideband;
+      delete DataSignal;
+
+      delete SelectedSignalReco;
+
+      delete BackgroundWrongSign;
+      delete BackgroundNC;
+      delete BackgroundOther;
+      delete BackgroundWaterTank;
+      delete BackgroundUSPlastic;
+      delete BackgroundDSPlastic;
+
+      delete MCData;
+      delete MCData2p2h;
+      delete MCDataDIS;
+      delete MCDataRES;
+      delete MCDataQE;
+      delete MCDataOther;
     }
   }
   return 0;

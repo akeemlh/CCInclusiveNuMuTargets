@@ -225,7 +225,9 @@ int main(const int argc, const char **argv)
 
   std::vector<std::string> dirs = util::findContainingDirectories(indir, "Tracker", true);
 
-  //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
+  if (dirs.size()==0) dirs = {"./"};
+  
+  //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX" , "Erecoil", "Emu"};
   std::vector<std::string> crossSectionPrefixes = {"pTmu"};
 
   double mcPOT = 0;
@@ -247,22 +249,22 @@ int main(const int argc, const char **argv)
       double max_energy = 100;
       
       PlotUtils::MnvH1D *fluxIntReweighted = new PlotUtils::MnvH1D();
-      PlotUtils::MnvH1D *DaisyEffNum[12], *DaisyFolded[12];
-      PlotUtils::MnvH2D *DaisyMigration[12];
+      std::shared_ptr<PlotUtils::MnvH1D> DaisyEffNum[12], DaisyFolded[12];
+      std::shared_ptr<PlotUtils::MnvH2D> DaisyMigration[12];
       std::vector<PlotUtils::MnvH1D*> DaisyBackgrounds[12];
-      PlotUtils::MnvH1D *DaisyEffDenom[12], *DaisyEffDenom2P2H[12], *DaisyEffDenomDIS[12], *DaisyEffDenomRES[12], *DaisyEffDenomQE[12], *DaisyEffDenomOther[12];
+      std::shared_ptr<PlotUtils::MnvH1D> DaisyEffDenom[12], DaisyEffDenom2P2H[12], DaisyEffDenomDIS[12], DaisyEffDenomRES[12], DaisyEffDenomQE[12], DaisyEffDenomOther[12];
 
       for (int c = 0; c<12; c++)
       {
-        DaisyEffNum[c] = new PlotUtils::MnvH1D();
-        DaisyFolded[c] = new PlotUtils::MnvH1D();
-        DaisyMigration[c] = new PlotUtils::MnvH2D();
-        DaisyEffDenom[c] = new PlotUtils::MnvH1D();
-        DaisyEffDenom2P2H[c] = new PlotUtils::MnvH1D();
-        DaisyEffDenomDIS[c] = new PlotUtils::MnvH1D();
-        DaisyEffDenomRES[c] = new PlotUtils::MnvH1D();
-        DaisyEffDenomQE[c] = new PlotUtils::MnvH1D();
-        DaisyEffDenomOther[c] = new PlotUtils::MnvH1D();
+        DaisyEffNum[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyFolded[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyMigration[c] = std::shared_ptr<PlotUtils::MnvH2D>(new PlotUtils::MnvH2D());
+        DaisyEffDenom[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyEffDenom2P2H[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyEffDenomDIS[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyEffDenomRES[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyEffDenomQE[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
+        DaisyEffDenomOther[c] = std::shared_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
       }
 
       PlotUtils::MnvH1D* flux = new PlotUtils::MnvH1D();
@@ -311,9 +313,9 @@ int main(const int argc, const char **argv)
         if (doDaisy) std::cout<<"Will do daisy petal reweight in this analysis\n";
         else std::cout<<"Will not do daisy petal reweight in this analysis\n";
         for (int petal=-1; petal<12 && doDaisy; petal++){
-          //std::cout<< "Here0"<<std::endl;
           std::string datapathdaisy = dirs[c] + "/runEventLoopTrackerData_petal_"+std::to_string(petal)+".root";
           std::string mcpathdaisy = dirs[c] + "/runEventLoopTrackerMC_petal_"+std::to_string(petal)+".root";
+          std::cout<< "datapathdaisy: "<<datapathdaisy <<std::endl;
           auto dataDaisyFile = TFile::Open(datapathdaisy.c_str(), "READ");
           if (!dataDaisyFile)
           {
@@ -379,6 +381,7 @@ int main(const int argc, const char **argv)
             util::AddHist(*DaisyEffDenom[petal], tmpEffDenom);
             util::AddHist(*DaisyMigration[petal], tmpMigration);
             util::AddHist(*DaisyFolded[petal], tmpFolded);
+            
             util::AddHist(*DaisyEffDenom2P2H[petal], tmpEffDenom2P2H);
             util::AddHist(*DaisyEffDenomDIS[petal], tmpEffDenomDIS);
             util::AddHist(*DaisyEffDenomRES[petal], tmpEffDenomRES);
@@ -387,42 +390,41 @@ int main(const int argc, const char **argv)
 
             //std::cout<< "Here2.2"<<std::endl;
 
-            DaisyBackgrounds[petal].push_back(tmpBkgWS);
-            DaisyBackgrounds[petal].push_back(tmpBkgNC);
-            DaisyBackgrounds[petal].push_back(tmpBkgOther);
+            DaisyBackgrounds[petal].push_back(tmpBkgWS->Clone());
+            DaisyBackgrounds[petal].push_back(tmpBkgNC->Clone());
+            DaisyBackgrounds[petal].push_back(tmpBkgOther->Clone());
           }
 
-          backgrounds.push_back(tmpBkgWS);
-          backgrounds.push_back(tmpBkgNC);
-          backgrounds.push_back(tmpBkgOther);
+          backgrounds.push_back(tmpBkgWS->Clone());
+          backgrounds.push_back(tmpBkgNC->Clone());
+          backgrounds.push_back(tmpBkgOther->Clone());
 
           //std::cout<< "Here2.3"<<std::endl;
 
-          if (petal >=0){
-          util::AddHist(*folded, tmpFolded);
-          util::AddHist(*migration,tmpMigration);
-          util::AddHist(*effNum, tmpEffNum);
-          util::AddHist(*effDenom, tmpEffDenom);
-          util::AddHist(*effDenom2P2H, tmpEffDenom2P2H);
-          util::AddHist(*effDenomDIS, tmpEffDenomDIS);
-          util::AddHist(*effDenomRES, tmpEffDenomRES);
-          util::AddHist(*effDenomQE, tmpEffDenomQE);
-          util::AddHist(*effDenomOther, tmpEffDenomOther);
+          if (petal >=-1){
+            util::AddHist(*folded, tmpFolded);
+            util::AddHist(*migration,tmpMigration);
+            util::AddHist(*effNum, tmpEffNum);
+            util::AddHist(*effDenom, tmpEffDenom);
+            util::AddHist(*effDenom2P2H, tmpEffDenom2P2H);
+            util::AddHist(*effDenomDIS, tmpEffDenomDIS);
+            util::AddHist(*effDenomRES, tmpEffDenomRES);
+            util::AddHist(*effDenomQE, tmpEffDenomQE);
+            util::AddHist(*effDenomOther, tmpEffDenomOther);
 
-          util::AddHist(*BackgroundWrongSign, tmpBkgWS);
-          util::AddHist(*BackgroundNC, tmpBkgNC);
-          util::AddHist(*BackgroundOther,tmpBkgOther);
+            util::AddHist(*BackgroundWrongSign, tmpBkgWS);
+            util::AddHist(*BackgroundNC, tmpBkgNC);
+            util::AddHist(*BackgroundOther,tmpBkgOther);
 
-          util::AddHist(*SelectedSignalReco,tmpSelectedSignalReco);
-                    
-          util::AddHist(*MCData, tmpMCData);
-          util::AddHist(*MCData2p2h, tmpMCData2p2h);
-          util::AddHist(*MCDataDIS,tmpMCDataDIS);
-          util::AddHist(*MCDataRES, tmpMCDataRES);
-          util::AddHist(*MCDataQE, tmpMCDataQE);
-          util::AddHist(*MCDataOther,tmpMCDataOther);
+            util::AddHist(*SelectedSignalReco,tmpSelectedSignalReco);
+                      
+            util::AddHist(*MCData, tmpMCData);
+            util::AddHist(*MCData2p2h, tmpMCData2p2h);
+            util::AddHist(*MCDataDIS,tmpMCDataDIS);
+            util::AddHist(*MCDataRES, tmpMCDataRES);
+            util::AddHist(*MCDataQE, tmpMCDataQE);
+            util::AddHist(*MCDataOther,tmpMCDataOther);
           }
-
           //std::cout<< "Here2.4"<<std::endl;
 
 
@@ -432,23 +434,45 @@ int main(const int argc, const char **argv)
             double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataDaisyFile, "POTUsed")->GetVal();
             dataPOT+=tempDataPOT;
             playlistPOTpair.push_back(std::make_pair(playlistUsed, tempDataPOT));
-
             PlotUtils::FluxReweighter frw_temp = PlotUtils::FluxReweighter( nupdg, use_nue_constraint, playlistUsed, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
             auto tempIntFlux = frw_temp.GetIntegratedFluxReweighted(nupdg, effDenom, min_energy, max_energy, true)->Clone();
             tempIntFlux->Scale(tempDataPOT);
             util::AddHist(*fluxIntReweighted,tempIntFlux);
           }
+
+          delete tmpEffNum;
+          delete tmpEffDenom;
+          delete tmpMigration;
+          delete tmpFolded;
+          delete tmpEffDenom2P2H;
+          delete tmpEffDenomDIS;
+          delete tmpEffDenomRES;
+          delete tmpEffDenomQE;
+          delete tmpEffDenomOther;
+
+          delete tmpBkgWS;
+          delete tmpBkgNC;
+          delete tmpBkgOther;
+
+          delete tmpSelectedSignalReco;
+          
+          delete tmpMCData;
+          delete tmpMCData2p2h;
+          delete tmpMCDataDIS;
+          delete tmpMCDataRES;
+          delete tmpMCDataQE;
+          delete tmpMCDataOther;
+
           dataDaisyFile->Close();
           mcDaisyFile->Close();
 
-          //std::cout<< "Here3"<<std::endl;
+          std::cout<< "Here3"<<std::endl;
 
         }
       }
       doDaisy = true; //Hacky
       //Normalising the integrated flux across different playlists by dataPOT
       fluxIntReweighted->Scale(1/dataPOT);
-      //std::cout<< "Here4"<<std::endl;
       auto simEventRate = effDenom->Clone(); // Make a copy for later
       auto simEventRate2P2H = effDenom2P2H->Clone(); // Make a copy for later
       auto simEventRateDIS = effDenomDIS->Clone(); // Make a copy for later
@@ -457,9 +481,9 @@ int main(const int argc, const char **argv)
       auto simEventRateOther = effDenomOther->Clone(); // Make a copy for later
       // There are no error bands in the data, but I need somewhere to put error bands on the results I derive from it.
       folded->AddMissingErrorBandsAndFillWithCV(*migration);
-      //std::cout<< "Here5"<<std::endl;
+      std::cout<< "Here5"<<std::endl;
       for (int petal=0; petal<12 && doDaisy; petal++) DaisyFolded[petal]->AddMissingErrorBandsAndFillWithCV(*(DaisyMigration[petal]));
-      //std::cout<< "Here5.1"<<std::endl;
+      std::cout<< "Here5.1"<<std::endl;
 
       // Basing my unfolding procedure for a differential cross section on Alex's MINERvA 101 talk at https://minerva-docdb.fnal.gov/cgi-bin/private/RetrieveFile?docid=27438&filename=whatsACrossSection.pdf&version=1
 
@@ -471,7 +495,7 @@ int main(const int argc, const char **argv)
                                           return sum;
                                         });
       Plot(*toSubtract, "BackgroundSum", prefix);
-      //std::cout<< "Here5.2"<<std::endl;
+      std::cout<< "Here5.2"<<std::endl;
 
       auto bkgSubtracted = std::accumulate(backgrounds.begin(), backgrounds.end(), folded->Clone(),
                                             [mcPOT, dataPOT](auto sum, const auto hist)
@@ -503,6 +527,7 @@ int main(const int argc, const char **argv)
       effNum->Divide(effNum, effDenom); // Only the 2 parameter version of MnvH1D::Divide()
                                         // handles systematics correctly.
       Plot(*effNum, "efficiency", prefix);
+      effNum->Write(("efficiency"));
       unfolded->Divide(unfolded, effNum);
       Plot(*unfolded, "efficiencyCorrected", prefix);
 
@@ -607,25 +632,26 @@ int main(const int argc, const char **argv)
           DaisyFolded[petal]->Write((prefix+"_DaisyFolded_"+petal));
           outFileDaisy->cd();
           bkgSubtractedDaisy->Write((prefix+"_bkgSubtractedDaisy_"+petal));
-          auto unfoldedDaisy = UnfoldHist(bkgSubtractedDaisy, DaisyMigration[petal], nIterations);
+          auto unfoldedDaisy = UnfoldHist(bkgSubtractedDaisy, DaisyMigration[petal].get(), nIterations);
           outFileDaisy->cd();
           unfoldedDaisy->Write((prefix+"_unfoldedDaisy_"+petal));
           if(!unfoldedDaisy) throw std::runtime_error(std::string("Failed to unfold ") + DaisyFolded[petal]->GetName() + " using " + DaisyMigration[petal]->GetName());
 
-          DaisyEffNum[petal]->Divide(DaisyEffNum[petal],DaisyEffDenom[petal]);
-          unfoldedDaisy->Divide(unfoldedDaisy, DaisyEffNum[petal]);
-
+          DaisyEffNum[petal]->Divide(DaisyEffNum[petal].get(),DaisyEffDenom[petal].get());
+          DaisyEffNum[petal]->Write((prefix+"_DaisyEfficiency_"+petal));
+          unfoldedDaisy->Divide(unfoldedDaisy, DaisyEffNum[petal].get());
+          unfoldedDaisy->Write((prefix+"_unfoldedDaisyEffCorrected_"+petal));
           daisy_petal_hists[petal]=unfoldedDaisy->Clone();
 
-          daisy_petal_hists_eff_denom[petal]= DaisyEffDenom[petal];
-          daisy_petal_hists_eff_denom_2p2h[petal]= DaisyEffDenom2P2H[petal];
-          daisy_petal_hists_eff_denom_dis[petal]= DaisyEffDenomDIS[petal];
-          daisy_petal_hists_eff_denom_res[petal]= DaisyEffDenomRES[petal];
-          daisy_petal_hists_eff_denom_qe[petal]= DaisyEffDenomQE[petal];
-          daisy_petal_hists_eff_denom_other[petal]= DaisyEffDenomOther[petal];
+          daisy_petal_hists_eff_denom[petal]= DaisyEffDenom[petal].get();
+          daisy_petal_hists_eff_denom_2p2h[petal]= DaisyEffDenom2P2H[petal].get();
+          daisy_petal_hists_eff_denom_dis[petal]= DaisyEffDenomDIS[petal].get();
+          daisy_petal_hists_eff_denom_res[petal]= DaisyEffDenomRES[petal].get();
+          daisy_petal_hists_eff_denom_qe[petal]= DaisyEffDenomQE[petal].get();
+          daisy_petal_hists_eff_denom_other[petal]= DaisyEffDenomOther[petal].get();
 
         }
-      
+        //std::unique_ptr<PlotUtils::MnvH1D> fluxIntegralCtmp = std::unique_ptr<PlotUtils::MnvH1D>(new PlotUtils::MnvH1D());
         PlotUtils::MnvH1D *fluxIntegralC = new PlotUtils::MnvH1D();
         PlotUtils::MnvH1D *fluxIntegralFe = new PlotUtils::MnvH1D();
         PlotUtils::MnvH1D *fluxIntegralPb = new PlotUtils::MnvH1D(); 
@@ -682,14 +708,38 @@ int main(const int argc, const char **argv)
           util::AddHist(*DaisyCorrectedSimOtherFe, frw->GetReweightedDaisySum(14, "iron", daisy_petal_hists_eff_denom_other, project_dir ), pp.second);
           util::AddHist(*DaisyCorrectedSimOtherPb, frw->GetReweightedDaisySum(14, "lead", daisy_petal_hists_eff_denom_other, project_dir ), pp.second);
         }
-        std::cout<<"ABC2\n";
-
-        fluxIntegralC->Scale(1/dataPOT);
-        fluxIntegralFe->Scale(1/dataPOT);
-        fluxIntegralPb->Scale(1/dataPOT);
         DaisyCorrectedC->Scale(1/dataPOT);
+        fluxIntegralC->Scale(1/dataPOT);
         DaisyCorrectedFe->Scale(1/dataPOT);
+        fluxIntegralFe->Scale(1/dataPOT);
         DaisyCorrectedPb->Scale(1/dataPOT);
+        fluxIntegralPb->Scale(1/dataPOT);
+
+        DaisyCorrectedSimC->Scale(1/dataPOT);
+        DaisyCorrectedSimFe->Scale(1/dataPOT);
+        DaisyCorrectedSimPb->Scale(1/dataPOT);
+        DaisyCorrectedSim2p2hC->Scale(1/dataPOT);
+        DaisyCorrectedSim2p2hFe->Scale(1/dataPOT);
+        DaisyCorrectedSim2p2hPb->Scale(1/dataPOT);
+        DaisyCorrectedSimDISC->Scale(1/dataPOT);
+        DaisyCorrectedSimDISFe->Scale(1/dataPOT);
+        DaisyCorrectedSimDISPb->Scale(1/dataPOT);
+        DaisyCorrectedSimRESC->Scale(1/dataPOT);
+        DaisyCorrectedSimRESFe->Scale(1/dataPOT);
+        DaisyCorrectedSimRESPb->Scale(1/dataPOT);
+        DaisyCorrectedSimQEC->Scale(1/dataPOT);
+        DaisyCorrectedSimQEFe->Scale(1/dataPOT);
+        DaisyCorrectedSimQEPb->Scale(1/dataPOT);
+        DaisyCorrectedSimOtherC->Scale(1/dataPOT);
+        DaisyCorrectedSimOtherFe->Scale(1/dataPOT);
+        DaisyCorrectedSimOtherPb->Scale(1/dataPOT);
+
+        /* fluxIntegralC->Scale(1/dataPOT);
+        fluxIntegralFe->Scale(1/dataPOT);
+        fluxIntegralPb->Scale(1/dataPOT); */
+        /* DaisyCorrectedC->Scale(1/dataPOT);
+        DaisyCorrectedFe->Scale(1/dataPOT);
+        DaisyCorrectedPb->Scale(1/dataPOT); */
         
         /* DaisyCorrected2p2hC->Scale(1/dataPOT);
         DaisyCorrected2p2hFe->Scale(1/dataPOT);
@@ -737,7 +787,7 @@ int main(const int argc, const char **argv)
                           17,
                           12};
 
-        double normPOT = 1.12e+21;
+        double normPOT = 1.06e+21;
         { 
           TCanvas can("Temp");
           TLegend *leg = new TLegend(0.6,0.5,0.9,0.9);
@@ -775,7 +825,6 @@ int main(const int argc, const char **argv)
             {
               tmp = "Tracker  Muon p_{Z}";
               xaxislabel = "p_{Z, #mu} [GeV/c]";
-              yaxislabel = "Events #times 10^{3} /(GeV/c)";
               tmpMC->GetXaxis()->SetRange(1, 13);
               tmpData->GetXaxis()->SetRange(1, 13);
             }
@@ -891,7 +940,7 @@ int main(const int argc, const char **argv)
 
           tempevrate->Scale(1e-3);
 
-          //double normPOT = 1.12e+21;
+          //double normPOT = 1.06e+21;
 
           temp2p2h->Scale(dataPOT/mcPOT);
           tempdis->Scale(dataPOT/mcPOT);
@@ -934,7 +983,7 @@ int main(const int argc, const char **argv)
             xaxislabel = "Reconstructed p_{T, #mu} [GeV/c]";
             y_title += " /(GeV/c)";
             xmax = 13;
-            tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsim->GetXaxis()->SetRange(1);
           }
           else if (prefix=="pZmu")
           {
@@ -942,7 +991,7 @@ int main(const int argc, const char **argv)
             xaxislabel = "Reconstructed p_{Z, #mu} [GeV/c]";
             y_title += " /(GeV/c)";
             xmax = 13;
-            tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsim->GetXaxis()->SetRange(1);
           }
           else if (prefix=="BjorkenX")
           {
@@ -950,7 +999,7 @@ int main(const int argc, const char **argv)
             xaxislabel = "Reconstructed Bjorken X";
             y_title += " per unit X";
             xmax = 7;
-            tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsim->GetXaxis()->SetRange(1);
             can.SetLogx();
           }
           else if (prefix=="Erecoil")
@@ -965,7 +1014,7 @@ int main(const int argc, const char **argv)
             y_title += " /GeV";
             xaxislabel = "Reconstructed E_{#mu} [GeV]";
             xmax = 11;
-            tempsim->GetXaxis()->SetRange(1, xmax);
+            tempsim->GetXaxis()->SetRange(1);
           } 
 
           std::string title = tmp + " Plastic Tracker";
@@ -1013,7 +1062,7 @@ int main(const int argc, const char **argv)
           plotter.axis_minimum=0.001;
 
           int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
-          plotter.DrawDataStackedMC(tempevrate, channelArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          plotter.DrawDataStackedMC(tempevrate, channelArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1);
           pad2->cd();
           plotter.axis_minimum=defaultmin;
           plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
@@ -1027,7 +1076,7 @@ int main(const int argc, const char **argv)
           //Backgrounds
           pad1->cd(); 
           plotter.axis_minimum=0.001;
-          plotter.DrawDataStackedMC(tempevrate, bkgArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1, xmax);
+          plotter.DrawDataStackedMC(tempevrate, bkgArr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1);
           pad2->cd();
           plotter.axis_minimum=defaultmin;
           plotter.DrawDataMCRatio(tempevrate, tempsim, 1, true, true, 0.5, 1.5, "");
@@ -1051,9 +1100,9 @@ int main(const int argc, const char **argv)
         {
           outFileDaisy->cd();
           DaisyCorrectedC->Write((prefix+"_DaisyCorrectedC").c_str());
-          //fluxIntegralC->Write((prefix+"_fluxIntegralC").c_str());
-          //DaisyCorrectedSimC->Write((prefix+"_DaisyCorrectedSimC").c_str());
-          //DaisyCorrectedSim2p2hC->Write((prefix+"_DaisyCorrectedSim2p2hC").c_str());
+          fluxIntegralC->Write((prefix+"_fluxIntegralC").c_str());
+          DaisyCorrectedSimC->Write((prefix+"_DaisyCorrectedSimC").c_str());
+          DaisyCorrectedSim2p2hC->Write((prefix+"_DaisyCorrectedSim2p2hC").c_str());
           crossSectionC = normalize(DaisyCorrectedC, fluxIntegralC, nnucleonsData, dataPOT);
           crossSectionC->Write((prefix+"_C_CrossSection").c_str());
           crossSectionSimC = normalize(DaisyCorrectedSimC, fluxIntegralC, nnucleons, mcPOT);
@@ -1164,11 +1213,463 @@ int main(const int argc, const char **argv)
           can.Print(("CarbonDaisy"+prefix+"_CrossSectionRatio.pdf").c_str());
           can.Print(("CarbonDaisy"+prefix+"_CrossSectionRatio.png").c_str());
         }
+
+
+
+
+        { //Plotting daisy cross-sections - Carbon
+          TCanvas can("Temp");
+          // Uncertainty summary
+          PlotUtils::MnvPlotter plotter;
+          plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.axis_label_font=43;
+          plotter.axis_label_size = 25;
+          plotter.headroom = 1.2;
+          /* plotter.axis_title_font_y=43;
+          plotter.axis_title_size_y = 35;
+          plotter.axis_title_font_x=43;
+          plotter.axis_title_size_x = 35;
+ */
+          plotter.ApplyAxisStyle();
+          //plotter.axis_maximum = 0.4;
+
+
+
+          TObjArray* arr = new TObjArray();
+          auto temp2p2h = crossSectionSimC2p2h->Clone();
+          auto tempdis = crossSectionSimCDIS->Clone();
+          auto tempres = crossSectionSimCRes->Clone();
+          auto tempqe = crossSectionSimCQE->Clone();
+          auto tempother = crossSectionSimCOther->Clone();
+          auto tempsimxsec = crossSectionSimC->Clone();
+          auto tempxsec = crossSectionC->Clone();
+          temp2p2h->Scale(1e39);
+          tempdis->Scale(1e39);
+          tempres->Scale(1e39);
+          tempqe->Scale(1e39);
+          tempother->Scale(1e39);
+          tempxsec->Scale(1e39);
+          tempsimxsec->Scale(1e39);
+          double dataPOTforScale = dataPOT;
+          double mcPOTforScale = mcPOT;
+
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
+
+          double defaultmin = plotter.axis_minimum;
+          plotter.legend_offset_x = 0.0825;
+          plotter.legend_border_size = 0;
+          plotter.legend_text_size = 0.03;
+
+          plotter.mc_line_width=0;
+
+          std::string tmp; 
+          std::string y_title="Events#times10^{3}";
+          std::cout<<"Here2.n";
+          double xmax = -1111; //Default value
+          std::string xaxislabel = "";
+          if (prefix=="pTmu")
+          {
+            tmp = "Muon p_{T}";
+            xaxislabel = "Reconstructed p_{T, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{t} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="pZmu")
+          {
+            tmp = "Muon p_{Z}";
+            xaxislabel = "Reconstructed p_{Z, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{Z} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="BjorkenX")
+          {
+            tmp = "Bjorken X";
+            xaxislabel = "Reconstructed Bjorken X";
+            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/Nucleon)";
+            xmax = 7;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+            can.SetLogx();
+          }
+          else if (prefix=="Erecoil")
+          {
+            tmp = "E_{recoil}";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            xaxislabel = "Reconstructed E_{recoil} [GeV]";
+          } 
+          else if (prefix=="Emu")
+          {
+            tmp = "E_{#mu}";
+            y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xaxislabel = "Reconstructed E_{#mu} [GeV]";
+            xmax = 11;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          } 
+
+          std::string title = "Tracker " + tmp + " Daisy Reweighted to Carbon Flux";
+          plotter.axis_title_size_y=0.03;
+          plotter.axis_title_offset_y=1.8;
+
+          plotter.DrawErrorSummary(tempsimxsec);
+          can.Print((prefix+"_CarbonDaisyXSecErrors.png").c_str());
+          can.Clear();
+
+
+          // Adjust pad heights manually (top bigger, bottom smaller)
+          TPad *pad1 = new TPad("pad1","pad1",0,0.35,1,1.0); // top pad
+          TPad *pad2 = new TPad("pad2","pad2",0,0.05,1,0.35); // bottom pad
+          pad1->SetBottomMargin(0); // remove x-axis label space for top
+          pad2->SetTopMargin(0);
+          pad2->SetBottomMargin(0.25);
+          pad1->Draw();
+          pad2->Draw();
+
+          if (prefix=="BjorkenX")
+          {
+            pad1->SetLogx();
+            pad2->SetLogx();
+          }
+
+
+          std::stringstream POTstr;
+          POTstr << std::fixed << std::scientific << std::setprecision(2) << dataPOTforScale;
+          std::string potstr = std::string("POT Used: ")+POTstr.str();
+          plotter.AddPlotLabel(potstr.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
+
+          plotter.WritePreliminary( 0.5, 0.15, 0.035, true);
+          plotter.AddPlotLabel(title.c_str() , 0.5, 0.97, 25, 1, 53, 22, 0);
+          plotter.AddPlotLabel(y_title.c_str() , 0.08, 0.9, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel("Data/MC" , 0.08, 0.3, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel(xaxislabel.c_str() , 0.9, 0.08, 0.03, 1, 42, 33, 0);
+
+          //Interaction Type
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempxsec, tempsimxsec, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempxsec->Draw("AXIS SAME");
+          can.cd();
+          can.Print((prefix+"_CarbonDaisyCrossSection.png").c_str());
+        }
+
+        { //Plotting daisy cross-sections - Iron
+          TCanvas can("Temp");
+          // Uncertainty summary
+          PlotUtils::MnvPlotter plotter;
+          plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.axis_label_font=43;
+          plotter.axis_label_size = 25;
+          plotter.headroom = 1.2;
+          /* plotter.axis_title_font_y=43;
+          plotter.axis_title_size_y = 35;
+          plotter.axis_title_font_x=43;
+          plotter.axis_title_size_x = 35;
+ */
+          plotter.ApplyAxisStyle();
+          //plotter.axis_maximum = 0.4;
+
+
+
+          TObjArray* arr = new TObjArray();
+          auto temp2p2h = crossSectionSimFe2p2h->Clone();
+          auto tempdis = crossSectionSimFeDIS->Clone();
+          auto tempres = crossSectionSimFeRes->Clone();
+          auto tempqe = crossSectionSimFeQE->Clone();
+          auto tempother = crossSectionSimFeOther->Clone();
+          auto tempsimxsec = crossSectionSimFe->Clone();
+          auto tempxsec = crossSectionFe->Clone();
+          temp2p2h->Scale(1e39);
+          tempdis->Scale(1e39);
+          tempres->Scale(1e39);
+          tempqe->Scale(1e39);
+          tempother->Scale(1e39);
+          tempxsec->Scale(1e39);
+          tempsimxsec->Scale(1e39);
+          double dataPOTforScale = dataPOT;
+          double mcPOTforScale = mcPOT;
+
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
+
+          double defaultmin = plotter.axis_minimum;
+          plotter.legend_offset_x = 0.0825;
+          plotter.legend_border_size = 0;
+          plotter.legend_text_size = 0.03;
+
+          plotter.mc_line_width=0;
+
+          std::string tmp; 
+          std::string y_title="Events#times10^{3}";
+          std::cout<<"Here2.n";
+          double xmax = -1111; //Default value
+          std::string xaxislabel = "";
+          if (prefix=="pTmu")
+          {
+            tmp = "Muon p_{T}";
+            xaxislabel = "Reconstructed p_{T, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{t} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="pZmu")
+          {
+            tmp = "Muon p_{Z}";
+            xaxislabel = "Reconstructed p_{Z, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{Z} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="BjorkenX")
+          {
+            tmp = "Bjorken X";
+            xaxislabel = "Reconstructed Bjorken X";
+            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/Nucleon)";
+            xmax = 7;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+            can.SetLogx();
+          }
+          else if (prefix=="Erecoil")
+          {
+            tmp = "E_{recoil}";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            xaxislabel = "Reconstructed E_{recoil} [GeV]";
+          } 
+          else if (prefix=="Emu")
+          {
+            tmp = "E_{#mu}";
+            y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xaxislabel = "Reconstructed E_{#mu} [GeV]";
+            xmax = 11;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          } 
+
+          std::string title = "Tracker " + tmp + " Daisy Reweighted to Iron Flux";
+          plotter.axis_title_size_y=0.03;
+          plotter.axis_title_offset_y=1.8;
+
+          plotter.DrawErrorSummary(tempsimxsec);
+          can.Print((prefix+"_IronDaisyXSecErrors.png").c_str());
+          can.Clear();
+
+
+          // Adjust pad heights manually (top bigger, bottom smaller)
+          TPad *pad1 = new TPad("pad1","pad1",0,0.35,1,1.0); // top pad
+          TPad *pad2 = new TPad("pad2","pad2",0,0.05,1,0.35); // bottom pad
+          pad1->SetBottomMargin(0); // remove x-axis label space for top
+          pad2->SetTopMargin(0);
+          pad2->SetBottomMargin(0.25);
+          pad1->Draw();
+          pad2->Draw();
+
+          if (prefix=="BjorkenX")
+          {
+            pad1->SetLogx();
+            pad2->SetLogx();
+          }
+
+
+          std::stringstream POTstr;
+          POTstr << std::fixed << std::scientific << std::setprecision(2) << dataPOTforScale;
+          std::string potstr = std::string("POT Used: ")+POTstr.str();
+          plotter.AddPlotLabel(potstr.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
+
+          plotter.WritePreliminary( 0.5, 0.15, 0.035, true);
+          plotter.AddPlotLabel(title.c_str() , 0.5, 0.97, 25, 1, 53, 22, 0);
+          plotter.AddPlotLabel(y_title.c_str() , 0.08, 0.9, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel("Data/MC" , 0.08, 0.3, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel(xaxislabel.c_str() , 0.9, 0.08, 0.03, 1, 42, 33, 0);
+
+          //Interaction Type
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempxsec, tempsimxsec, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempxsec->Draw("AXIS SAME");
+          can.cd();
+          can.Print((prefix+"_IronDaisyCrossSection.png").c_str());
+        }
+
+        { //Plotting daisy cross-sections - Lead
+          TCanvas can("Temp");
+          // Uncertainty summary
+          PlotUtils::MnvPlotter plotter;
+          plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.axis_label_font=43;
+          plotter.axis_label_size = 25;
+          plotter.headroom = 1.2;
+          /* plotter.axis_title_font_y=43;
+          plotter.axis_title_size_y = 35;
+          plotter.axis_title_font_x=43;
+          plotter.axis_title_size_x = 35;
+ */
+          plotter.ApplyAxisStyle();
+          //plotter.axis_maximum = 0.4;
+
+
+
+          TObjArray* arr = new TObjArray();
+          auto temp2p2h = crossSectionSimPb2p2h->Clone();
+          auto tempdis = crossSectionSimPbDIS->Clone();
+          auto tempres = crossSectionSimPbRes->Clone();
+          auto tempqe = crossSectionSimPbQE->Clone();
+          auto tempother = crossSectionSimPbOther->Clone();
+          auto tempsimxsec = crossSectionSimPb->Clone();
+          auto tempxsec = crossSectionPb->Clone();
+          temp2p2h->Scale(1e39);
+          tempdis->Scale(1e39);
+          tempres->Scale(1e39);
+          tempqe->Scale(1e39);
+          tempother->Scale(1e39);
+          tempxsec->Scale(1e39);
+          tempsimxsec->Scale(1e39);
+          double dataPOTforScale = dataPOT;
+          double mcPOTforScale = mcPOT;
+
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
+
+          double defaultmin = plotter.axis_minimum;
+          plotter.legend_offset_x = 0.0825;
+          plotter.legend_border_size = 0;
+          plotter.legend_text_size = 0.03;
+
+          plotter.mc_line_width=0;
+
+          std::string tmp; 
+          std::string y_title="Events#times10^{3}";
+          std::cout<<"Here2.n";
+          double xmax = -1111; //Default value
+          std::string xaxislabel = "";
+          if (prefix=="pTmu")
+          {
+            tmp = "Muon p_{T}";
+            xaxislabel = "Reconstructed p_{T, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{t} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="pZmu")
+          {
+            tmp = "Muon p_{Z}";
+            xaxislabel = "Reconstructed p_{Z, #mu} [GeV/c]";
+            y_title="d#sigma/dp_{Z} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xmax = 13;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          }
+          else if (prefix=="BjorkenX")
+          {
+            tmp = "Bjorken X";
+            xaxislabel = "Reconstructed Bjorken X";
+            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/Nucleon)";
+            xmax = 7;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+            can.SetLogx();
+          }
+          else if (prefix=="Erecoil")
+          {
+            tmp = "E_{recoil}";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            xaxislabel = "Reconstructed E_{recoil} [GeV]";
+          } 
+          else if (prefix=="Emu")
+          {
+            tmp = "E_{#mu}";
+            y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            xaxislabel = "Reconstructed E_{#mu} [GeV]";
+            xmax = 11;
+            tempsimxsec->GetXaxis()->SetRange(1, xmax);
+          } 
+
+          std::string title = "Tracker " + tmp + " Daisy Reweighted to Lead Flux";
+          plotter.axis_title_size_y=0.03;
+          plotter.axis_title_offset_y=1.8;
+
+          plotter.DrawErrorSummary(tempsimxsec);
+          can.Print((prefix+"_LeadDaisyXSecErrors.png").c_str());
+          can.Clear();
+
+
+          // Adjust pad heights manually (top bigger, bottom smaller)
+          TPad *pad1 = new TPad("pad1","pad1",0,0.35,1,1.0); // top pad
+          TPad *pad2 = new TPad("pad2","pad2",0,0.05,1,0.35); // bottom pad
+          pad1->SetBottomMargin(0); // remove x-axis label space for top
+          pad2->SetTopMargin(0);
+          pad2->SetBottomMargin(0.25);
+          pad1->Draw();
+          pad2->Draw();
+
+          if (prefix=="BjorkenX")
+          {
+            pad1->SetLogx();
+            pad2->SetLogx();
+          }
+
+
+          std::stringstream POTstr;
+          POTstr << std::fixed << std::scientific << std::setprecision(2) << dataPOTforScale;
+          std::string potstr = std::string("POT Used: ")+POTstr.str();
+          plotter.AddPlotLabel(potstr.c_str() , 0.18, 0.93, 0.025, 1, 42, 13, 0);
+
+          plotter.WritePreliminary( 0.5, 0.15, 0.035, true);
+          plotter.AddPlotLabel(title.c_str() , 0.5, 0.97, 25, 1, 53, 22, 0);
+          plotter.AddPlotLabel(y_title.c_str() , 0.08, 0.9, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel("Data/MC" , 0.08, 0.3, 0.03, 1, 42, 33, 90);
+          plotter.AddPlotLabel(xaxislabel.c_str() , 0.9, 0.08, 0.03, 1, 42, 33, 0);
+
+          //Interaction Type
+          pad1->cd(); 
+          plotter.axis_minimum=0.001;
+
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data", 1001, "", "", false, 1, xmax);
+          pad2->cd();
+          plotter.axis_minimum=defaultmin;
+          plotter.DrawDataMCRatio(tempxsec, tempsimxsec, 1, true, true, 0.5, 1.5, "");
+          can.SetLogx();
+          pad1->cd();
+          tempxsec->Draw("AXIS SAME");
+          can.cd();
+          can.Print((prefix+"_LeadDaisyCrossSection.png").c_str());
+        }
+
+
+
+
+
+        
         { //Plotting cross sections
           TCanvas can("Temp");
           // Uncertainty summary
           PlotUtils::MnvPlotter plotter;
           plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.mc_line_width=0;
           //plotter.axis_maximum = 0.4;
           TObjArray* arr = new TObjArray();
           auto temp2p2h = crossSectionSimPb2p2h->Clone();
@@ -1176,6 +1677,7 @@ int main(const int argc, const char **argv)
           auto tempres = crossSectionSimPbRes->Clone();
           auto tempqe = crossSectionSimPbQE->Clone();
           auto tempother = crossSectionSimPbOther->Clone();
+          auto tempsimxsec = crossSectionSimPb->Clone();
           auto tempxsec = crossSectionPb->Clone();
           temp2p2h->Scale(1e39);
           tempdis->Scale(1e39);
@@ -1205,13 +1707,15 @@ int main(const int argc, const char **argv)
           }
           else if (prefix.find("BjorkenX")!=std::string::npos)
           {
-            tmp = "{X}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            tmp = "Bjorken X";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            temp2p2h->GetXaxis()->SetRange(1, 7);
+            can.SetLogx();
           }
           else if (prefix.find("Erecoil")!=std::string::npos)
           {
             tmp = "E_{recoil}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
           } 
           else if (prefix.find("Emu")!=std::string::npos)
           {
@@ -1220,11 +1724,15 @@ int main(const int argc, const char **argv)
             tempxsec->GetXaxis()->SetRange(1, 11);
           } 
 
-          std::string title = tmp;
+          std::string title = tmp + " Daisy Reweighted to Lead Flux";
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_offset_y=1.8;
-          plotter.DrawDataStackedMC(tempxsec, arr, 1, "TR", "Data", 2, 1, 3001, "", y_title.c_str());
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data", 1001, "", "", false, 1);
+          plotter.AddPlotLabel(y_title.c_str() , 0.05, 0.9, 0.04, 1, 42, 33, 90);
+          //plotter.DrawDataStackedMC(tempxsec, arr, 1, "TR", "Data", 2, 1, 3001, "", y_title.c_str());
           plotter.AddHistoTitle(title.c_str(), 0.039);
+          plotter.AddPlotLabel("p_{Z, #mu}" , 0.87, 0.07, 0.04, 1, 42, 33);
           can.Update();
           can.Print((prefix+"_PbDaisyCrossSection.pdf").c_str());
           can.Print((prefix+"_PbDaisyCrossSection.png").c_str());
@@ -1234,6 +1742,8 @@ int main(const int argc, const char **argv)
           // Uncertainty summary
           PlotUtils::MnvPlotter plotter;
           plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.mc_line_width=0;
           //plotter.axis_maximum = 0.4;
           TObjArray* arr = new TObjArray();
           auto temp2p2h = crossSectionSimFe2p2h->Clone();
@@ -1248,11 +1758,7 @@ int main(const int argc, const char **argv)
           tempqe->Scale(1e39);
           tempother->Scale(1e39);
           tempxsec->Scale(1e39);
-          arr->Add(temp2p2h);
-          arr->Add(tempdis);
-          arr->Add(tempres);
-          arr->Add(tempqe);
-          arr->Add(tempother);
+
 
           std::string tmp; 
           std::string y_title;
@@ -1270,13 +1776,15 @@ int main(const int argc, const char **argv)
           }
           else if (prefix.find("BjorkenX")!=std::string::npos)
           {
-            tmp = "{X}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            tmp = "Bjorken X";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            temp2p2h->GetXaxis()->SetRange(1, 7);
+            can.SetLogx();
           }
           else if (prefix.find("Erecoil")!=std::string::npos)
           {
             tmp = "E_{recoil}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
           } 
           else if (prefix.find("Emu")!=std::string::npos)
           {
@@ -1284,12 +1792,19 @@ int main(const int argc, const char **argv)
             y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
             tempxsec->GetXaxis()->SetRange(1, 11);
           } 
-
-          std::string title = tmp;
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
+          std::string title = tmp + " Daisy Reweighted to Iron Flux";
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_offset_y=1.8;
-          plotter.DrawDataStackedMC(tempxsec, arr, 1, "TR", "Data", 2, 1, 3001, "", y_title.c_str());
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1);
           plotter.AddHistoTitle(title.c_str(), 0.039);
+          plotter.AddPlotLabel(y_title.c_str() , 0.05, 0.9, 0.04, 1, 42, 33, 90);
+          plotter.AddPlotLabel("p_{Z, #mu}" , 0.87, 0.07, 0.04, 1, 42, 33);
           can.Update();
           can.Print((prefix+"_FeDaisyCrossSection.pdf").c_str());
           can.Print((prefix+"_FeDaisyCrossSection.png").c_str());
@@ -1299,6 +1814,8 @@ int main(const int argc, const char **argv)
           // Uncertainty summary
           PlotUtils::MnvPlotter plotter;
           plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.mc_line_width=0;
           //plotter.axis_maximum = 0.4;
           TObjArray* arr = new TObjArray();
           auto temp2p2h = crossSectionSimC2p2h->Clone();
@@ -1313,11 +1830,6 @@ int main(const int argc, const char **argv)
           tempqe->Scale(1e39);
           tempother->Scale(1e39);
           tempxsec->Scale(1e39);
-          arr->Add(temp2p2h);
-          arr->Add(tempdis);
-          arr->Add(tempres);
-          arr->Add(tempqe);
-          arr->Add(tempother);
 
           std::string tmp; 
           std::string y_title;
@@ -1335,13 +1847,15 @@ int main(const int argc, const char **argv)
           }
           else if (prefix.find("BjorkenX")!=std::string::npos)
           {
-            tmp = "{X}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            tmp = "Bjorken X";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            temp2p2h->GetXaxis()->SetRange(1, 7);
+            can.SetLogx();
           }
           else if (prefix.find("Erecoil")!=std::string::npos)
           {
             tmp = "E_{recoil}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
           } 
           else if (prefix.find("Emu")!=std::string::npos)
           {
@@ -1349,12 +1863,19 @@ int main(const int argc, const char **argv)
             y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
             tempxsec->GetXaxis()->SetRange(1, 11);
           } 
-
-          std::string title = tmp;
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
+          std::string title = tmp + " Daisy Reweighted to Carbon Flux";
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_offset_y=1.8;
-          plotter.DrawDataStackedMC(tempxsec, arr, 1, "TR", "Data", 2, 1, 3001, "", y_title.c_str());
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1);
           plotter.AddHistoTitle(title.c_str(), 0.039);
+          plotter.AddPlotLabel(y_title.c_str() , 0.05, 0.9, 0.04, 1, 42, 33, 90);
+          plotter.AddPlotLabel("p_{Z, #mu}" , 0.87, 0.07, 0.04, 1, 42, 33);
           can.Update();
           can.Print((prefix+"_CDaisyCrossSection.pdf").c_str());
           can.Print((prefix+"_CDaisyCrossSection.png").c_str());
@@ -1364,6 +1885,8 @@ int main(const int argc, const char **argv)
           // Uncertainty summary
           PlotUtils::MnvPlotter plotter;
           plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
+          plotter.draw_normalized_to_bin_width=false; //Already width normlized by normalise()
+          plotter.mc_line_width=0;
           //plotter.axis_maximum = 0.4;
           TObjArray* arr = new TObjArray();
 
@@ -1379,11 +1902,6 @@ int main(const int argc, const char **argv)
           tempqe->Scale(1e39);
           tempother->Scale(1e39);
           tempxsec->Scale(1e39);
-          arr->Add(temp2p2h);
-          arr->Add(tempdis);
-          arr->Add(tempres);
-          arr->Add(tempqe);
-          arr->Add(tempother);
 
           std::string tmp; 
           std::string y_title;
@@ -1401,13 +1919,15 @@ int main(const int argc, const char **argv)
           }
           else if (prefix.find("BjorkenX")!=std::string::npos)
           {
-            tmp = "{X}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            tmp = "Bjorken X";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
+            temp2p2h->GetXaxis()->SetRange(1, 7);
+            can.SetLogx();
           }
           else if (prefix.find("Erecoil")!=std::string::npos)
           {
             tmp = "E_{recoil}";
-            y_title="d#sigma/d{X} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
+            y_title="d#sigma/dX (x10^{-39}) (cm^{2}/X/Nucleon)";
           } 
           else if (prefix.find("Emu")!=std::string::npos)
           {
@@ -1415,12 +1935,21 @@ int main(const int argc, const char **argv)
             y_title="d#sigma/dE_{#mu} (x10^{-39}) (cm^{2}/(GeV/c)^{2}/Nucleon)";
             tempxsec->GetXaxis()->SetRange(1, 11);
           } 
+          
+          arr->Add(temp2p2h);
+          arr->Add(tempdis);
+          arr->Add(tempres);
+          arr->Add(tempqe);
+          arr->Add(tempother);
 
-          std::string title = tmp;
+          std::string title = tmp + " - No Daisy Reweighting Applied";
           plotter.axis_title_size_y=0.03;
           plotter.axis_title_offset_y=1.8;
-          plotter.DrawDataStackedMC(tempxsec, arr, 1, "TR", "Data", 2, 1, 3001, "", y_title.c_str());
+          int channelColArr[5] = {TColor::GetColor("#d2c271"), TColor::GetColor("#CA5454"), TColor::GetColor("#40B0A6"), TColor::GetColor("#9285d5"), TColor::GetColor("#c2c2c2")};
+          plotter.DrawDataStackedMC(tempxsec, arr, channelColArr, 1, "TR", "Data (Stat. Only)", 1001, "", "", false, 1);
           plotter.AddHistoTitle(title.c_str(), 0.039);
+          plotter.AddPlotLabel(y_title.c_str() , 0.05, 0.9, 0.04, 1, 42, 33, 90);
+          plotter.AddPlotLabel("p_{Z, #mu}" , 0.87, 0.07, 0.04, 1, 42, 33);
           can.Update();
           can.Print((prefix+"_NoDaisyCrossSection.pdf").c_str());
           can.Print((prefix+"_NoDaisyCrossSection.png").c_str());
@@ -1437,7 +1966,7 @@ int main(const int argc, const char **argv)
           plotter.axis_title_size_x=0.03;
           plotter.axis_title_offset_x=1.8;
           plotter.axis_title_offset_y=1.8;
-          plotter.DrawNormalizedMigrationHistogram(DaisyMigration[i], false, false, true, false);
+          plotter.DrawNormalizedMigrationHistogram(DaisyMigration[i].get(), false, false, true, false);
           //plotter.AddHistoTitle(title.c_str(), 0.039);
           can.Update();
           //can.Print((tgt+prefix+"_DSSidebandScaled.pdf").c_str());

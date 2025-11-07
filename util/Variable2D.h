@@ -150,11 +150,11 @@ class Variable2D: public PlotUtils::Variable2DBase<CVUniverse>
         MnvH2D* truth_hist = NULL;
         migration->GetMigrationObjects(migration_hist, reco_hist, truth_hist);
         migration_hist->SetDirectory(&file); 
-        migration_hist->Write(std::string(GetName() + "_migration").c_str());
+        migration_hist->Write();
         reco_hist->SetDirectory(&file); 
-        reco_hist->Write(std::string(GetName() + "_migration").c_str());
+        reco_hist->Write();
         truth_hist->SetDirectory(&file); 
-        truth_hist->Write(std::string(GetName() + "_migration").c_str());
+        truth_hist->Write();
       }
     }
 
