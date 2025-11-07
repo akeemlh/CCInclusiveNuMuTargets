@@ -110,10 +110,6 @@ add_executable(runXSecLooperTargets_ByTarget runXSecLooperTargets_ByTarget.cpp)
 target_link_libraries(runXSecLooperTargets_ByTarget ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
 install(TARGETS runXSecLooperTargets_ByTarget DESTINATION bin)
 
-add_executable(runXSecLooper1DTracker runXSecLooper1DTracker.cpp)
-target_link_libraries(runXSecLooper1DTracker ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
-install(TARGETS runXSecLooper1DTracker DESTINATION bin)
-
 install(FILES backgroundStack.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 
 install(FILES SidebandTuning.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
