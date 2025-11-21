@@ -272,8 +272,8 @@ int main(const int argc, const char **argv)
   }
   for (std::string &tgtname : targets)
   {
-    //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", /* "BjorkenX", "Erecoil", "Emu" , "beamAngle", "segment" */};
-    std::vector<std::string> crossSectionPrefixes = {"pTmu"};
+    std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "BjorkenY", "Erecoil", "Emu" , "beamAngle", "segment"};
+    //std::vector<std::string> crossSectionPrefixes = {"pTmu"};
     //std::vector<std::string> crossSectionPrefixes = {"beamAngle"};
     //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu"};
 
@@ -365,7 +365,7 @@ int main(const int argc, const char **argv)
               continue;
               return 2;
             }
-            double data_pot = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+            double data_pot = util::GetIngredientSmart<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
             auto mcFile = TFile::Open(mcpath.c_str(), "READ");
             if (!mcFile)
             {
@@ -373,8 +373,8 @@ int main(const int argc, const char **argv)
               continue;
               return 3;
             }
-            double mc_pot = util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
-            std::string playlistUsed = util::GetIngredient<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
+            double mc_pot = util::GetIngredientSmart<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+            std::string playlistUsed = util::GetIngredientSmart<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
             int filledorempty = util::filledOrEmptyMEPlaylist(playlistUsed);
             if (filledorempty == 2) //Empty
             {
@@ -440,7 +440,7 @@ int main(const int argc, const char **argv)
               return 3;
             }
             
-            std::string playlistUsed = util::GetIngredient<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
+            std::string playlistUsed = util::GetIngredientSmart<TNamed>(*mcFile, "PlaylistUsed")->GetTitle();
             int filledorempty = util::filledOrEmptyMEPlaylist(playlistUsed);
             std::cout<<"playlistUsed: " << playlistUsed << " filledorempty " << filledorempty <<std::endl;
 
@@ -469,51 +469,51 @@ int main(const int argc, const char **argv)
             }
 
 
-            util::AddHist(*flux,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("reweightedflux_integrated")), prefix), mcscale);
-            util::AddHist(*folded,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("data")), prefix), datascale);
-            util::AddHist(*migration,util::GetIngredient<PlotUtils::MnvH2D>(*mcFile, (std::string("migration")), prefix), mcscale);
-            util::AddHist(*effNum,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator")), prefix), mcscale);
-            util::AddHist(*effDenom,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator")), prefix), mcscale);
-            util::AddHist(*effDenom2P2H,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix), mcscale);
-            util::AddHist(*effDenomDIS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix), mcscale);
-            util::AddHist(*effDenomRES,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix), mcscale);
-            util::AddHist(*effDenomQE,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix), mcscale);
-            util::AddHist(*effDenomOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix), mcscale);
+            util::AddHist(*flux,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("reweightedflux_integrated")), prefix).get(), mcscale);
+            util::AddHist(*folded,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("data")), prefix).get(), datascale);
+            util::AddHist(*migration,util::GetIngredientSmart<PlotUtils::MnvH2D>(*mcFile, (std::string("migration")), prefix).get(), mcscale);
+            util::AddHist(*effNum,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator")), prefix).get(), mcscale);
+            util::AddHist(*effDenom,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator")), prefix).get(), mcscale);
+            util::AddHist(*effDenom2P2H,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_2p2h")), prefix).get(), mcscale);
+            util::AddHist(*effDenomDIS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_DIS")), prefix).get(), mcscale);
+            util::AddHist(*effDenomRES,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix).get(), mcscale);
+            util::AddHist(*effDenomQE,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix).get(), mcscale);
+            util::AddHist(*effDenomOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix).get(), mcscale);
 
-            util::AddHist(*USSidebandSignal,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Signal"))), mcscale);
-            util::AddHist(*USSidebandDS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_DS"))), mcscale);
-            util::AddHist(*USSidebandUS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_US"))), mcscale);
-            util::AddHist(*USSidebandOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Other"))), mcscale);
-            util::AddHist(*DSSidebandSignal,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Signal"))), mcscale);
-            util::AddHist(*DSSidebandDS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_DS"))), mcscale);
-            util::AddHist(*DSSidebandUS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_US"))), mcscale);
-            util::AddHist(*DSSidebandOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Other"))), mcscale);
-            util::AddHist(*DataUSSideband,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_US_Sideband"))), datascale);
-            util::AddHist(*DataDSSideband,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_DS_Sideband"))), datascale);
-            util::AddHist(*DataSignal,util::GetIngredient<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_data"))), datascale);
+            util::AddHist(*USSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Signal"))).get(), mcscale);
+            util::AddHist(*USSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_DS"))).get(), mcscale);
+            util::AddHist(*USSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_US"))).get(), mcscale);
+            util::AddHist(*USSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Other"))).get(), mcscale);
+            util::AddHist(*DSSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Signal"))).get(), mcscale);
+            util::AddHist(*DSSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_DS"))).get(), mcscale);
+            util::AddHist(*DSSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_US"))).get(), mcscale);
+            util::AddHist(*DSSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Other"))).get(), mcscale);
+            util::AddHist(*DataUSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_US_Sideband"))).get(), datascale);
+            util::AddHist(*DataDSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_DS_Sideband"))).get(), datascale);
+            util::AddHist(*DataSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_data"))).get(), datascale);
 
-            util::AddHist(*SelectedSignalReco,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("selected_signal_reco")), prefix), mcscale);
-            util::AddHist(*BackgroundWrongSign,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Wrong_Sign_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundNC,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_NC_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundWaterTank,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Water_Tank_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundDSPlastic,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Downstream_Plastic_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundUSPlastic,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Upstream_Plastic_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundOtherTarget,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_True_In_Other_Target_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundVtxElsewhere,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_True_Vtx_Elsewhere_Bkg")), prefix), mcscale);
-            util::AddHist(*BackgroundOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Other")), prefix), mcscale);
+            util::AddHist(*SelectedSignalReco,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("selected_signal_reco")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundWrongSign,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Wrong_Sign_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundNC,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_NC_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundWaterTank,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Water_Tank_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundDSPlastic,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Downstream_Plastic_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundUSPlastic,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Upstream_Plastic_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundOtherTarget,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_True_In_Other_Target_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundVtxElsewhere,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_True_Vtx_Elsewhere_Bkg")), prefix).get(), mcscale);
+            util::AddHist(*BackgroundOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Other")), prefix).get(), mcscale);
 
-            util::AddHist(*MCData,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("data")), prefix), mcscale);
-            util::AddHist(*MCData2p2h,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_2p2h")), prefix), mcscale);
-            util::AddHist(*MCDataDIS,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_DIS")), prefix), mcscale);
-            util::AddHist(*MCDataRES,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_RES")), prefix), mcscale);
-            util::AddHist(*MCDataQE,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_QE")), prefix), mcscale);
-            util::AddHist(*MCDataOther,util::GetIngredient<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_Other")), prefix), mcscale);
+            util::AddHist(*MCData,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("data")), prefix).get(), mcscale);
+            util::AddHist(*MCData2p2h,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_2p2h")), prefix).get(), mcscale);
+            util::AddHist(*MCDataDIS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_DIS")), prefix).get(), mcscale);
+            util::AddHist(*MCDataRES,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_RES")), prefix).get(), mcscale);
+            util::AddHist(*MCDataQE,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_QE")), prefix).get(), mcscale);
+            util::AddHist(*MCDataOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("intType_Other")), prefix).get(), mcscale);
 
             if (d==0) //Only get POT once per playlist. E.g we don't wanna double count the POT for the same runs just because we're looking at target 2026 and 3026
             {
-              mcPOT += util::GetIngredient<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
+              mcPOT += util::GetIngredientSmart<TParameter<double>>(*mcFile, "POTUsed")->GetVal();
               std::cout<<"mcPOT: " << mcPOT << std::endl;
-              double tempDataPOT = util::GetIngredient<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
+              double tempDataPOT = util::GetIngredientSmart<TParameter<double>>(*dataFile, "POTUsed")->GetVal();
               dataPOT+=tempDataPOT;
 
               //Scale the integrated flux for this playlist by playlist data POT for appropriate scaling when applying across different playlists
@@ -1952,22 +1952,22 @@ int main(const int argc, const char **argv)
           if (tgtname == "Iron" || tgtname == "2026" || tgtname == "3026")
           {
             titlebase = "Fe";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Fe_CrossSection");
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Fe_CrossSection").get();
           }
           if (tgtname == "Lead")
           {
             titlebase="Pb";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Pb_CrossSection");
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Pb_CrossSection").get();
           }
           if (tgtname == "Carbon")
           {
             titlebase="C";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFile, prefix+"_C_CrossSection");
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_C_CrossSection").get();
           }
            if (tgtname == "Water")
           {
             titlebase="H_{2}O";
-            plasticxsec=util::GetIngredient<PlotUtils::MnvH1D>(*trackerFileNoDaisy, "crossSection");
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFileNoDaisy, "crossSection").get();
           } 
           titlebase+="/CH Ratio in "+prefix;
           

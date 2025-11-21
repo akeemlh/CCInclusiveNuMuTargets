@@ -32,6 +32,16 @@ namespace util
   {
     return GetIngredient<TYPE>(dir, prefix + "_" + ingredient);
   }
+
+//Adding smart pointer GetIngredient option to address memory leak issues with existing GetIngredient methods
+//Left existing methods unchange for backwards compatibility
+  template <class TYPE>
+  std::unique_ptr<TYPE> GetIngredientSmart(TDirectoryFile& dir, const std::string& ingredient, const std::string& prefix = "")
+  {
+    std::string ingr = ingredient;
+    if (prefix.size()>0) ingr =  prefix + "_" + ingr;
+    return std::unique_ptr<TYPE>(GetIngredient<TYPE>(dir, ingr));
+  }
 }
 
 #endif //UTIL_GETINGREDIENT_H
