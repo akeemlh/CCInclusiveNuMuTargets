@@ -520,8 +520,8 @@ int main(const int argc, const char** argv)
   }
 
   //Tune version vA.B.C
-  int tuneA = 1;
-  int tuneB = 0;
+  int tuneA = 4;
+  int tuneB = 3;
   int tuneC = 0;
   const char* mnvTuneIn =  getenv("MnvTune");
   if (mnvTuneIn != nullptr)

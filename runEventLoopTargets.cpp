@@ -738,7 +738,7 @@ int main(const int argc, const char **argv)
       }
     }
   }
-  else // If no argument is given, do all targets
+  if (targets.size()==0) // If no argument is given, do all targets
   {
     for (auto code : util::TgtCodeLabelsNuke)
     {
@@ -830,8 +830,8 @@ int main(const int argc, const char **argv)
   }
 
   //Tune version vA.B.C
-  int tuneA = 1;
-  int tuneB = 0;
+  int tuneA = 4;
+  int tuneB = 3;
   int tuneC = 0;
   const char* mnvTuneIn =  getenv("MnvTune");
   if (mnvTuneIn != nullptr)
@@ -968,8 +968,7 @@ int main(const int argc, const char **argv)
   }
 
   std::map<std::string, std::vector<CVUniverse *>> error_bands;
-  if (doSystematics)
-    error_bands = GetStandardSystematics(options.m_mc);
+  if (doSystematics) error_bands = GetStandardSystematics(options.m_mc);
   else
   {
     std::map<std::string, std::vector<CVUniverse *>> band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_mc, CVUniverse::GetNFluxUniverses());
@@ -977,8 +976,7 @@ int main(const int argc, const char **argv)
   }
   error_bands["cv"] = {new CVUniverse(options.m_mc)};
   std::map<std::string, std::vector<CVUniverse *>> truth_bands;
-  if (doSystematics)
-    truth_bands = GetStandardSystematics(options.m_truth);
+  if (doSystematics)  truth_bands = GetStandardSystematics(options.m_truth);
   truth_bands["cv"] = {new CVUniverse(options.m_truth)};
 
   std::vector<Variable1DNuke *> nukeVars;
@@ -1048,6 +1046,8 @@ int main(const int argc, const char **argv)
     if (tgt >12 && tgt < 1000) nukePreCut.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in active tracker", 5810, 8600));
     else nukePreCut.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in Nuclear Targets", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
     nukePreCut.emplace_back(new reco::IsInTarget<CVUniverse, MichelEvent>(tgt, usingExtendedTargetDefintion));
+    
+    nukePreCut.emplace_back(new reco::ANNDistToTgtDivCut<CVUniverse, MichelEvent>(25, "Interaction disance from target division"));
     // nukeSidebands.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Test sideband z pos", 0, 1000000000000.0));
     // nukeSidebands.emplace_back(new reco::USScintillator<CVUniverse, MichelEvent>());
     // nukeSidebands.emplace_back(new reco::DSScintillator<CVUniverse, MichelEvent>());
@@ -1057,6 +1057,7 @@ int main(const int argc, const char **argv)
     nukeSignalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
     
     nukeSignalDefinition.emplace_back(new truth::IsInTarget<CVUniverse>(tgt, false));
+    nukeSignalDefinition.emplace_back(new truth::TruthDistToTgtDivCut<CVUniverse>(25, "Interaction disance from target division"));
     //^^^ False for the usingExtendedTargetDefintion option even when we are doing an analysis with the extended target definition since we're really
     //looking for events in the targets and not in this extended scintillator region, that is just a means to an end (where the end is capturing
     //misreconstructed events). If we left this in we'd be considering this region as part of our signal (which it isn't) which would raise our

@@ -675,12 +675,18 @@ double GetDiffractiveUncWeight() const {
         return GetANNRecoilE()/GetANNEnu();
     }
 
+  bool hasMLPred() const {return (GetInt("hasMLPrediction")==1);}
+
   double GetANNProb() const { return GetVecElem("ANN_plane_probs", 0); }
   double GetTruthMuE() const { return GetDouble("truth_muon_E") ; }
 
   int GetTargetZ() const {
     return GetInt("MasterAnaDev_targetZ");
   }
+
+  double GetANNTargetDistToDiv() const {return GetDouble("MasterAnaDev_ANN_target_dist_to_division");}
+  double GetTBTargetDistToDiv() const {return GetDouble("MasterAnaDev_target_dist_to_division");}
+  double GetTruthTargetDistToDiv() const {return GetDouble("truth_target_dist_to_division");}
 
   int GetANNTargetZ() const { return GetInt("MasterAnaDev_ANN_targetZ"); }
   int GetTruthTargetZ() const { return GetInt("truth_targetZ");}
@@ -721,22 +727,19 @@ double GetDiffractiveUncWeight() const {
     return GetVecElemInt("ANN_segments", 0)*GetVecElem("ANN_plane_probs", 0) + GetVecElemInt("ANN_segments", 1)*GetVecElem("ANN_plane_probs", 1);
   }
 
-  double GetANNSegmentsZPosWeighted(double cutoff) const
+  double GetANNSegmentsZPosWeighted() const
   {
+    if (!hasMLPred()) return -999;
     double zPosFromSegment0 = getZPosFromSegment(GetVecElemInt("ANN_segments", 0));
     double zPosFromSegment1 = getZPosFromSegment(GetVecElemInt("ANN_segments", 1));
     double conf0 = GetVecElem("ANN_plane_probs", 0);
     double conf1 = GetVecElem("ANN_plane_probs", 1);
-    std::cout<<"cutoff: "<<cutoff<< " zPosFromSegment0: " << zPosFromSegment0 << " conf0 "<< conf0<< " zPosFromSegment1: " << zPosFromSegment1 << " conf1 "<< conf1 <<  std::endl;
-    //std::cout<<"zPosFromSegment1: " << zPosFromSegment1 << " conf1 "<< conf1 <<  std::endl;
-    //if (conf1 < 0.2 ) return 0;
-    if (conf1 >= cutoff) return (zPosFromSegment0*conf0*conf0+zPosFromSegment1*conf1*conf1)/(conf0*conf0+conf1*conf1);
-    else return zPosFromSegment0;
+    return (zPosFromSegment0*conf0+zPosFromSegment1*conf1)/(conf0+conf1);
   }
 
    double GetANNSegmentsZPosWeighted2(int cutoff) const
   {
-    if (GetInt("hasMLPrediction")!=1) return -999;
+
     double zPosFromSegment0 = getZPosFromSegment(GetVecElemInt("ANN_segments", 0));
     double zPosFromSegment1 = getZPosFromSegment(GetVecElemInt("ANN_segments", 1));
     double conf0 = GetVecElem("ANN_plane_probs", 0);
@@ -1169,8 +1172,6 @@ double GetDiffractiveUncWeight() const {
 
     return -999;
   }
-
-  bool hasMLPred() const {return (GetInt("hasMLPrediction")==1);}
 
   int GetMultiplicity() const {return GetInt("multiplicity");}
 

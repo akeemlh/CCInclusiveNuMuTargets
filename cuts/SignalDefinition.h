@@ -88,5 +88,21 @@ namespace truth
       }
       double fVal;
   };
+
+  template <class UNIVERSE>
+  class TruthDistToTgtDivCut: public PlotUtils::SignalConstraint<UNIVERSE>
+  {
+    public:
+      TruthDistToTgtDivCut(const double distCut, const std::string& name): PlotUtils::SignalConstraint<UNIVERSE>(name), fDistCut(distCut)
+      {
+      }
+
+    private:
+      bool checkConstraint(const UNIVERSE& univ) const override
+      {
+        return (univ.GetTruthTargetDistToDiv() >= fDistCut);
+      }
+    double fDistCut;;
+  };
 }
 #endif //SIGNALDEFINITION_H

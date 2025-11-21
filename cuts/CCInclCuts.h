@@ -26,5 +26,8 @@ namespace reco
   template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
   using MuonEnergyMax = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetEmu, EVENT>;
 
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  using ANNDistToTgtDivCut = PlotUtils::Minimum<UNIVERSE, double, &UNIVERSE::GetANNTargetDistToDiv, EVENT>;
+
 }
 #endif //CCINCLCUTS_H
