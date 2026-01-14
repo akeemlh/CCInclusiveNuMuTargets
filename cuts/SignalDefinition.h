@@ -93,14 +93,16 @@ namespace truth
   class TruthDistToTgtDivCut: public PlotUtils::SignalConstraint<UNIVERSE>
   {
     public:
-      TruthDistToTgtDivCut(const double distCut, const std::string& name): PlotUtils::SignalConstraint<UNIVERSE>(name), fDistCut(distCut)
+      TruthDistToTgtDivCut(const double dist): PlotUtils::SignalConstraint<UNIVERSE>(std::string("Interaction Distance from target division > ") + std::to_string(dist)), fDistCut(dist)
       {
       }
 
     private:
       bool checkConstraint(const UNIVERSE& univ) const override
       {
-        return (univ.GetTruthTargetDistToDiv() >= fDistCut);
+        int tgtID = univ.GetTruthTargetID();
+        if (tgtID == 1 || tgtID == 2 || tgtID == 3 || tgtID == 5) return (univ.GetTruthTargetDistToDiv() >= fDistCut); //Only perform chech for targets that have this division
+        else return true;
       }
     double fDistCut;;
   };

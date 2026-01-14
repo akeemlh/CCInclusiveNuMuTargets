@@ -528,7 +528,6 @@ void LoopAndFillMC(
     //=========================================
     for (auto band : error_bands)
     {
-      //std::cout<<"Here4\n";
       std::vector<CVUniverse*> error_band_universes = band.second;
       int univCount = 0;
       for (auto universe : error_band_universes)

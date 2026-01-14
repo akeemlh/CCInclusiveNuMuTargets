@@ -488,16 +488,16 @@ int main(const int argc, const char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
 
-  preCuts = util::GetAnalysisCuts(nupdg);
-  preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  //preCuts = util::GetAnalysisCuts(nupdg);
+  //preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
 
                                                                                                                                                    
-  if (nupdg>0) signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
-  else if (nupdg<0) signalDefinition.emplace_back(new truth::IsAntiNeutrino<CVUniverse>());
+  //if (nupdg>0) signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
+  //else if (nupdg<0) signalDefinition.emplace_back(new truth::IsAntiNeutrino<CVUniverse>());
   signalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
                                                                                                                                                    
-  phaseSpace = util::GetPhaseSpace();
-  phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  //phaseSpace = util::GetPhaseSpace();
+  //phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
                                                                                                                                                    
   PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
 
@@ -686,8 +686,11 @@ int main(const int argc, const char** argv)
   std::function<double(const CVUniverse&)> q0TrueGeV = [](const CVUniverse& univ) { return univ.Getq0True()/1000;};
   std::function<double(const CVUniverse &)> muonAngleDegrees = [](const CVUniverse &univ) { return (univ.GetThetamu() * 180 / M_PI); };
   std::function<double(const CVUniverse &)> muonAngleDegreesTruth = [](const CVUniverse &univ) { return (univ.GetDouble("truth_muon_theta")* 180 / M_PI); };
+  std::function<double(const CVUniverse &)> ANNConfPercentage = [](const CVUniverse &univ) { return univ.GetANNProb() * 100; };
+  std::function<double(const CVUniverse &)> nullFunc = [](const CVUniverse &univ) { return 0; };  
 
-  vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetANNMuonPTGeV, &CVUniverse::GetMuonPTTrue));
+
+  /* vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetANNMuonPTGeV, &CVUniverse::GetMuonPTTrue));
   vars.push_back(new Variable("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetANNMuonPzGeV, &CVUniverse::GetMuonPzTrue));
   vars.push_back(new Variable("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetANNEmuGeV, &CVUniverse::GetElepTrueGeV));
   vars.push_back(new Variable("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, &CVUniverse::GetANNRecoilEGeV, q0TrueGeV)); // TODO: q0 is not the same as recoil energy without a spline correction
@@ -697,8 +700,18 @@ int main(const int argc, const char** argv)
   vars.push_back(new Variable("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
   vars2D.push_back(new Variable2D("pTmu_pZmu", *vars[0], *vars[1]));
   vars2D.push_back(new Variable2D("Emu_Erecoil", *vars[2], *vars[3]));
-  vars2D.push_back(new Variable2D("BjorkenX_BjorkenY", *vars[4], *vars[5])); 
+  vars2D.push_back(new Variable2D("BjorkenX_BjorkenY", *vars[4], *vars[5]));  */
   //Probe some more variables?????
+
+  //Testing ANN probability distribution
+  std::vector<double> probBins;
+  const double nProbBins = 200;
+  for (double whichBin = 0; whichBin < nProbBins+1; whichBin++)
+  {
+    probBins.push_back((1/nProbBins)*whichBin);
+  }
+  vars.push_back(new Variable("ANN Confidence", "Probs", probBins, ANNConfPercentage, ANNConfPercentage));
+
 
   std::vector<Study*> studies;
 

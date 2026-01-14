@@ -82,6 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('mc', nargs=1, help="the data input directory")
     parser.add_argument('out', nargs=1, help="the output directory")
     parser.add_argument('-p', '--playlists', nargs='*', help="the playlists to run")
+    parser.add_argument('-s', '--skipsys', action='store_true', help="skip systematics? Used in warping studies")
     #parser.add_argument('--no2p2hwarp', action='store_true', help="Turning off LowRecoil2p2hReweighter")
     #parser.add_argument('--amudiswarp', action='store_true', help="Turning on AMUDISReweighter")
     #parser.add_argument('--lowq2warp', action='store_true', help="Turning on LowQ2PiReweighter")
@@ -106,6 +107,7 @@ if __name__ == '__main__':
         tarballpath = tarpath
 
     playlists=args.playlists
+    skipSys = args.skipsys
     dataInDir=args.data[0]
     mcInDir=args.mc[0]
     outDir=args.out[0]
@@ -171,10 +173,12 @@ if __name__ == '__main__':
         my_wrapper = open(wrapper_path,"w")
         my_wrapper.write("#!/bin/bash\n")
         my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
+        my_wrapper.write("date\n")
         my_wrapper.write("echo Setting up environment\n")
         my_wrapper.write("export MINERVA_PREFIX=${INPUT_TAR_DIR_LOCAL}\n")
-        #if skipSys:
-        #    my_wrapper.write("export MNV101_SKIP_SYST=True\n")
+        if skipSys:
+            my_wrapper.write("export MNV101_SKIP_SYST=True\n")
+            memory=2000
         #if no2p2hwarp:
         #    my_wrapper.write("export NO_2P2H_WARP=True\n")
         #if amudiswarp:

@@ -73,6 +73,8 @@
 #include <algorithm>
 #include <numeric>
 
+bool verbose = false;
+
 // Convince the STL to talk to TIter so I can use std::find_if()
 namespace std
 {
@@ -227,8 +229,8 @@ int main(const int argc, const char **argv)
 
   if (dirs.size()==0) dirs = {"./"};
   
-  std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "BjorkenY", "Erecoil", "Emu" , "beamAngle", "segment"};
-  //std::vector<std::string> crossSectionPrefixes = {"pTmu"};
+  //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "BjorkenY", "Erecoil", "Emu" , "beamAngle", "segment"};
+  std::vector<std::string> crossSectionPrefixes = {"pTmu"};
 
   double mcPOT = 0;
   double dataPOT = 0;
@@ -306,7 +308,6 @@ int main(const int argc, const char **argv)
           std::string datapathdaisy = dirs[c] + "/runEventLoopTrackerData_petal_"+std::to_string(petal)+".root";
           std::string mcpathdaisy = dirs[c] + "/runEventLoopTrackerMC_petal_"+std::to_string(petal)+".root";
           bool petalFilesExist = std::filesystem::exists(datapathdaisy) && std::filesystem::exists(mcpathdaisy);
-          std::cout<< "petalFilesExist: "<< petalFilesExist<<std::endl;
           doDaisy = doDaisy && petalFilesExist;
         }
         //doDaisy=false;#
@@ -315,7 +316,7 @@ int main(const int argc, const char **argv)
         for (int petal=-1; petal<12 && doDaisy; petal++){
           std::string datapathdaisy = dirs[c] + "/runEventLoopTrackerData_petal_"+std::to_string(petal)+".root";
           std::string mcpathdaisy = dirs[c] + "/runEventLoopTrackerMC_petal_"+std::to_string(petal)+".root";
-          std::cout<< "datapathdaisy: "<<datapathdaisy <<std::endl;
+          if (verbose) std::cout<< "datapathdaisy: "<<datapathdaisy <<std::endl;
           auto dataDaisyFile = TFile::Open(datapathdaisy.c_str(), "READ");
           if (!dataDaisyFile)
           {
@@ -374,7 +375,7 @@ int main(const int argc, const char **argv)
           if (petal>=0)
           {
             //std::cout<< "Here2.1"<<std::endl;
-            std::cout<< "petal:"<<petal<<std::endl;
+            if (verbose) std::cout<< "petal:"<<petal<<std::endl;
             util::AddHist(*DaisyEffNum[petal], tmpEffNum);
             //std::cout<< "Here2.11"<<std::endl;
 
@@ -465,9 +466,6 @@ int main(const int argc, const char **argv)
 
           dataDaisyFile->Close();
           mcDaisyFile->Close();
-
-          std::cout<< "Here3"<<std::endl;
-
         }
       }
       doDaisy = true; //Hacky
@@ -676,10 +674,8 @@ int main(const int argc, const char **argv)
         PlotUtils::MnvH1D *DaisyCorrectedSimOtherC = new PlotUtils::MnvH1D();
         PlotUtils::MnvH1D *DaisyCorrectedSimOtherFe = new PlotUtils::MnvH1D();
         PlotUtils::MnvH1D *DaisyCorrectedSimOtherPb = new PlotUtils::MnvH1D(); 
-        std::cout<<"ABC1\n";
         for (auto pp : playlistPOTpair)
         {
-          std::cout<<"ABC1.1\n";
           PlotUtils::FluxReweighter *frw = new PlotUtils::FluxReweighter( pdg, use_nue_constraint, pp.first, PlotUtils::FluxReweighter::gen2thin, PlotUtils::FluxReweighter::g4numiv6, n_flux_universes );
 
           util::AddHist(*DaisyCorrectedC, frw->GetReweightedDaisySum(14, "carbon", daisy_petal_hists, project_dir ), pp.second);
@@ -769,8 +765,6 @@ int main(const int argc, const char **argv)
         PlotUtils::MnvH1D *crossSectionSimCRes, *crossSectionSimFeRes, *crossSectionSimPbRes;
         PlotUtils::MnvH1D *crossSectionSimCQE, *crossSectionSimFeQE, *crossSectionSimPbQE;
         PlotUtils::MnvH1D *crossSectionSimCOther, *crossSectionSimFeOther, *crossSectionSimPbOther;
-        std::cout<<"ABC3\n";
-
 
 
 
@@ -1118,7 +1112,6 @@ int main(const int argc, const char **argv)
           crossSectionSimCOther= normalize(DaisyCorrectedSimOtherC, fluxIntegralC, nnucleons, mcPOT);
           crossSectionSimCOther->Write((prefix+"_C_CrossSectionSimulatedOther").c_str());
         }
-        std::cout<<"ABC4\n";
 
         //Iron
         {

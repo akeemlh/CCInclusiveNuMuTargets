@@ -113,6 +113,10 @@ enum ErrorCodes
 #include "util/DiffractiveReweighter.h"
 #include "PlotUtils/BodekRitchieReweighter.h"
 
+#include "PlotUtils/MnvH1D.h"
+#include "PlotUtils/MnvH2D.h"
+#include "PlotUtils/MnvH3D.h"
+
 #pragma GCC diagnostic pop
 
 //ROOT includes
@@ -138,7 +142,15 @@ bool verbose = false;
 
 //std::vector<double> vertexBins = {4293.04, 4337.25, 4381.47, 4425.68, 4514.11, 4558.33, 4602.54, 4646.76, 4735.19, 4779.4, 4823.62, 4867.83, 5000.48, 5044.69, 5088.91, 5133.12, 5456.74, 5500.95, 5545.17, 5589.38, 5677.81, 5722.03, 5810.45, 5855.68, 5900.91, 5946.14, 5991.37, 6036.6, 6081.83, 6127.06, 6172.29, 6217.52, 6262.74, 6307.97, 6353.2, 6398.43, 6443.66, 6488.89, 6534.12, 6579.35, 6624.58, 6669.81, 6715.03, 6760.26, 6805.49, 6850.72, 6895.95, 6941.18, 6986.41, 7031.64, 7076.87, 7122.1, 7167.32, 7212.55, 7257.78, 7303.01, 7348.24, 7393.47, 7438.7, 7483.93, 7529.16, 7574.39, 7619.61, 7664.84, 7710.07, 7755.3, 7800.53, 7845.76, 7890.99, 7936.22, 7981.45, 8026.68, 8071.9, 8117.13, 8162.36, 8207.59, 8252.82, 8298.05, 8343.28, 8388.51, 8433.74, 8478.97, 8524.19, 8569.42, 8614.65};
 
-std::vector<double> vertexBins = {4293.04, 4313.68, 4337.25, 4357.9, 4381.47, 4402.11, 4425.68, 4446.33, 4514.11, 4534.76, 4558.33, 4578.97, 4602.54, 4623.19, 4646.76, 4667.4, 4735.19, 4755.83, 4779.4, 4800.05, 4823.62, 4844.26, 4867.83, 4888.48, 5000.48, 5021.12, 5044.69, 5065.34, 5088.91, 5109.55, 5133.12, 5153.77, 5456.74, 5477.38, 5500.95, 5521.6, 5545.17, 5565.81, 5589.38, 5610.02, 5677.81, 5698.45, 5722.03, 5742.67, 5810.45, 5831.1, 5855.68, 5876.33, 5900.91, 5921.56, 5946.14, 5966.79, 5991.37, 6012.01, 6036.6, 6057.24, 6081.83, 6102.47, 6127.06, 6147.7, 6172.29, 6192.93, 6217.52, 6238.16, 6262.74, 6283.39, 6307.97, 6328.62, 6353.2, 6373.85, 6398.43, 6419.08, 6443.66, 6464.3, 6488.89, 6509.53, 6534.12, 6554.76, 6579.35, 6599.99, 6624.58, 6645.22, 6669.81, 6690.45, 6715.03, 6735.68, 6760.26, 6780.91, 6805.49, 6826.14, 6850.72, 6871.37, 6895.95, 6916.59, 6941.18, 6961.82, 6986.41, 7007.05, 7031.64, 7052.28, 7076.87, 7097.51, 7122.1, 7142.74, 7167.32, 7187.97, 7212.55, 7233.2, 7257.78, 7278.43, 7303.01, 7323.66, 7348.24, 7368.88, 7393.47, 7414.11, 7438.7, 7459.34, 7483.93, 7504.57, 7529.16, 7549.8, 7574.39, 7595.03, 7619.61, 7640.26, 7664.84, 7685.49, 7710.07, 7730.72, 7755.3, 7775.95, 7800.53, 7821.17, 7845.76, 7866.4, 7890.99, 7911.63, 7936.22, 7956.86, 7981.45, 8002.09, 8026.68, 8047.32, 8071.9, 8092.55, 8117.13, 8137.78, 8162.36, 8183.01, 8207.59, 8228.24, 8252.82, 8273.46, 8298.05, 8318.69, 8343.28, 8363.92, 8388.51, 8409.15, 8433.74, 8454.38, 8478.97, 8499.61, 8524.19, 8544.84, 8569.42, 8590.07, 8614.65, 8635.3, 8659.46, 8680.1, 8704.26, 8724.9, 8749.06, 8769.71, 8793.86, 8814.51, 8838.67, 8859.31, 8883.47, 8904.11, 8928.27, 8948.92, 8973.08, 8993.72, 9017.88, 9038.52, 9088.08, 9135.41, 9182.75, 9230.08, 9277.41, 9324.74, 9372.08, 9419.41, 9466.74, 9514.07, 9561.41, 9608.74, 9656.07, 9703.4, 9750.74, 9798.07, 9845.4, 9892.73, 9940.07, 9987.4};
+// /std::vector<double> vertexBins = {4293.04, 4313.68, 4337.25, 4357.9, 4381.47, 4402.11, 4425.68, 4446.33, 4514.11, 4534.76, 4558.33, 4578.97, 4602.54, 4623.19, 4646.76, 4667.4, 4735.19, 4755.83, 4779.4, 4800.05, 4823.62, 4844.26, 4867.83, 4888.48, 5000.48, 5021.12, 5044.69, 5065.34, 5088.91, 5109.55, 5133.12, 5153.77, 5456.74, 5477.38, 5500.95, 5521.6, 5545.17, 5565.81, 5589.38, 5610.02, 5677.81, 5698.45, 5722.03, 5742.67, 5810.45, 5831.1, 5855.68, 5876.33, 5900.91, 5921.56, 5946.14, 5966.79, 5991.37, 6012.01, 6036.6, 6057.24, 6081.83, 6102.47, 6127.06, 6147.7, 6172.29, 6192.93, 6217.52, 6238.16, 6262.74, 6283.39, 6307.97, 6328.62, 6353.2, 6373.85, 6398.43, 6419.08, 6443.66, 6464.3, 6488.89, 6509.53, 6534.12, 6554.76, 6579.35, 6599.99, 6624.58, 6645.22, 6669.81, 6690.45, 6715.03, 6735.68, 6760.26, 6780.91, 6805.49, 6826.14, 6850.72, 6871.37, 6895.95, 6916.59, 6941.18, 6961.82, 6986.41, 7007.05, 7031.64, 7052.28, 7076.87, 7097.51, 7122.1, 7142.74, 7167.32, 7187.97, 7212.55, 7233.2, 7257.78, 7278.43, 7303.01, 7323.66, 7348.24, 7368.88, 7393.47, 7414.11, 7438.7, 7459.34, 7483.93, 7504.57, 7529.16, 7549.8, 7574.39, 7595.03, 7619.61, 7640.26, 7664.84, 7685.49, 7710.07, 7730.72, 7755.3, 7775.95, 7800.53, 7821.17, 7845.76, 7866.4, 7890.99, 7911.63, 7936.22, 7956.86, 7981.45, 8002.09, 8026.68, 8047.32, 8071.9, 8092.55, 8117.13, 8137.78, 8162.36, 8183.01, 8207.59, 8228.24, 8252.82, 8273.46, 8298.05, 8318.69, 8343.28, 8363.92, 8388.51, 8409.15, 8433.74, 8454.38, 8478.97, 8499.61, 8524.19, 8544.84, 8569.42, 8590.07, 8614.65, 8635.3, 8659.46, 8680.1, 8704.26, 8724.9, 8749.06, 8769.71, 8793.86, 8814.51, 8838.67, 8859.31, 8883.47, 8904.11, 8928.27, 8948.92, 8973.08, 8993.72, 9017.88, 9038.52, 9088.08, 9135.41, 9182.75, 9230.08, 9277.41, 9324.74, 9372.08, 9419.41, 9466.74, 9514.07, 9561.41, 9608.74, 9656.07, 9703.4, 9750.74, 9798.07, 9845.4, 9892.73, 9940.07, 9987.4};
+
+std::vector<double> vertexBins = {4282.72, 4303.36, 4325.47, 4347.57, 4369.68, 4391.79, 4413.9, 4436.01, 4456.655, 4503.79, 4524.43, 4546.55, 4568.65, 4590.76, 4612.86, 4634.98, 4657.08, 4677.72, 4724.87, 4745.51, 4767.61, 4789.73, 4811.84, 4833.94, 4856.05, 4878.15, 4898.8, 4990.16, 5010.8, 5032.9, 5055.01, 5077.12, 5099.23, 5121.34, 5143.44, 5200, 5420, 5467.06, 5489.16, 5511.27, 5533.39, 5555.49, 5577.6, 5599.7, 5620.34, 5667.49, 5688.13, 5710.24, 5732.35, 5752.99, 5800.13, 5820.77, 5843.39, 5866.01, 5888.62, 5911.24, 5933.85, 5956.47, 5979.08, 6001.69, 6024.31, 6046.92, 6069.53, 6092.15, 6114.77, 6137.38, 6159.99, 6182.61, 6205.23, 6227.84, 6250.45, 6273.07, 6295.68, 6318.3, 6340.91, 6363.52, 6386.14, 6408.76, 6431.37, 6453.98, 6476.6, 6499.21, 6521.82, 6544.44, 6567.06, 6589.67, 6612.28, 6634.9, 6657.52, 6680.13, 6702.74, 6725.35, 6747.97, 6770.59, 6793.2, 6815.82, 6838.43, 6861.05, 6883.66, 6906.27, 6928.89, 6951.5, 6974.11, 6996.73, 7019.35, 7041.96, 7064.57, 7087.19, 7109.81, 7132.42, 7155.03, 7177.65, 7200.26, 7222.88, 7245.49, 7268.1, 7290.72, 7313.34, 7335.95, 7358.56, 7381.18, 7403.79, 7426.4, 7449.02, 7471.64, 7494.25, 7516.86, 7539.48, 7562.1, 7584.71, 7607.32, 7629.93, 7652.55, 7675.16, 7697.78, 7720.4, 7743.01, 7765.62, 7788.24, 7810.85, 7833.47, 7856.08, 7878.69, 7901.31, 7923.93, 7946.54, 7969.15, 7991.77, 8014.39, 8037.0, 8059.61, 8082.23, 8104.84, 8127.45, 8150.07, 8172.68, 8195.3, 8217.92, 8240.53, 8263.14, 8285.75, 8308.37, 8330.99, 8353.6, 8376.22, 8398.83, 8421.44, 8444.06, 8466.67, 8489.29, 8511.9, 8534.51, 8557.13, 8579.74, 8602.36, 8624.97, 8647.38, 8669.78, 8692.18, 8714.58, 8736.98, 8759.38, 8781.78, 8804.19, 8826.59, 8848.99, 8871.39, 8893.79, 8916.19, 8938.6, 8961.0, 8983.4, 9005.8, 9028.2, 9063.3, 9111.74, 9159.08, 9206.42, 9253.74, 9301.08, 9348.41, 9395.74, 9443.08, 9490.4, 9537.74, 9585.08, 9632.4, 9679.74, 9727.07, 9774.4, 9821.74, 9869.06, 9916.4, 9963.74, 10034.73};
+std::vector<double> ErecoilBins = {0.0, 0.2, 0.4, 0.60, 0.8, 1.0, 1.20, 1.40, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6, 5.8, 6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0, 8.2, 8.4, 8.6, 8.8, 9.0, 9.2, 9.4, 9.6, 9.8, 10.0, 10.2, 10.4, 10.6, 10.8, 11.0, 11.2, 11.4, 11.6, 11.8, 12.0, 12.2, 12.4, 12.6, 12.8, 13.0, 13.2, 13.4, 13.6, 13.8, 14.0, 14.2, 14.4, 14.6, 14.8, 15.0, 15.2, 15.4, 15.6, 15.8, 16.0, 16.2, 16.4, 16.6, 16.8, 17.0, 17.2, 17.4, 17.6, 17.8, 18.0, 18.2, 18.4, 18.6, 18.8, 19.0, 19.2, 19.4, 19.6, 19.8, 20};
+std::vector<double> ConfBins = {0.0, 0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1};
+std::vector<double> ConfBins2= {0.0, 0.05,0.1,0.15,0.2,0.25,0.3, 0.35,0.4,0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.};
+std::vector<double> ResidualBins = {-400.0, -399.0, -398.0, -397.0, -396.0, -395.0, -394.0, -393.0, -392.0, -391.0, -390.0, -389.0, -388.0, -387.0, -386.0, -385.0, -384.0, -383.0, -382.0, -381.0, -380.0, -379.0, -378.0, -377.0, -376.0, -375.0, -374.0, -373.0, -372.0, -371.0, -370.0, -369.0, -368.0, -367.0, -366.0, -365.0, -364.0, -363.0, -362.0, -361.0, -360.0, -359.0, -358.0, -357.0, -356.0, -355.0, -354.0, -353.0, -352.0, -351.0, -350.0, -349.0, -348.0, -347.0, -346.0, -345.0, -344.0, -343.0, -342.0, -341.0, -340.0, -339.0, -338.0, -337.0, -336.0, -335.0, -334.0, -333.0, -332.0, -331.0, -330.0, -329.0, -328.0, -327.0, -326.0, -325.0, -324.0, -323.0, -322.0, -321.0, -320.0, -319.0, -318.0, -317.0, -316.0, -315.0, -314.0, -313.0, -312.0, -311.0, -310.0, -309.0, -308.0, -307.0, -306.0, -305.0, -304.0, -303.0, -302.0, -301.0, -300.0, -299.0, -298.0, -297.0, -296.0, -295.0, -294.0, -293.0, -292.0, -291.0, -290.0, -289.0, -288.0, -287.0, -286.0, -285.0, -284.0, -283.0, -282.0, -281.0, -280.0, -279.0, -278.0, -277.0, -276.0, -275.0, -274.0, -273.0, -272.0, -271.0, -270.0, -269.0, -268.0, -267.0, -266.0, -265.0, -264.0, -263.0, -262.0, -261.0, -260.0, -259.0, -258.0, -257.0, -256.0, -255.0, -254.0, -253.0, -252.0, -251.0, -250.0, -249.0, -248.0, -247.0, -246.0, -245.0, -244.0, -243.0, -242.0, -241.0, -240.0, -239.0, -238.0, -237.0, -236.0, -235.0, -234.0, -233.0, -232.0, -231.0, -230.0, -229.0, -228.0, -227.0, -226.0, -225.0, -224.0, -223.0, -222.0, -221.0, -220.0, -219.0, -218.0, -217.0, -216.0, -215.0, -214.0, -213.0, -212.0, -211.0, -210.0, -209.0, -208.0, -207.0, -206.0, -205.0, -204.0, -203.0, -202.0, -201.0, -200.0, -199.0, -198.0, -197.0, -196.0, -195.0, -194.0, -193.0, -192.0, -191.0, -190.0, -189.0, -188.0, -187.0, -186.0, -185.0, -184.0, -183.0, -182.0, -181.0, -180.0, -179.0, -178.0, -177.0, -176.0, -175.0, -174.0, -173.0, -172.0, -171.0, -170.0, -169.0, -168.0, -167.0, -166.0, -165.0, -164.0, -163.0, -162.0, -161.0, -160.0, -159.0, -158.0, -157.0, -156.0, -155.0, -154.0, -153.0, -152.0, -151.0, -150.0, -149.0, -148.0, -147.0, -146.0, -145.0, -144.0, -143.0, -142.0, -141.0, -140.0, -139.0, -138.0, -137.0, -136.0, -135.0, -134.0, -133.0, -132.0, -131.0, -130.0, -129.0, -128.0, -127.0, -126.0, -125.0, -124.0, -123.0, -122.0, -121.0, -120.0, -119.0, -118.0, -117.0, -116.0, -115.0, -114.0, -113.0, -112.0, -111.0, -110.0, -109.0, -108.0, -107.0, -106.0, -105.0, -104.0, -103.0, -102.0, -101.0, -100.0, -99.0, -98.0, -97.0, -96.0, -95.0, -94.0, -93.0, -92.0, -91.0, -90.0, -89.0, -88.0, -87.0, -86.0, -85.0, -84.0, -83.0, -82.0, -81.0, -80.0, -79.0, -78.0, -77.0, -76.0, -75.0, -74.0, -73.0, -72.0, -71.0, -70.0, -69.0, -68.0, -67.0, -66.0, -65.0, -64.0, -63.0, -62.0, -61.0, -60.0, -59.0, -58.0, -57.0, -56.0, -55.0, -54.0, -53.0, -52.0, -51.0, -50.0, -49.0, -48.0, -47.0, -46.0, -45.0, -44.0, -43.0, -42.0, -41.0, -40.0, -39.0, -38.0, -37.0, -36.0, -35.0, -34.0, -33.0, -32.0, -31.0, -30.0, -29.0, -28.0, -27.0, -26.0, -25.0, -24.0, -23.0, -22.0, -21.0, -20.0, -19.0, -18.0, -17.0, -16.0, -15.0, -14.0, -13.0, -12.0, -11.0, -10.0, -9.0, -8.0, -7.0, -6.0, -5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0, 31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0, 51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0, 61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0, 71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0, 91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0, 111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0, 121.0, 122.0, 123.0, 124.0, 125.0, 126.0, 127.0, 128.0, 129.0, 130.0, 131.0, 132.0, 133.0, 134.0, 135.0, 136.0, 137.0, 138.0, 139.0, 140.0, 141.0, 142.0, 143.0, 144.0, 145.0, 146.0, 147.0, 148.0, 149.0, 150.0, 151.0, 152.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0, 161.0, 162.0, 163.0, 164.0, 165.0, 166.0, 167.0, 168.0, 169.0, 170.0, 171.0, 172.0, 173.0, 174.0, 175.0, 176.0, 177.0, 178.0, 179.0, 180.0, 181.0, 182.0, 183.0, 184.0, 185.0, 186.0, 187.0, 188.0, 189.0, 190.0, 191.0, 192.0, 193.0, 194.0, 195.0, 196.0, 197.0, 198.0, 199.0, 200.0, 201.0, 202.0, 203.0, 204.0, 205.0, 206.0, 207.0, 208.0, 209.0, 210.0, 211.0, 212.0, 213.0, 214.0, 215.0, 216.0, 217.0, 218.0, 219.0, 220.0, 221.0, 222.0, 223.0, 224.0, 225.0, 226.0, 227.0, 228.0, 229.0, 230.0, 231.0, 232.0, 233.0, 234.0, 235.0, 236.0, 237.0, 238.0, 239.0, 240.0, 241.0, 242.0, 243.0, 244.0, 245.0, 246.0, 247.0, 248.0, 249.0, 250.0, 251.0, 252.0, 253.0, 254.0, 255.0, 256.0, 257.0, 258.0, 259.0, 260.0, 261.0, 262.0, 263.0, 264.0, 265.0, 266.0, 267.0, 268.0, 269.0, 270.0, 271.0, 272.0, 273.0, 274.0, 275.0, 276.0, 277.0, 278.0, 279.0, 280.0, 281.0, 282.0, 283.0, 284.0, 285.0, 286.0, 287.0, 288.0, 289.0, 290.0, 291.0, 292.0, 293.0, 294.0, 295.0, 296.0, 297.0, 298.0, 299.0, 300.0, 301.0, 302.0, 303.0, 304.0, 305.0, 306.0, 307.0, 308.0, 309.0, 310.0, 311.0, 312.0, 313.0, 314.0, 315.0, 316.0, 317.0, 318.0, 319.0, 320.0, 321.0, 322.0, 323.0, 324.0, 325.0, 326.0, 327.0, 328.0, 329.0, 330.0, 331.0, 332.0, 333.0, 334.0, 335.0, 336.0, 337.0, 338.0, 339.0, 340.0, 341.0, 342.0, 343.0, 344.0, 345.0, 346.0, 347.0, 348.0, 349.0, 350.0, 351.0, 352.0, 353.0, 354.0, 355.0, 356.0, 357.0, 358.0, 359.0, 360.0, 361.0, 362.0, 363.0, 364.0, 365.0, 366.0, 367.0, 368.0, 369.0, 370.0, 371.0, 372.0, 373.0, 374.0, 375.0, 376.0, 377.0, 378.0, 379.0, 380.0, 381.0, 382.0, 383.0, 384.0, 385.0, 386.0, 387.0, 388.0, 389.0, 390.0, 391.0, 392.0, 393.0, 394.0, 395.0, 396.0, 397.0, 398.0, 399.0, 400.0};
+std::vector<double> multiplicityBins = {0,1,2,3,4,5,6,7,8,9,10};
+//std::vector<double> trackHitsBins = {0,1,2,3,4,5,6,7,8,9,10};
 
 double rebinNum = 10;
 double nbins = 3400;
@@ -147,231 +159,147 @@ double xhigh = 5900;
 
 
 //std::unique_ptr<PlotUtils::Cut<UNIVERSE, EVENT> >
-auto ANNConfCut = new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.20);
+auto ANNConfCut = new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40);
 
 
 //==============================================================================
 // Global - Declaring histograms
 //==============================================================================
-
-TH1D *ANNVerticesMC_ByModule = new TH1D ("ANNVerticesMC_ByModule", "ANNVerticesMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *TBVerticesMC_ByModule = new TH1D ("TBVerticesMC_ByModule", "TBVerticesMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *ANNVerticesData_ByModule = new TH1D ("ANNVerticesData_ByModule", "ANNVerticesData_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *TBVerticesData_ByModule = new TH1D ("TBVerticesData_ByModule", "TBVerticesData_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *TruthVerticesMC_ByModule = new TH1D ("TruthVerticesMC_ByModule", "TruthVerticesMC_ByModule", vertexBins.size()-1, &vertexBins[0]);
-TH1D *ANNVerticesMC_ByZPos = new TH1D ("ANNVerticesMC_ByZPos", "ANNVerticesMC_ByZPos", 9000, 4200, 8700);
-TH1D *TBVerticesMC_ByZPos = new TH1D ("TBVerticesMC_ByZPos", "TBVerticesMC_ByModuleTruthVerticesMC_ByZPosHighRes", 9000, 4200, 8700);
-TH1D *ANNVerticesData_ByZPos = new TH1D ("ANNVerticesData_ByZPos", "ANNVerticesData_ByZPos", 9000, 4200, 8700);
-TH1D *TBVerticesData_ByZPos = new TH1D ("TBVerticesData_ByZPos", "TBVerticesData_ByZPos", 9000, 4200, 8700);
-TH1D *TruthVerticesMC_ByZPos = new TH1D ("TruthVerticesMC_ByZPos", "TruthVerticesMC_ByZPos", 9000, 4200, 8700);
-TH1D *ANNVerticesData_ByMod = new TH1D ("ANNVerticesData_ByMod", "ANNVerticesData_ByMod", 125, -5, 120);
-TH1D *TBVerticesData_ByMod = new TH1D ("TBVerticesData_ByMod", "TBVerticesData_ByMod", 125, -5, 120);
-TH1D *TruthVerticesMC_ByMod = new TH1D ("TruthVerticesMC_ByMod", "TruthVerticesMC_ByMod", 125, -5, 120);
-
-TH2D *ANNZWeightedVerticesData_VsCutoff = new TH2D ("ANNZWeightedVerticesData_VsCutoff", "ANNZWeightedVerticesData_VsCutoff", 9000, 4200, 8700, 100, 0, 100);
-TH2D *ANNZWeightedVerticesMC_VsCutoff = new TH2D ("ANNZWeightedVerticesMC_VsCutoff", "ANNZWeightedVerticesMC_VsCutoff", 9000, 4200, 8700, 100, 0 , 100);
-
-TH2D *ANNZWeightedVerticesData_VsEhad = new TH2D ("ANNZWeightedVerticesData_VsEhad", "ANNZWeightedVerticesData_VsEhad", 9000, 4200, 8700, 100, 0, 20);
-TH2D *ANNZWeightedVerticesMC_VsEhad = new TH2D ("ANNZWeightedVerticesMC_VsEhad", "ANNZWeightedVerticesMC_VsEhad", 9000, 4200, 8700, 100, 0 , 20);
-
-TH1D *ANNVerticesMC_BySegment = new TH1D ("ANNVerticesMC_BySegment", "ANNVerticesMC_BySegment", 220, 0, 220);
-TH1D *TruthVerticesMC_BySegment = new TH1D ("TruthVerticesMC_BySegment", "TruthVerticesMC_BySegment", 220, 0, 220);
-
-TH1D *ANNVerticesData_BySegment = new TH1D ("ANNVerticesData_BySegment", "ANNVerticesData_BySegment", 220, 0, 220);
-
-TH1D *ANNZVertexResidual = new TH1D ("ANNZVertexResidual", "ANNZVertexResidual", 800, -400, 400);
-TH1D *ANNZVertexResidualTracker = new TH1D ("ANNZVertexResidualTracker", "ANNZVertexResidualTracker", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt2Iron = new TH1D ("ANNZVertexResidualTgt2Iron", "ANNZVertexResidualTgt2Iron", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt2Lead = new TH1D ("ANNZVertexResidualTgt2Lead", "ANNZVertexResidualTgt2Lead", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt3Iron = new TH1D ("ANNZVertexResidualTgt3Iron", "ANNZVertexResidualTgt3Iron", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt3Lead = new TH1D ("ANNZVertexResidualTgt3Lead", "ANNZVertexResidualTgt3Lead", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt3Carbon = new TH1D ("ANNZVertexResidualTgt3Carbon", "ANNZVertexResidualTgt3Carbon", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt4Lead = new TH1D ("ANNZVertexResidualTgt4Lead", "ANNZVertexResidualTgt4Lead", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt5Iron = new TH1D ("ANNZVertexResidualTgt5Iron", "ANNZVertexResidualTgt5Iron", 800, -400, 400);
-TH1D *ANNZVertexResidualTgt5Lead = new TH1D ("ANNZVertexResidualTgt5Lead", "ANNZVertexResidualTgt5Lead", 800, -400, 400);
-TH1D *ANNZVertexResidualWater = new TH1D ("ANNZVertexResidualWater", "ANNZVertexResidualWater", 800, -400, 400);
-
-TH2D *ANNZVertexResidualVsConf = new TH2D ("ANNZVertexResidualVsConf", "ANNZVertexResidualVsConf", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTracker = new TH2D ("ANNZVertexResidualVsConfTracker", "ANNZVertexResidualVsConfTracker", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt2Iron = new TH2D ("ANNZVertexResidualVsConfTgt2Iron", "ANNZVertexResidualVsConfTgt2Iron", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt2Lead = new TH2D ("ANNZVertexResidualVsConfTgt2Lead", "ANNZVertexResidualVsConfTgt2Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt3Iron = new TH2D ("ANNZVertexResidualVsConfTgt3Iron", "ANNZVertexResidualVsConfTgt3Iron", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt3Lead = new TH2D ("ANNZVertexResidualVsConfTgt3Lead", "ANNZVertexResidualVsConfTgt3Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt3Carbon = new TH2D ("ANNZVertexResidualVsConfTgt3Carbon", "ANNZVertexResidualVsConfTgt3Carbon", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt4Lead = new TH2D ("ANNZVertexResidualVsConfTgt4Lead", "ANNZVertexResidualVsConfTgt4Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt5Iron = new TH2D ("ANNZVertexResidualVsConfTgt5Iron", "ANNZVertexResidualVsConfTgt5Iron", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfTgt5Lead = new TH2D ("ANNZVertexResidualVsConfTgt5Lead", "ANNZVertexResidualVsConfTgt5Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNZVertexResidualVsConfWater = new TH2D ("ANNZVertexResidualVsConfWater", "ANNZVertexResidualVsConfWater", 800, -400, 400, 10, 0, 1);
-
-TH2D *ANNWeightedZVertexResidualVsConf = new TH2D ("ANNWeightedZVertexResidualVsConf", "ANNWeightedZVertexResidualVsConf", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTracker = new TH2D ("ANNWeightedZVertexResidualVsConfTracker", "ANNWeightedZVertexResidualVsConfTracker", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt2Iron = new TH2D ("ANNWeightedZVertexResidualVsConfTgt2Iron", "ANNWeightedZVertexResidualVsConfTgt2Iron", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt2Lead = new TH2D ("ANNWeightedZVertexResidualVsConfTgt2Lead", "ANNWeightedZVertexResidualVsConfTgt2Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt3Iron = new TH2D ("ANNWeightedZVertexResidualVsConfTgt3Iron", "ANNWeightedZVertexResidualVsConfTgt3Iron", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt3Lead = new TH2D ("ANNWeightedZVertexResidualVsConfTgt3Lead", "ANNWeightedZVertexResidualVsConfTgt3Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt3Carbon = new TH2D ("ANNWeightedZVertexResidualVsConfTgt3Carbon", "ANNWeightedZVertexResidualVsConfTgt3Carbon", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt4Lead = new TH2D ("ANNWeightedZVertexResidualVsConfTgt4Lead", "ANNWeightedZVertexResidualVsConfTgt4Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt5Iron = new TH2D ("ANNWeightedZVertexResidualVsConfTgt5Iron", "ANNWeightedZVertexResidualVsConfTgt5Iron", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfTgt5Lead = new TH2D ("ANNWeightedZVertexResidualVsConfTgt5Lead", "ANNWeightedZVertexResidualVsConfTgt5Lead", 800, -400, 400, 10, 0, 1);
-TH2D *ANNWeightedZVertexResidualVsConfWater = new TH2D ("ANNWeightedZVertexResidualVsConfWater", "ANNWeightedZVertexResidualVsConfWater", 800, -400, 400, 10, 0, 1);
-
-TH2D *ANNWeightedZVertexResidual = new TH2D ("ANNWeightedZVertexResidual", "ANNWeightedZVertexResidual", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTracker = new TH2D ("ANNWeightedZVertexResidualTracker", "ANNWeightedZVertexResidualTracker", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt2Iron = new TH2D ("ANNWeightedZVertexResidualTgt2Iron", "ANNWeightedZVertexResidualTgt2Iron", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt2Lead = new TH2D ("ANNWeightedZVertexResidualTgt2Lead", "ANNWeightedZVertexResidualTgt2Lead", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt3Iron = new TH2D ("ANNWeightedZVertexResidualTgt3Iron", "ANNWeightedZVertexResidualTgt3Iron", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt3Lead = new TH2D ("ANNWeightedZVertexResidualTgt3Lead", "ANNWeightedZVertexResidualTgt3Lead", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt3Carbon = new TH2D ("ANNWeightedZVertexResidualTgt3Carbon", "ANNWeightedZVertexResidualTgt3Carbon", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt4Lead = new TH2D ("ANNWeightedZVertexResidualTgt4Lead", "ANNWeightedZVertexResidualTgt4Lead", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt5Iron = new TH2D ("ANNWeightedZVertexResidualTgt5Iron", "ANNWeightedZVertexResidualTgt5Iron", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualTgt5Lead = new TH2D ("ANNWeightedZVertexResidualTgt5Lead", "ANNWeightedZVertexResidualTgt5Lead", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedZVertexResidualWater = new TH2D ("ANNWeightedZVertexResidualWater", "ANNWeightedZVertexResidualWater", 800, -400, 400, 101, 0, 100);
-
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceMC", "ANNWeightedVsUnweightedZVertexDifferenceMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTrackerMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTrackerMC", "ANNWeightedVsUnweightedZVertexDifferenceTrackerMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt2IronMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt2IronMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt2IronMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt3IronMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt3IronMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt3IronMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt5IronMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt5IronMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt5IronMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadMC", "ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadMC", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceWaterMC = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceWaterMC", "ANNWeightedVsUnweightedZVertexDifferenceWaterMC", 800, -400, 400, 101, 0, 100);
-
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceData", "ANNWeightedVsUnweightedZVertexDifferenceData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTrackerData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTrackerData", "ANNWeightedVsUnweightedZVertexDifferenceTrackerData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt2IronData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt2IronData", "ANNWeightedVsUnweightedZVertexDifferenceTgt2IronData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadData", "ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt3IronData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt3IronData", "ANNWeightedVsUnweightedZVertexDifferenceTgt3IronData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadData", "ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonData", "ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadData", "ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt5IronData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt5IronData", "ANNWeightedVsUnweightedZVertexDifferenceTgt5IronData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadData", "ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadData", 800, -400, 400, 101, 0, 100);
-TH2D *ANNWeightedVsUnweightedZVertexDifferenceWaterData = new TH2D ("ANNWeightedVsUnweightedZVertexDifferenceWaterData", "ANNWeightedVsUnweightedZVertexDifferenceWaterData", 800, -400, 400, 101, 0, 100);
-
-TH2D *ANNZResidualVsConfDifference = new TH2D ("ANNZResidualVsConfDifference", "ANNZResidualVsConfDifference", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTracker = new TH2D ("ANNZResidualVsConfDifferenceTracker", "ANNZResidualVsConfDifferenceTracker", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt2Iron = new TH2D ("ANNZResidualVsConfDifferenceTgt2Iron", "ANNZResidualVsConfDifferenceTgt2Iron", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt2Lead = new TH2D ("ANNZResidualVsConfDifferenceTgt2Lead", "ANNZResidualVsConfDifferenceTgt2Lead", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt3Iron = new TH2D ("ANNZResidualVsConfDifferenceTgt3Iron", "ANNZResidualVsConfDifferenceTgt3Iron", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt3Lead = new TH2D ("ANNZResidualVsConfDifferenceTgt3Lead", "ANNZResidualVsConfDifferenceTgt3Lead", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt3Carbon = new TH2D ("ANNZResidualVsConfDifferenceTgt3Carbon", "ANNZResidualVsConfDifferenceTgt3Carbon", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt4Lead = new TH2D ("ANNZResidualVsConfDifferenceTgt4Lead", "ANNZResidualVsConfDifferenceTgt4Lead", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt5Iron = new TH2D ("ANNZResidualVsConfDifferenceTgt5Iron", "ANNZResidualVsConfDifferenceTgt5Iron", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceTgt5Lead = new TH2D ("ANNZResidualVsConfDifferenceTgt5Lead", "ANNZResidualVsConfDifferenceTgt5Lead", 100, -400, 400, 100, 0, 1);
-TH2D *ANNZResidualVsConfDifferenceWater = new TH2D ("ANNZResidualVsConfDifferenceWater", "ANNZResidualVsConfDifferenceWater", 100, -400, 400, 100, 0, 1);
-
-TH2D *ANNPlaneProbabilityVsEhadData = new TH2D ("ANNPlaneProbabilityVsEhadData", "ANNPlaneProbabilityVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTrackerVsEhadData = new TH2D ("ANNPlaneProbabilityTrackerVsEhadData", "ANNPlaneProbabilityTrackerVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2IronVsEhadData = new TH2D ("ANNPlaneProbabilityTgt2IronVsEhadData", "ANNPlaneProbabilityTgt2IronVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2LeadVsEhadData = new TH2D ("ANNPlaneProbabilityTgt2LeadVsEhadData", "ANNPlaneProbabilityTgt2LeadVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3IronVsEhadData = new TH2D ("ANNPlaneProbabilityTgt3IronVsEhadData", "ANNPlaneProbabilityTgt3IronVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3LeadVsEhadData = new TH2D ("ANNPlaneProbabilityTgt3LeadVsEhadData", "ANNPlaneProbabilityTgt3LeadVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3CarbonVsEhadData = new TH2D ("ANNPlaneProbabilityTgt3CarbonVsEhadData", "ANNPlaneProbabilityTgt3CarbonVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt4LeadVsEhadData = new TH2D ("ANNPlaneProbabilityTgt4LeadVsEhadData", "ANNPlaneProbabilityTgt4LeadVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5IronVsEhadData = new TH2D ("ANNPlaneProbabilityTgt5IronVsEhadData", "ANNPlaneProbabilityTgt5IronVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5LeadVsEhadData = new TH2D ("ANNPlaneProbabilityTgt5LeadVsEhadData", "ANNPlaneProbabilityTgt5LeadVsEhadData", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityWaterVsEhadData = new TH2D ("ANNPlaneProbabilityWaterVsEhadData", "ANNPlaneProbabilityWaterVsEhadData", 100, 0, 1, 100, 0, 20);
-
-TH2D *ANNPlaneProbabilityVsEhadMC = new TH2D ("ANNPlaneProbabilityVsEhadMC", "ANNPlaneProbabilityVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTrackerVsEhadMC = new TH2D ("ANNPlaneProbabilityTrackerVsEhadMC", "ANNPlaneProbabilityTrackerVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2IronVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt2IronVsEhadMC", "ANNPlaneProbabilityTgt2IronVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2LeadVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt2LeadVsEhadMC", "ANNPlaneProbabilityTgt2LeadVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3IronVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt3IronVsEhadMC", "ANNPlaneProbabilityTgt3IronVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3LeadVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt3LeadVsEhadMC", "ANNPlaneProbabilityTgt3LeadVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3CarbonVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt3CarbonVsEhadMC", "ANNPlaneProbabilityTgt3CarbonVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt4LeadVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt4LeadVsEhadMC", "ANNPlaneProbabilityTgt4LeadVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5IronVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt5IronVsEhadMC", "ANNPlaneProbabilityTgt5IronVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5LeadVsEhadMC = new TH2D ("ANNPlaneProbabilityTgt5LeadVsEhadMC", "ANNPlaneProbabilityTgt5LeadVsEhadMC", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityWaterVsEhadMC = new TH2D ("ANNPlaneProbabilityWaterVsEhadMC", "ANNPlaneProbabilityWaterVsEhadMC", 100, 0, 1, 100, 0, 20);
-
-//ERecoil
-TH1D *ErecoilMC = new TH1D ("ErecoilMC", "ErecoilMC", 1000, 0, 20);
-TH1D *ErecoilData = new TH1D ("ErecoilData", "ErecoilData", 1000, 0, 20);
-TH2D *TruthVerticesMCERecoil_ByModule = new TH2D ("TruthVerticesMCERecoil_ByModule", "TruthVerticesMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 1000, 0, 20);
-TH2D *ANNVerticesMCERecoil_ByModule = new TH2D ("ANNVerticesMCERecoil_ByModule", "ANNVerticesMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 1000, 0, 20);
-TH2D *TBVerticesMCERecoil_ByModule = new TH2D ("TBVerticesMCERecoil_ByModule", "TBVerticesMCERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 1000, 0, 20);
-TH2D *ANNVerticesDataERecoil_ByModule = new TH2D ("ANNVerticesDataERecoil_ByModule", "ANNVerticesDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 1000, 0, 20);
-TH2D *TBVerticesDataERecoil_ByModule = new TH2D ("TBVerticesDataERecoil_ByModule", "TBVerticesDataERecoil_ByModule", vertexBins.size()-1, &vertexBins[0], 1000, 0, 20);
+TH2D *TruthZVertex_vs_Erecoil_MC = new TH2D ("TruthZVertex_vs_Erecoil_MC", "TruthZVertex_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZ_vs_Conf_vs_Erecoil_Data = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_Data", "ANNZ_vs_Conf_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZ_vs_Conf_vs_Erecoil_MC = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_MC", "ANNZ_vs_Conf_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZ_vs_Conf_vs_Erecoil_Data = new TH3D ("ANNWeightedZ_vs_Conf_vs_Erecoil_Data", "ANNWeightedZ_vs_Conf_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZ_vs_Conf_vs_Erecoil_MC = new TH3D ("ANNWeightedZ_vs_Conf_vs_Erecoil_MC", "ANNWeightedZ_vs_Conf_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
 
-TH2D *ANNVerticesData_ByZPosVsERecoil = new TH2D ("ANNVerticesData_ByZPosVsERecoil", "ANNVerticesData_ByZPosVsERecoil", 9000, 4200, 8700, 100, 0, 20);
-TH2D *ANNVerticesMC_ByZPosVsERecoil = new TH2D ("ANNVerticesMC_ByZPosVsERecoil", "ANNVerticesMC_ByZPosVsERecoil", 9000, 4200, 8700, 100, 0, 20);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil", "ANNZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Water", "ANNZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil", "ANNWeightedZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-TH2D *ANNVerticesMC_BySegmentVsERecoil = new TH2D ("ANNVerticesMC_BySegmentVsERecoil", "ANNVerticesMC_BySegmentVsERecoil", 220, 0, 220, 1000, 0, 20);
-TH2D *TruthVerticesMC_BySegmentVsERecoil = new TH2D ("TruthVerticesMC_BySegmentVsERecoil", "TruthVerticesMC_BySegmentVsERecoil", 220, 0, 220, 1000, 0, 20);
-TH2D *ANNVerticesData_BySegmentVsERecoil = new TH2D ("ANNVerticesData_BySegmentVsERecoil", "ANNVerticesData_BySegmentVsERecoil", 220, 0, 220, 1000, 0, 20);
+TH1D *ANNWeightedZ_minus_UnweightedZMC = new TH1D ("ANNWeightedZ_minus_UnweightedZMC", "ANNWeightedZ_minus_UnweightedZMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTrackerMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTrackerMC", "ANNWeightedZ_minus_UnweightedZTrackerMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt2IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2IronMC", "ANNWeightedZ_minus_UnweightedZTgt2IronMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt2LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2LeadMC", "ANNWeightedZ_minus_UnweightedZTgt2LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt3IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3IronMC", "ANNWeightedZ_minus_UnweightedZTgt3IronMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt3LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3LeadMC", "ANNWeightedZ_minus_UnweightedZTgt3LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt3CarbonMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3CarbonMC", "ANNWeightedZ_minus_UnweightedZTgt3CarbonMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt4LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt4LeadMC", "ANNWeightedZ_minus_UnweightedZTgt4LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt5IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5IronMC", "ANNWeightedZ_minus_UnweightedZTgt5IronMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt5LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5LeadMC", "ANNWeightedZ_minus_UnweightedZTgt5LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZWaterMC = new TH1D ("ANNWeightedZ_minus_UnweightedZWaterMC", "ANNWeightedZ_minus_UnweightedZWaterMC", ResidualBins.size()-1, &ResidualBins[0]);
 
+TH1D *ANNWeightedZ_minus_UnweightedZData = new TH1D ("ANNWeightedZ_minus_UnweightedZData", "ANNWeightedZ_minus_UnweightedZData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTrackerData = new TH1D ("ANNWeightedZ_minus_UnweightedZTrackerData", "ANNWeightedZ_minus_UnweightedZTrackerData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt2IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2IronData", "ANNWeightedZ_minus_UnweightedZTgt2IronData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt2LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2LeadData", "ANNWeightedZ_minus_UnweightedZTgt2LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt3IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3IronData", "ANNWeightedZ_minus_UnweightedZTgt3IronData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt3LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3LeadData", "ANNWeightedZ_minus_UnweightedZTgt3LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt3CarbonData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3CarbonData", "ANNWeightedZ_minus_UnweightedZTgt3CarbonData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt4LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt4LeadData", "ANNWeightedZ_minus_UnweightedZTgt4LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt5IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5IronData", "ANNWeightedZ_minus_UnweightedZTgt5IronData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZTgt5LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5LeadData", "ANNWeightedZ_minus_UnweightedZTgt5LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+TH1D *ANNWeightedZ_minus_UnweightedZWaterData = new TH1D ("ANNWeightedZ_minus_UnweightedZWaterData", "ANNWeightedZ_minus_UnweightedZWaterData", ResidualBins.size()-1, &ResidualBins[0]);
 
-//Multiplicity
-TH2D *TruthVerticesMCMultiplicity_ByModule = new TH2D ("TruthVerticesMCMultiplicity_ByModule", "TruthVerticesMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *ANNVerticesMCMultiplicity_ByModule = new TH2D ("ANNVerticesMCMultiplicity_ByModule", "ANNVerticesMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *TBVerticesMCMultiplicity_ByModule = new TH2D ("TBVerticesMCMultiplicity_ByModule", "TBVerticesMCMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *ANNVerticesDataMultiplicity_ByModule = new TH2D ("ANNVerticesDataMultiplicity_ByModule", "ANNVerticesDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
-TH2D *TBVerticesDataMultiplicity_ByModule = new TH2D ("TBVerticesDataMultiplicity_ByModule", "TBVerticesDataMultiplicity_ByModule", vertexBins.size()-1, &vertexBins[0], 10, 0, 10);
+//TH2D *ANNConf_vs_Ehad_Data = new TH2D ("ANNConf_vs_Ehad_Data", "ANNConf_vs_Ehad_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]); //Redundant, the same data can be extracted by flattening ANNZ_vs_Conf_vs_Erecoil_Data
+TH2D *ANNConf_vs_Ehad_Tracker_Data = new TH2D ("ANNConf_vs_Ehad_Tracker_Data", "ANNConf_vs_Ehad_Tracker_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt2Iron_Data = new TH2D ("ANNConf_vs_Ehad_Tgt2Iron_Data", "ANNConf_vs_Ehad_Tgt2Iron_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt2Lead_Data = new TH2D ("ANNConf_vs_Ehad_Tgt2Lead_Data", "ANNConf_vs_Ehad_Tgt2Lead_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt3Iron_Data = new TH2D ("ANNConf_vs_Ehad_Tgt3Iron_Data", "ANNConf_vs_Ehad_Tgt3Iron_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt3Lead_Data = new TH2D ("ANNConf_vs_Ehad_Tgt3Lead_Data", "ANNConf_vs_Ehad_Tgt3Lead_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt3Carbon_Data = new TH2D ("ANNConf_vs_Ehad_Tgt3Carbon_Data", "ANNConf_vs_Ehad_Tgt3Carbon_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt4Lead_Data = new TH2D ("ANNConf_vs_Ehad_Tgt4Lead_Data", "ANNConf_vs_Ehad_Tgt4Lead_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt5Iron_Data = new TH2D ("ANNConf_vs_Ehad_Tgt5Iron_Data", "ANNConf_vs_Ehad_Tgt5Iron_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt5Lead_Data = new TH2D ("ANNConf_vs_Ehad_Tgt5Lead_Data", "ANNConf_vs_Ehad_Tgt5Lead_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Water_Data = new TH2D ("ANNConf_vs_Ehad_Water_Data", "ANNConf_vs_Ehad_Water_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-//ANN Confidence
-TH2D *TruthVerticesMCANNConf_ByModule = new TH2D ("TruthVerticesMCANNConf_ByModule", "TruthVerticesMCANNConf_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 1);
-TH2D *ANNVerticesMCANNConf_ByModule = new TH2D ("ANNVerticesMCANNConf_ByModule", "ANNVerticesMCANNConf_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 1);
-TH2D *ANNVerticesDataANNConf_ByModule = new TH2D ("ANNVerticesDataANNConf_ByModule", "ANNVerticesDataANNConf_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 1);
+//TH2D *ANNConf_vs_Ehad_MC = new TH2D ("ANNConf_vs_Ehad_MC", "ANNConf_vs_Ehad_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);  //Redundant, the same data can be extracted by flattening ANNZ_vs_Conf_vs_Erecoil_MC
+TH2D *ANNConf_vs_Ehad_Tracker_MC = new TH2D ("ANNConf_vs_Ehad_Tracker_MC", "ANNConf_vs_Ehad_Tracker_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt2Iron_MC = new TH2D ("ANNConf_vs_Ehad_Tgt2Iron_MC", "ANNConf_vs_Ehad_Tgt2Iron_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt2Lead_MC = new TH2D ("ANNConf_vs_Ehad_Tgt2Lead_MC", "ANNConf_vs_Ehad_Tgt2Lead_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt3Iron_MC = new TH2D ("ANNConf_vs_Ehad_Tgt3Iron_MC", "ANNConf_vs_Ehad_Tgt3Iron_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt3Lead_MC = new TH2D ("ANNConf_vs_Ehad_Tgt3Lead_MC", "ANNConf_vs_Ehad_Tgt3Lead_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt3Carbon_MC = new TH2D ("ANNConf_vs_Ehad_Tgt3Carbon_MC", "ANNConf_vs_Ehad_Tgt3Carbon_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt4Lead_MC = new TH2D ("ANNConf_vs_Ehad_Tgt4Lead_MC", "ANNConf_vs_Ehad_Tgt4Lead_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt5Iron_MC = new TH2D ("ANNConf_vs_Ehad_Tgt5Iron_MC", "ANNConf_vs_Ehad_Tgt5Iron_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Tgt5Lead_MC = new TH2D ("ANNConf_vs_Ehad_Tgt5Lead_MC", "ANNConf_vs_Ehad_Tgt5Lead_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *ANNConf_vs_Ehad_Water_MC = new TH2D ("ANNConf_vs_Ehad_Water_MC", "ANNConf_vs_Ehad_Water_MC", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-TH2D *ANNVerticesData_ByZPosVsANNConf = new TH2D ("ANNVerticesData_ByZPosVsANNConf", "ANNVerticesData_ByZPosVsANNConf", 9000, 4200, 8700, 100, 0, 1);
-TH2D *ANNVerticesMC_ByZPosVsANNConf = new TH2D ("ANNVerticesMC_ByZPosVsANNConf", "ANNVerticesMC_ByZPosVsANNConf", 9000, 4200, 8700, 100, 0, 1);
+//Multiplicity - Explore (re)implementing multiplicty somehow - is that even worth doing?
 
 //For events misreconstructed in each target, what's the probability distribution
-TH1D *ANNConfMisrecoInTgt2Iron = new TH1D ("ANNConfMisrecoInTgt2Iron", "ANNConfMisrecoInTgt2Iron", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt2Lead = new TH1D ("ANNConfMisrecoInTgt2Lead", "ANNConfMisrecoInTgt2Lead", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt3Iron = new TH1D ("ANNConfMisrecoInTgt3Iron", "ANNConfMisrecoInTgt3Iron", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt3Lead = new TH1D ("ANNConfMisrecoInTgt3Lead", "ANNConfMisrecoInTgt3Lead", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt3Carbon = new TH1D ("ANNConfMisrecoInTgt3Carbon", "ANNConfMisrecoInTgt3Carbon", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt4Lead = new TH1D ("ANNConfMisrecoInTgt4Lead", "ANNConfMisrecoInTgt4Lead", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt5Iron = new TH1D ("ANNConfMisrecoInTgt5Iron", "ANNConfMisrecoInTgt5Iron", 100, 0, 1);
-TH1D *ANNConfMisrecoInTgt5Lead = new TH1D ("ANNConfMisrecoInTgt5Lead", "ANNConfMisrecoInTgt5Lead", 100, 0, 1);
-TH1D *ANNConfMisrecoInWater = new TH1D ("ANNConfMisrecoInWater", "ANNConfMisrecoInWater", 100, 0, 1);
-
-TH2D *ANNPlaneProbabilityVsPmuMC = new TH2D ("ANNPlaneProbabilityVsPmuMC", "ANNPlaneProbabilityVsPmuMC", 100, 0, 1, 50, 0, 50);
-TH2D *ANNPlaneProbabilityVsPmuData = new TH2D ("ANNPlaneProbabilityVsPmuData", "ANNPlaneProbabilityVsPmuData", 100, 0, 1, 50, 0, 50);
+TH1D *ANNConf_MisrecoInTgt2Iron = new TH1D ("ANNConf_MisrecoInTgt2Iron", "ANNConf_MisrecoInTgt2Iron", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt2Lead = new TH1D ("ANNConf_MisrecoInTgt2Lead", "ANNConf_MisrecoInTgt2Lead", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt3Iron = new TH1D ("ANNConf_MisrecoInTgt3Iron", "ANNConf_MisrecoInTgt3Iron", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt3Lead = new TH1D ("ANNConf_MisrecoInTgt3Lead", "ANNConf_MisrecoInTgt3Lead", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt3Carbon = new TH1D ("ANNConf_MisrecoInTgt3Carbon", "ANNConf_MisrecoInTgt3Carbon", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt4Lead = new TH1D ("ANNConf_MisrecoInTgt4Lead", "ANNConf_MisrecoInTgt4Lead", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt5Iron = new TH1D ("ANNConf_MisrecoInTgt5Iron", "ANNConf_MisrecoInTgt5Iron", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInTgt5Lead = new TH1D ("ANNConf_MisrecoInTgt5Lead", "ANNConf_MisrecoInTgt5Lead", ConfBins.size()-1, &ConfBins[0]);
+TH1D *ANNConf_MisrecoInWater = new TH1D ("ANNConf_MisrecoInWater", "ANNConf_MisrecoInWater", ConfBins.size()-1, &ConfBins[0]);
 
 //Efficiency as a function of ANNConfidence and EHad bin
 
-TH2D *ANNPlaneProbabilityVsEhadNumerator = new TH2D ("ANNPlaneProbabilityVsEhadNumerator", "ANNPlaneProbabilityVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTrackerVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTrackerVsEhadNumerator", "ANNPlaneProbabilityTrackerVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2IronVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt2IronVsEhadNumerator", "ANNPlaneProbabilityTgt2IronVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2LeadVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt2LeadVsEhadNumerator", "ANNPlaneProbabilityTgt2LeadVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3IronVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt3IronVsEhadNumerator", "ANNPlaneProbabilityTgt3IronVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3LeadVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt3LeadVsEhadNumerator", "ANNPlaneProbabilityTgt3LeadVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3CarbonVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt3CarbonVsEhadNumerator", "ANNPlaneProbabilityTgt3CarbonVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt4LeadVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt4LeadVsEhadNumerator", "ANNPlaneProbabilityTgt4LeadVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5IronVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt5IronVsEhadNumerator", "ANNPlaneProbabilityTgt5IronVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5LeadVsEhadNumerator = new TH2D ("ANNPlaneProbabilityTgt5LeadVsEhadNumerator", "ANNPlaneProbabilityTgt5LeadVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityWaterVsEhadNumerator = new TH2D ("ANNPlaneProbabilityWaterVsEhadNumerator", "ANNPlaneProbabilityWaterVsEhadNumerator", 100, 0, 1, 100, 0, 20);
-
-TH2D *ANNPlaneProbabilityVsEhadDenominator = new TH2D ("ANNPlaneProbabilityVsEhadDenominator", "ANNPlaneProbabilityVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTrackerVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTrackerVsEhadDenominator", "ANNPlaneProbabilityTrackerVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2IronVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt2IronVsEhadDenominator", "ANNPlaneProbabilityTgt2IronVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt2LeadVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt2LeadVsEhadDenominator", "ANNPlaneProbabilityTgt2LeadVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3IronVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt3IronVsEhadDenominator", "ANNPlaneProbabilityTgt3IronVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3LeadVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt3LeadVsEhadDenominator", "ANNPlaneProbabilityTgt3LeadVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt3CarbonVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt3CarbonVsEhadDenominator", "ANNPlaneProbabilityTgt3CarbonVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt4LeadVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt4LeadVsEhadDenominator", "ANNPlaneProbabilityTgt4LeadVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5IronVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt5IronVsEhadDenominator", "ANNPlaneProbabilityTgt5IronVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityTgt5LeadVsEhadDenominator = new TH2D ("ANNPlaneProbabilityTgt5LeadVsEhadDenominator", "ANNPlaneProbabilityTgt5LeadVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-TH2D *ANNPlaneProbabilityWaterVsEhadDenominator = new TH2D ("ANNPlaneProbabilityWaterVsEhadDenominator", "ANNPlaneProbabilityWaterVsEhadDenominator", 100, 0, 1, 100, 0, 20);
-
-
-//Curvature signifiance
-TH2D *TruthVerticesMCCurvSig_ByModule = new TH2D ("TruthVerticesMCCurvSig_ByModule", "TruthVerticesMCCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *ANNVerticesMCCurvSig_ByModule = new TH2D ("ANNVerticesMCCurvSig_ByModule", "ANNVerticesMCCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *TBVerticesMCCurvSig_ByModule = new TH2D ("TBVerticesMCCurvSig_ByModule", "TBVerticesMCCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *ANNVerticesDataCurvSig_ByModule = new TH2D ("ANNVerticesDataCurvSig_ByModule", "ANNVerticesDataCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-TH2D *TBVerticesDataCurvSig_ByModule = new TH2D ("TBVerticesDataCurvSig_ByModule", "TBVerticesDataCurvSig_ByModule", vertexBins.size()-1, &vertexBins[0], 100, 0, 10);
-
 //Migration ANN only
-TH2D *ANNVerticesConfusion_ByModule = new TH2D ("ANNVerticesConfusion_ByModule", "ANNVerticesConfusion_ByModule", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
 TH2D *ANNVerticesConfusion_ByZPos = new TH2D ("ANNVerticesConfusion_ByZPos", "ANNVerticesConfusion_ByZPos", 4500, 4200, 8700, 4500, 4200, 8700);
+
+//Investigating distance to division cut performance. We're plotting the 2D postions of the events based on 
+//Investigating ANN reco performance by MC interaction channel
+//Confusion matrices
+TH2D *ConfusionMatrixQE = new TH2D ("ConfusionMatrixQE", "ConfusionMatrixQE", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixRES = new TH2D ("ConfusionMatrixRES", "ConfusionMatrixRES", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixDIS = new TH2D ("ConfusionMatrixDIS", "ConfusionMatrixDIS", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixCOHPI = new TH2D ("ConfusionMatrixCOHPI", "ConfusionMatrixCOHPI", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixAMNUGAMMA = new TH2D ("ConfusionMatrixAMNUGAMMA", "ConfusionMatrixAMNUGAMMA", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixIMD = new TH2D ("ConfusionMatrixIMD", "ConfusionMatrixIMD", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixNUEEL = new TH2D ("ConfusionMatrixNUEEL", "ConfusionMatrixNUEEL", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixMEC = new TH2D ("ConfusionMatrixMEC", "ConfusionMatrixMEC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH2D *ConfusionMatrixUnknownInt = new TH2D ("ConfusionMatrixUnknownInt", "ConfusionMatrixUnknownInt", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//Number of tracks
+TH3D *ConfusionMatrixMultiplicity = new TH3D ("ConfusionMatrixMultiplicity", "ConfusionMatrixMultiplicity", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//ERecoil
+TH3D *ConfusionMatrixErecoil = new TH3D ("ConfusionMatrixErecoil", "ConfusionMatrixErecoil", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ConfusionMatrixConf = new TH3D ("ConfusionMatrixConf", "ConfusionMatrixConf", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0]);
+
+TH2D *ConfusionMatrix = new TH2D ("ConfusionMatrix", "ConfusionMatrix", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+
+//Confidence Breakdowns
+// by interaction type
+// MC
+TH1D *ANNConfidenceQE_MC = new TH1D ("ANNConfidenceQE_MC", "ANNConfidenceQE_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceRES_MC = new TH1D ("ANNConfidenceRES_MC", "ANNConfidenceRES_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceDIS_MC = new TH1D ("ANNConfidenceDIS_MC", "ANNConfidenceDIS_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceCOHPI_MC = new TH1D ("ANNConfidenceCOHPI_MC", "ANNConfidenceCOHPI_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceAMNUGAMMA_MC = new TH1D ("ANNConfidenceAMNUGAMMA_MC", "ANNConfidenceAMNUGAMMA_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceIMD_MC = new TH1D ("ANNConfidenceIMD_MC", "ANNConfidenceIMD_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceNUEEL_MC = new TH1D ("ANNConfidenceNUEEL_MC", "ANNConfidenceNUEEL_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceMEC_MC = new TH1D ("ANNConfidenceMEC_MC", "ANNConfidenceMEC_MC", ConfBins2.size()-1, &ConfBins2[0]);
+TH1D *ANNConfidenceUnknownInt_MC = new TH1D ("ANNConfidenceUnknownInt_MC", "ANNConfidenceUnknownInt_MC", ConfBins2.size()-1, &ConfBins2[0]);
+// Data
+TH1D *ANNConfidence_Data = new TH1D ("ANNConfidence_Data", "ANNConfidence_Data", ConfBins2.size()-1, &ConfBins2[0]);
+
+// by multiplicity
+TH2D *ANNConfidence_vs_NTracks_MC = new TH2D ("ANNConfidence_vs_NTracks_MC", "ANNConfidence_vs_NTracks_MC", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+TH2D *ANNConfidence_vs_NTracks_Data = new TH2D ("ANNConfidence_vs_NTracks_Data", "ANNConfidence_vs_NTracks_Data", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0]);
 
 //==============================================================================
 // End - Declaring histograms
@@ -786,10 +714,15 @@ void LoopAndFillMC(
         MichelEvent myevent; // make sure your event is inside the error band loop. 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
+        bool hasMLPred=universe->hasMLPred();
         ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
         ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
         ROOT::Math::XYZTVector TrueVtx = universe->GetTrueVertex();
 
+        double WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
+        double ANNZResidual = ANNVtx.Z() - TrueVtx.Z();
+        double ANNWeightedZResidual = WeightedANNZ - TrueVtx.Z();
+        double ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
 
         PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
@@ -797,202 +730,154 @@ void LoopAndFillMC(
         double erecoil = universe->GetRecoilE()/pow(10,3);
         double curvsig = 1/universe->GetMuonQPErr();
         double pmu = universe->GetPmu()/1000;
+        int multiplicity = universe->GetMultiplicity();
 
         // This is where you would Access/create a Michel
 
         //weight is ignored in isMCSelected() for all but the CV Universe.
         if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue;   //All cuts except ANN confidence cut
 
-        if(ANNVtx.X()!=-1.0)
+        if(hasMLPred)
         {
-          ANNPlaneProbabilityVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt2IronVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt2LeadVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt3IronVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt3LeadVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt3CarbonVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNPlaneProbabilityTgt4LeadVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt5IronVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt5LeadVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNPlaneProbabilityWaterVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNPlaneProbabilityTrackerVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
-          ANNPlaneProbabilityVsPmuMC->Fill(ANNProb, pmu, cvWeight);
-          ANNPlaneProbabilityVsEhadMC->Fill(ANNProb, erecoil, cvWeight);
+          ANNZ_vs_Conf_vs_Erecoil_MC->Fill( ANNVtx.Z(), ANNProb, erecoil, cvWeight);
+          ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Fill( WeightedANNZ, ANNProb, erecoil, cvWeight);
 
-          ANNVerticesMC_ByZPosVsANNConf->Fill(ANNVtx.Z(), ANNProb, cvWeight);
-          ANNVerticesMCANNConf_ByModule->Fill( ANNVtx.Z(), ANNProb, cvWeight);
-
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_MC->Fill( ANNProb, erecoil, cvWeight);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_MC->Fill( ANNProb, erecoil, cvWeight);
+          
           //For events misreconstructed in each target, what's the probability distribution
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt2Iron->Fill(ANNProb);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt2Lead->Fill(ANNProb);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt3Iron->Fill(ANNProb);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt3Lead->Fill(ANNProb);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt3Carbon->Fill(ANNProb);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConfMisrecoInTgt4Lead->Fill(ANNProb);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt5Iron->Fill(ANNProb);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConfMisrecoInTgt5Lead->Fill(ANNProb);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConfMisrecoInWater->Fill(ANNProb);
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Iron->Fill( ANNProb);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Lead->Fill( ANNProb);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Iron->Fill( ANNProb);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Lead->Fill( ANNProb);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Carbon->Fill( ANNProb);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInTgt4Lead->Fill( ANNProb);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt5Iron->Fill( ANNProb);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt5Lead->Fill( ANNProb);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInWater->Fill( ANNProb);
 
+
+          ANNZResidual_vs_Conf_vs_Erecoil->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+
+          ANNWeightedZResidual_vs_Conf_vs_Erecoil->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+
+          if (ANNConfCut->passesCut(*universe, myevent, cvWeight)) //ANN confidence cut
+          {
+            ANNWeightedZ_minus_UnweightedZMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+          }
         }
-        TBVerticesMCCurvSig_ByModule->Fill( TrackBasedVtx.Z(), curvsig, cvWeight);
-        TruthVerticesMCANNConf_ByModule->Fill( TrackBasedVtx.Z(), ANNProb, cvWeight);
-        TruthVerticesMCCurvSig_ByModule->Fill( TrackBasedVtx.Z(), curvsig, cvWeight);
 
-        if (!ANNConfCut->passesCut(*universe, myevent, cvWeight)) continue;   //ANN confidence cut
+        //if (!ANNConfCut->passesCut(*universe, myevent, cvWeight);) continue;   //ANN confidence cut
 
         //Performing vtx validation check Deborah suggested
-        double batchPOT = cvUniv->GetBatchPOT();
-        double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
+        //double batchPOT = cvUniv->GetBatchPOT();
+        //double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
         //cvWeight/=efficiency; //Not doing efficiency correction right now
-
         //Hadron Energy Spectrum plot
-        int multiplicity = cvUniv->GetMultiplicity();
+        //int multiplicity = cvUniv->GetMultiplicity();
+
         //-----------------------------------------------------------
         // Making a note of events that may be interesting to view in Arachne
         //-----------------------------------------------------------
-        //if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && (m_TargetUtils->InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z())))  std::cout<<"Check in arachne: \n" << " ev_run: " << cvUniv->GetInt("ev_run") << " ev_subrun: " << cvUniv->GetInt("ev_subrun") << " ev_gate: " << cvUniv->GetInt("ev_gate") << std::endl;
         if ( std::abs(TrueVtx.Z() - ANNVtx.Z()) > 2000 && ANNProb>0.4 && verbose)
         {
           std::cout<<"Difference between true and ann reco z larger than 2000: \tANN Segment: " << universe->GetANNSegment() << "\tTrue Segment: " << universe->GetTruthSegment() << " mc_run: " << universe->GetInt("mc_run") << " mc_subrun: " << universe->GetInt("mc_subrun")  << " mc_nthEvtInSpill: " << universe->GetInt("mc_nthEvtInSpill") << " mc_nthEvtInFile: " << universe->GetInt("mc_nthEvtInFile") << " ev_global_gate: " << universe->GetInt("ev_global_gate")  << std::endl;
           std::string ArachneLink = "https://mnvevdgpvm02.fnal.gov/Arachne/?det=SIM_minerva&recoVer=v22r1p1&run="+std::to_string(universe->GetInt("mc_run"))+"&subrun="+std::to_string(universe->GetInt("mc_subrun"))+"&gate="+std::to_string(universe->GetInt("mc_nthEvtInFile")+1)+"&slice=-1";
           std::cout<<"Arachne Link: " << ArachneLink << std::endl;
         }
-
-        if(ANNVtx.X()!=-1.0)
+        int intType = universe->GetInteractionType();
+        if (intType == 1)
         {
-          ANNVerticesMC_ByModule->Fill( ANNVtx.Z(), cvWeight);
-          ANNVerticesMC_ByZPos->Fill( ANNVtx.Z(), cvWeight);
-          ANNVerticesMC_ByZPosVsERecoil->Fill(ANNVtx.Z(), erecoil, cvWeight);
-
-          ANNVerticesMCERecoil_ByModule->Fill( ANNVtx.Z(), erecoil, cvWeight);
-          ANNVerticesMCMultiplicity_ByModule->Fill( ANNVtx.Z(), multiplicity, cvWeight);
-          ANNVerticesMCCurvSig_ByModule->Fill( ANNVtx.Z(), curvsig, cvWeight);
-
-          ANNVerticesConfusion_ByModule->Fill(ANNVtx.Z(), TrueVtx.Z(), cvWeight);
-          ANNVerticesConfusion_ByZPos->Fill(ANNVtx.Z(), TrueVtx.Z(), cvWeight);
-
-          ANNVerticesMC_BySegment->Fill(universe->GetANNSegment(), cvWeight);
-          ANNVerticesMC_BySegmentVsERecoil->Fill(universe->GetANNSegment(), erecoil, cvWeight);
-          //if (universe->GetANNSegment() == 45) std::cout<<"Found plane in ANN mod 45, truth seg: " << universe->GetTruthSegment() << " truth mod: " << universe->GetTruthVtxModule()<< " truth pla: " << universe->GetTruthVtxPlane()<< " truth tgtid: " << universe->GetTruthTargetID()<< " truth tgtz: " << universe->GetTruthTargetZ()<<  std::endl;
-
-          ANNZVertexResidual->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt2Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt2Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt3Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt3Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt3Carbon->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZVertexResidualTgt4Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt5Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualTgt5Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZVertexResidualWater->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZVertexResidualTracker->Fill((ANNVtx.Z() - TrueVtx.Z()), cvWeight);
-
-          ANNZVertexResidualVsConf->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt2Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt2Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt3Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt3Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt3Carbon->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZVertexResidualVsConfTgt4Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt5Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZVertexResidualVsConfTgt5Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZVertexResidualVsConfWater->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZVertexResidualVsConfTracker->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-
-          double WeightedANNZ = universe->GetANNSegmentsZPosWeighted2(1000000); //Just some large number
-          ANNWeightedZVertexResidualVsConf->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt2Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt2Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt3Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt3Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt3Carbon->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZVertexResidualVsConfTgt4Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt5Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZVertexResidualVsConfTgt5Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZVertexResidualVsConfWater->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZVertexResidualVsConfTracker->Fill((ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-
-          ANNZWeightedVerticesMC_VsEhad->Fill(WeightedANNZ, erecoil, cvWeight); //Some arbitrarily large cutoff
-          //for (double cutoff = 0; cutoff <=0.5; cutoff+=0.05)
-          for (int cutoff = 0; cutoff <100; cutoff++)
-          {
-            double WeightedANNZPos = universe->GetANNSegmentsZPosWeighted2(cutoff);
-            ANNZWeightedVerticesMC_VsCutoff->Fill(WeightedANNZPos, cutoff, cvWeight);
-
-            ANNWeightedVsUnweightedZVertexDifferenceMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt2IronMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt3IronMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos))  ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt5IronMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos))  ANNWeightedVsUnweightedZVertexDifferenceWaterMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos))  ANNWeightedVsUnweightedZVertexDifferenceTrackerMC->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff, cvWeight);
-
-            ANNWeightedZVertexResidual->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt2Iron->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt2Lead->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt3Iron->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt3Lead->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt3Carbon->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos))  ANNWeightedZVertexResidualTgt4Lead->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt5Iron->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos, 850, true))  ANNWeightedZVertexResidualTgt5Lead->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos))  ANNWeightedZVertexResidualWater->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-            if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZPos))  ANNWeightedZVertexResidualTracker->Fill((WeightedANNZPos - TrueVtx.Z()), cutoff, cvWeight);
-
-          }
-
-          ANNZResidualVsConfDifference->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt2Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt2Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt3Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt3Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt3Carbon->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidualVsConfDifferenceTgt4Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt5Iron->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidualVsConfDifferenceTgt5Lead->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidualVsConfDifferenceWater->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidualVsConfDifferenceTracker->Fill((ANNVtx.Z() - TrueVtx.Z()), (universe->GetVecElem("ANN_plane_probs", 0) - universe->GetVecElem("ANN_plane_probs", 1)), cvWeight);
-
+          ConfusionMatrixQE->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceQE_MC->Fill(ANNProb, cvWeight);
         }
-        TBVerticesMC_ByModule->Fill(TrackBasedVtx.Z(), cvWeight);
-        TBVerticesMC_ByZPos->Fill( TrackBasedVtx.Z(), cvWeight);
-        TruthVerticesMC_ByModule->Fill( TrueVtx.Z(), cvWeight);
-        TruthVerticesMC_ByZPos->Fill( TrueVtx.Z(), cvWeight);
-
-        TruthVerticesMC_ByMod->Fill(universe->GetTruthVtxModule(), cvWeight);
-
-        TBVerticesMCERecoil_ByModule->Fill( TrackBasedVtx.Z(), erecoil, cvWeight);
-        TBVerticesMCMultiplicity_ByModule->Fill( TrackBasedVtx.Z(), multiplicity, cvWeight);
-        TruthVerticesMCERecoil_ByModule->Fill( TrueVtx.Z(), erecoil, cvWeight);
-        TruthVerticesMCMultiplicity_ByModule->Fill( TrueVtx.Z(), multiplicity, cvWeight);
-
-        ErecoilMC->Fill( erecoil, cvWeight);
-
-        TruthVerticesMC_BySegment->Fill(universe->GetTruthSegment(), cvWeight);
-        TruthVerticesMC_BySegmentVsERecoil->Fill(universe->GetTruthSegment(), erecoil, cvWeight);
-
-
+        else if (intType == 2)
+        {
+          ConfusionMatrixRES->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceRES_MC->Fill(ANNProb, cvWeight);
+        }
+        else if (intType == 3)
+        {
+          ConfusionMatrixDIS->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceDIS_MC->Fill(ANNProb, cvWeight);
+        }
+        else if (intType == 4)
+        {
+          ConfusionMatrixCOHPI->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceCOHPI_MC->Fill(ANNProb, cvWeight);
+        }
+        else if (intType == 5)
+        {
+          ConfusionMatrixAMNUGAMMA->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceAMNUGAMMA_MC->Fill(ANNProb, cvWeight);
+        }
+        else if (intType == 6)
+        {
+          ConfusionMatrixIMD->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceIMD_MC->Fill(ANNProb, cvWeight);
+        }
+        else if (intType == 7)
+        {
+          ConfusionMatrixNUEEL->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceNUEEL_MC->Fill(ANNProb, cvWeight);
+        }
+        else if (intType == 8)
+        {
+          ConfusionMatrixMEC->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceMEC_MC->Fill(ANNProb, cvWeight);
+        }
+        else
+        {
+          ConfusionMatrixUnknownInt->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
+          ANNConfidenceUnknownInt_MC->Fill(ANNProb, cvWeight);
+        }
+        ANNConfidence_vs_NTracks_MC->Fill(ANNProb, multiplicity, cvWeight);
+        ConfusionMatrixMultiplicity->Fill(TrueVtx.Z(), ANNVtx.Z(), multiplicity, cvWeight);
+        ConfusionMatrixErecoil->Fill(TrueVtx.Z(), ANNVtx.Z(), erecoil, cvWeight);
+        ConfusionMatrixConf->Fill(TrueVtx.Z(), ANNVtx.Z(), ANNProb, cvWeight);
+        ConfusionMatrix->Fill(TrueVtx.Z(), ANNVtx.Z(),cvWeight);
         const bool isSignal = michelcuts.isSignal(*universe, weight);
         if (isSignal) // If it is signal
         {
-          if(ANNVtx.X()!=-1.0)
-          {
-            ANNPlaneProbabilityVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z())) ANNPlaneProbabilityTrackerVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true)) ANNPlaneProbabilityTgt2IronVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true)) ANNPlaneProbabilityTgt2LeadVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true)) ANNPlaneProbabilityTgt3IronVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt3LeadVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true)) ANNPlaneProbabilityTgt3CarbonVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z())) ANNPlaneProbabilityTgt4LeadVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true)) ANNPlaneProbabilityTgt5IronVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true) && m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true)) ANNPlaneProbabilityTgt5LeadVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-            if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()) && m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z())) ANNPlaneProbabilityWaterVsEhadNumerator->Fill(ANNProb, erecoil, cvWeight);
-          }
+          ; // Put something here eventually?
         }
       }
     }
@@ -1000,11 +885,7 @@ void LoopAndFillMC(
   std::cout << "Finished MC reco loop.\n"; 
 }
 
-void LoopAndFillData( PlotUtils::ChainWrapper* data,
-			        std::vector<CVUniverse*> data_band,
-				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts
-        )
-
+void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> data_band, PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
 {
   std::cout << "Starting data loop...\n";
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
@@ -1040,155 +921,60 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
         std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"\r" <<std::flush;
       }
       MichelEvent myevent; 
+
+      bool hasMLPred=universe->hasMLPred();
       ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-      double batchPOT = universe->GetBatchPOT();
-      //Incorporate batch POT efficiency scaling as applied above
-      double erecoil = universe->GetRecoilE()/pow(10,3);
+
+      double WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
+      double ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
+
       double ANNProb = universe->GetANNProb();
+      double erecoil = universe->GetRecoilE()/pow(10,3);
       double curvsig = 1/universe->GetMuonQPErr();
-      int multiplicity = universe->GetMultiplicity();
-      double pmu = universe->GetPmu()/1000;
+
       PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;   //All cuts except ANN confidence cut
-  
-      if(ANNVtx.X()!=-1.0)
+
+      if(hasMLPred)
       {
-        ANNPlaneProbabilityVsPmuData->Fill(ANNProb, pmu);
-        ANNPlaneProbabilityVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt2IronVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt2LeadVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt3IronVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt3LeadVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt3CarbonVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNPlaneProbabilityTgt4LeadVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt5IronVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNPlaneProbabilityTgt5LeadVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNPlaneProbabilityWaterVsEhadData->Fill(ANNProb, erecoil);
-        if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNPlaneProbabilityTrackerVsEhadData->Fill(ANNProb, erecoil);
+        ANNZ_vs_Conf_vs_Erecoil_Data->Fill( ANNVtx.Z(), ANNProb, erecoil);
+        ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Fill( WeightedANNZ, ANNProb, erecoil);
 
-        ANNVerticesDataANNConf_ByModule->Fill( ANNVtx.Z(), ANNProb);
-        ANNVerticesDataCurvSig_ByModule->Fill( ANNVtx.Z(), curvsig);
+        if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_Data->Fill( ANNProb, erecoil);
 
-        ANNVerticesData_ByZPosVsANNConf->Fill( ANNVtx.Z(), ANNProb);
-      }
-
-      if (!ANNConfCut->passesCut(*universe, myevent)) continue;   //ANN confidence cut
-      
-      if(ANNVtx.X()!=-1.0)
-      {
-        ANNVerticesData_ByModule->Fill(ANNVtx.Z());
-        ANNVerticesData_ByZPos->Fill(ANNVtx.Z());
-        //for (double cutoff = 0; cutoff <=0.5; cutoff+=0.05)
-        ANNZWeightedVerticesData_VsEhad->Fill(universe->GetANNSegmentsZPosWeighted2(1000000), erecoil); //Some arbitrarily large cutoff
-
-        for (int cutoff = 0; cutoff <100; cutoff++)
-        {
-          double WeightedANNZPos = universe->GetANNSegmentsZPosWeighted2(cutoff);
-          ANNZWeightedVerticesData_VsCutoff->Fill(WeightedANNZPos, cutoff);
-          ANNWeightedVsUnweightedZVertexDifferenceData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt2IronData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt3IronData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt5IronData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNWeightedVsUnweightedZVertexDifferenceWaterData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNWeightedVsUnweightedZVertexDifferenceTrackerData->Fill((WeightedANNZPos - ANNVtx.Z()), cutoff);
-
+        if (ANNConfCut->passesCut(*universe, myevent)){ //ANN confidence cut
+          ANNWeightedZ_minus_UnweightedZData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterData->Fill( ANNWeightedMinusUnweighted);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerData->Fill( ANNWeightedMinusUnweighted);
         }
-
-        ANNVerticesData_ByZPosVsERecoil->Fill(ANNVtx.Z(), erecoil);
-
-        ANNVerticesData_ByMod->Fill(universe->GetANNVtxModule());
-
-        ANNVerticesDataERecoil_ByModule->Fill( ANNVtx.Z(), erecoil);
-        ANNVerticesDataMultiplicity_ByModule->Fill( ANNVtx.Z(), multiplicity);
-
-        ANNVerticesDataCurvSig_ByModule->Fill( ANNVtx.Z(), curvsig);
-
-        ANNVerticesData_BySegment->Fill(universe->GetANNSegment());
-        ANNVerticesData_BySegmentVsERecoil->Fill(universe->GetANNSegment(), erecoil);
+        int multiplicity = universe->GetMultiplicity();
+        ANNConfidence_vs_NTracks_Data->Fill(ANNProb, multiplicity);
+        ANNConfidence_Data->Fill(ANNProb);
       }
-      TBVerticesData_ByZPos->Fill(TrackBasedVtx.Z());
-      TBVerticesData_ByModule->Fill(TrackBasedVtx.Z());
-      TBVerticesData_ByMod->Fill(universe->GetMADVtxModule());
-
-      TBVerticesDataERecoil_ByModule->Fill( TrackBasedVtx.Z(), erecoil);
-      TBVerticesDataMultiplicity_ByModule->Fill( TrackBasedVtx.Z(), multiplicity);
-      TBVerticesDataCurvSig_ByModule->Fill( TrackBasedVtx.Z(), curvsig);
-      ErecoilData->Fill( erecoil);
+      //if (!ANNConfCut->passesCut(*universe, myevent)) continue;   //ANN confidence cut
     }
   }
   std::cout << "Finished data loop.\n";
 }
-
-
-void LoopAndFillEffDenom(PlotUtils::ChainWrapper *truth,
-                         std::map<std::string, std::vector<CVUniverse *>> truth_bands,
-                         PlotUtils::Cutter<CVUniverse, MichelEvent> &michelcuts,
-                         PlotUtils::Model<CVUniverse, MichelEvent> &model)
-{
-  assert(!truth_bands["cv"].empty() && "\"cv\" error band is empty!  Could not set Model entry.");
-  auto &cvUniv = truth_bands["cv"].front();
-
-  std::cout << "Starting efficiency denominator loop...\n";
-  const int nEntries = truth->GetEntries();
-  //const int nEntries = 10000;
-  for (int i = 0; i < nEntries; ++i)
-  {
-    if (i % 1000 == 0)
-      std::cout << i << " / " << nEntries << "\r" << std::flush;
-
-    MichelEvent cvEvent;
-    cvUniv->SetEntry(i);
-    model.SetEntry(*cvUniv, cvEvent);
-    const double cvWeight = model.GetWeight(*cvUniv, cvEvent);
-
-    //=========================================
-    // Systematics loop(s)
-    //=========================================
-    for (auto band : truth_bands)
-    {
-      std::vector<CVUniverse *> truth_band_universes = band.second;
-      for (auto universe : truth_band_universes)
-      {
-
-        MichelEvent myevent; // Only used to keep the Model happy
-
-        // Tell the Event which entry in the TChain it's looking at
-        universe->SetEntry(i);
-        if (!michelcuts.isEfficiencyDenom(*universe, cvWeight))
-          continue;                                                // Weight is ignored for isEfficiencyDenom() in all but the CV universe
-        const double weight = model.GetWeight(*universe, myevent); // Only calculate the weight for events that will use it
-        ROOT::Math::XYZTVector TrueVtx = universe->GetTrueVertex();
-        double ANNProb = universe->GetANNProb();
-        double erecoil = universe->GetRecoilE()/pow(10,3);
-        PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
-    
-        ANNPlaneProbabilityVsEhadDenominator->Fill(ANNProb, erecoil, cvWeight);
-        if (m_TargetUtils->InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNPlaneProbabilityTrackerVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt2IronVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt2LeadVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt3IronVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt3LeadVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt3CarbonVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNPlaneProbabilityTgt4LeadVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt5IronVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNPlaneProbabilityTgt5LeadVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-        if (m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNPlaneProbabilityWaterVsEhadDenominator->Fill(ANNProb, erecoil, weight);
-
-
-
-      }
-    }
-  }
-  std::cout << "Finished efficiency denominator loop.\n";
-}
-
 
 //Returns false if recoTreeName could not be inferred
 bool inferRecoTreeNameAndCheckTreeNames(const std::string& mcPlaylistName, const std::string& dataPlaylistName, std::string& recoTreeName)
@@ -1297,7 +1083,7 @@ int main(const int argc, char** argv)
   //Validate input.
   //I expect a data playlist file name and an MC playlist file name which is exactly 2 arguments.
   const int nArgsExpected = 3;
-  if(argc > nArgsExpected + 1) //argc is the size of argv.  I check for number of arguments + 1 because
+  if(argc > nArgsExpected + 1 || argc < nArgsExpected) //argc is the size of argv.  I check for number of arguments + 1 because
                                 //argv[0] is always the path to the executable.
   {
     std::cerr << "Expected up to" << nArgsExpected << " arguments, but got " << argc - 1 << "\n" << USAGE << "\n";
@@ -1387,8 +1173,8 @@ int main(const int argc, char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
 
   //Tune version vA.B.C
-  int tuneA = 1;
-  int tuneB = 0;
+  int tuneA = 4;
+  int tuneB = 3;
   int tuneC = 0;
   const char* mnvTuneIn =  getenv("MnvTune");
   if (mnvTuneIn != nullptr)
@@ -1471,20 +1257,37 @@ int main(const int argc, char** argv)
 
   PlotUtils::Model<CVUniverse, MichelEvent> model(std::move(MnvTune));
   
+  // Make a map of systematic universes
+  // Leave out systematics when making validation histograms
+  const bool doSystematics = (getenv("MNV101_SKIP_SYST") == nullptr);
+  if (!doSystematics)
+  {
+    std::cout << "Skipping systematics (except 1 flux universe) because environment variable MNV101_SKIP_SYST is set.\n";
+    PlotUtils::MinervaUniverse::SetNFluxUniverses(2); // Necessary to get Flux integral later...  Doesn't work with just 1 flux universe though because _that_ triggers "spread errors".
+  }
 
-  PlotUtils::MinervaUniverse::SetNFluxUniverses(2); //Necessary to get Flux integral later...  Doesn't work with just 1 flux universe though because _that_ triggers "spread errors".
+  std::map<std::string, std::vector<CVUniverse *>> error_bands;
+  /* if (doSystematics)
+    error_bands = GetStandardSystematics(options.m_mc);
+  else
+  {
+    std::map<std::string, std::vector<CVUniverse *>> band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_mc, CVUniverse::GetNFluxUniverses());
+    error_bands.insert(band_flux.begin(), band_flux.end()); // Necessary to get flux integral later...
+  } */
+  error_bands["cv"] = {new CVUniverse(options.m_mc)};
+  std::map<std::string, std::vector<CVUniverse *>> truth_bands;
+  //if (doSystematics) truth_bands = GetStandardSystematics(options.m_truth);
+  truth_bands["cv"] = {new CVUniverse(options.m_truth)};
+
+  CVUniverse *data_universe = new CVUniverse(options.m_data);
+  std::vector<CVUniverse *> data_band = {data_universe};
+  std::map<std::string, std::vector<CVUniverse *>> data_error_bands;
+  data_error_bands["cv"] = data_band;
 
   // Loop entries and fill
   //try
   {
-    std::map< std::string, std::vector<CVUniverse*> > error_bands;
-    std::map<std::string, std::vector<CVUniverse*> > band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_mc, CVUniverse::GetNFluxUniverses());
-    //error_bands.insert(band_flux.begin(), band_flux.end()); //Necessary to get flux integral later...
-    error_bands["cv"] = {new CVUniverse(options.m_mc)};
-    std::map< std::string, std::vector<CVUniverse*> > truth_bands;
-    truth_bands["cv"] = {new CVUniverse(options.m_truth)};
-    CVUniverse* data_univers = new CVUniverse(options.m_data);
-    std::vector<CVUniverse*> data_band = {data_univers};
+    std::cout << "Staring event loops\n";
     CVUniverse::SetTruth(false);
     LoopAndFillMC(options.m_mc, error_bands, mycuts, model);
     CVUniverse::SetTruth(true);
@@ -1494,231 +1297,139 @@ int main(const int argc, char** argv)
     mycuts.resetStats();
     CVUniverse::SetTruth(false);
     LoopAndFillData(options.m_data, data_band, mycuts);
-    //std::cout << "Data cut summary:\n" << mycuts << "\n";
+    std::cout << "Data cut summary:\n" << mycuts << "\n";
 
     std::string outFileName = "VertexValidations.root";
     if (nSubruns != 0 ) outFileName = "VertexValidations_n"+std::to_string(nProcess)+ ".root";
     TFile* OutDir = TFile::Open(outFileName.c_str(), "RECREATE");
 
-    ANNVerticesMC_ByModule->Write();
-    TBVerticesMC_ByModule->Write();
-    ANNVerticesData_ByModule->Write();
-    TBVerticesData_ByModule->Write();
-    TruthVerticesMC_ByModule->Write();
-    ANNVerticesMC_ByZPos->Write();
-    TBVerticesMC_ByZPos->Write();
-    ANNVerticesData_ByZPos->Write();
-    TBVerticesData_ByZPos->Write();
-    TruthVerticesMC_ByZPos->Write();
-    ANNVerticesData_ByMod->Write();
-    TBVerticesData_ByMod->Write();
-    TruthVerticesMC_ByMod->Write();
+    TruthZVertex_vs_Erecoil_MC->Write();
 
-    ANNZWeightedVerticesData_VsCutoff->Write();
-    ANNZWeightedVerticesMC_VsCutoff->Write();
+    ANNZ_vs_Conf_vs_Erecoil_Data->Write();
+    ANNZ_vs_Conf_vs_Erecoil_MC->Write();
+    ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Write();
+    ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Write();
 
-    ANNZWeightedVerticesData_VsEhad->Write();
-    ANNZWeightedVerticesMC_VsEhad->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
+    ANNZResidual_vs_Conf_vs_Erecoil_Water->Write();
 
-    ANNVerticesMC_BySegment->Write();
-    TruthVerticesMC_BySegment->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
+    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Write();
 
-    ANNVerticesData_BySegment->Write();
+    ANNWeightedZ_minus_UnweightedZMC->Write();
+    ANNWeightedZ_minus_UnweightedZTrackerMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt2IronMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt3IronMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt5IronMC->Write();
+    ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Write();
+    ANNWeightedZ_minus_UnweightedZWaterMC->Write();
 
-    ANNZVertexResidual->Write();
-    ANNZVertexResidualTracker->Write();
-    ANNZVertexResidualTgt2Iron->Write();
-    ANNZVertexResidualTgt2Lead->Write();
-    ANNZVertexResidualTgt3Iron->Write();
-    ANNZVertexResidualTgt3Lead->Write();
-    ANNZVertexResidualTgt3Carbon->Write();
-    ANNZVertexResidualTgt4Lead->Write();
-    ANNZVertexResidualTgt5Iron->Write();
-    ANNZVertexResidualTgt5Lead->Write();
-    ANNZVertexResidualWater->Write();
+    ANNWeightedZ_minus_UnweightedZData->Write();
+    ANNWeightedZ_minus_UnweightedZTrackerData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt2IronData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt2LeadData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt3IronData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt3LeadData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt3CarbonData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt4LeadData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt5IronData->Write();
+    ANNWeightedZ_minus_UnweightedZTgt5LeadData->Write();
+    ANNWeightedZ_minus_UnweightedZWaterData->Write();
 
-    ANNZVertexResidualVsConf->Write();
-    ANNZVertexResidualVsConfTracker->Write();
-    ANNZVertexResidualVsConfTgt2Iron->Write();
-    ANNZVertexResidualVsConfTgt2Lead->Write();
-    ANNZVertexResidualVsConfTgt3Iron->Write();
-    ANNZVertexResidualVsConfTgt3Lead->Write();
-    ANNZVertexResidualVsConfTgt3Carbon->Write();
-    ANNZVertexResidualVsConfTgt4Lead->Write();
-    ANNZVertexResidualVsConfTgt5Iron->Write();
-    ANNZVertexResidualVsConfTgt5Lead->Write();
-    ANNZVertexResidualVsConfWater->Write();
+    ANNConf_vs_Ehad_Tracker_Data->Write();
+    ANNConf_vs_Ehad_Tgt2Iron_Data->Write();
+    ANNConf_vs_Ehad_Tgt2Lead_Data->Write();
+    ANNConf_vs_Ehad_Tgt3Iron_Data->Write();
+    ANNConf_vs_Ehad_Tgt3Lead_Data->Write();
+    ANNConf_vs_Ehad_Tgt3Carbon_Data->Write();
+    ANNConf_vs_Ehad_Tgt4Lead_Data->Write();
+    ANNConf_vs_Ehad_Tgt5Iron_Data->Write();
+    ANNConf_vs_Ehad_Tgt5Lead_Data->Write();
+    ANNConf_vs_Ehad_Water_Data->Write();
 
-    ANNWeightedZVertexResidualVsConf->Write();
-    ANNWeightedZVertexResidualVsConfTracker->Write();
-    ANNWeightedZVertexResidualVsConfTgt2Iron->Write();
-    ANNWeightedZVertexResidualVsConfTgt2Lead->Write();
-    ANNWeightedZVertexResidualVsConfTgt3Iron->Write();
-    ANNWeightedZVertexResidualVsConfTgt3Lead->Write();
-    ANNWeightedZVertexResidualVsConfTgt3Carbon->Write();
-    ANNWeightedZVertexResidualVsConfTgt4Lead->Write();
-    ANNWeightedZVertexResidualVsConfTgt5Iron->Write();
-    ANNWeightedZVertexResidualVsConfTgt5Lead->Write();
-    ANNWeightedZVertexResidualVsConfWater->Write();
-
-    ANNWeightedZVertexResidual->Write();
-    ANNWeightedZVertexResidualTracker->Write();
-    ANNWeightedZVertexResidualTgt2Iron->Write();
-    ANNWeightedZVertexResidualTgt2Lead->Write();
-    ANNWeightedZVertexResidualTgt3Iron->Write();
-    ANNWeightedZVertexResidualTgt3Lead->Write();
-    ANNWeightedZVertexResidualTgt3Carbon->Write();
-    ANNWeightedZVertexResidualTgt4Lead->Write();
-    ANNWeightedZVertexResidualTgt5Iron->Write();
-    ANNWeightedZVertexResidualTgt5Lead->Write();
-    ANNWeightedZVertexResidualWater->Write();
-
-    ANNWeightedVsUnweightedZVertexDifferenceMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTrackerMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt2IronMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt3IronMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt5IronMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadMC->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceWaterMC->Write();
-
-    ANNWeightedVsUnweightedZVertexDifferenceData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTrackerData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt2IronData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt2LeadData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt3IronData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt3LeadData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt3CarbonData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt4LeadData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt5IronData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceTgt5LeadData->Write();
-    ANNWeightedVsUnweightedZVertexDifferenceWaterData->Write();
-
-    ANNZResidualVsConfDifference->Write();
-    ANNZResidualVsConfDifferenceTracker->Write();
-    ANNZResidualVsConfDifferenceTgt2Iron->Write();
-    ANNZResidualVsConfDifferenceTgt2Lead->Write();
-    ANNZResidualVsConfDifferenceTgt3Iron->Write();
-    ANNZResidualVsConfDifferenceTgt3Lead->Write();
-    ANNZResidualVsConfDifferenceTgt3Carbon->Write();
-    ANNZResidualVsConfDifferenceTgt4Lead->Write();
-    ANNZResidualVsConfDifferenceTgt5Iron->Write();
-    ANNZResidualVsConfDifferenceTgt5Lead->Write();
-    ANNZResidualVsConfDifferenceWater->Write();
-
-    ANNPlaneProbabilityVsEhadData->Write();
-    ANNPlaneProbabilityTrackerVsEhadData->Write();
-    ANNPlaneProbabilityTgt2IronVsEhadData->Write();
-    ANNPlaneProbabilityTgt2LeadVsEhadData->Write();
-    ANNPlaneProbabilityTgt3IronVsEhadData->Write();
-    ANNPlaneProbabilityTgt3LeadVsEhadData->Write();
-    ANNPlaneProbabilityTgt3CarbonVsEhadData->Write();
-    ANNPlaneProbabilityTgt4LeadVsEhadData->Write();
-    ANNPlaneProbabilityTgt5IronVsEhadData->Write();
-    ANNPlaneProbabilityTgt5LeadVsEhadData->Write();
-    ANNPlaneProbabilityWaterVsEhadData->Write();
-
-    ANNPlaneProbabilityVsEhadMC->Write();
-    ANNPlaneProbabilityTrackerVsEhadMC->Write();
-    ANNPlaneProbabilityTgt2IronVsEhadMC->Write();
-    ANNPlaneProbabilityTgt2LeadVsEhadMC->Write();
-    ANNPlaneProbabilityTgt3IronVsEhadMC->Write();
-    ANNPlaneProbabilityTgt3LeadVsEhadMC->Write();
-    ANNPlaneProbabilityTgt3CarbonVsEhadMC->Write();
-    ANNPlaneProbabilityTgt4LeadVsEhadMC->Write();
-    ANNPlaneProbabilityTgt5IronVsEhadMC->Write();
-    ANNPlaneProbabilityTgt5LeadVsEhadMC->Write();
-    ANNPlaneProbabilityWaterVsEhadMC->Write();
-
-    //ERecoil
-    ErecoilMC->Write();
-    ErecoilData->Write();
-    TruthVerticesMCERecoil_ByModule->Write();
-    ANNVerticesMCERecoil_ByModule->Write();
-    TBVerticesMCERecoil_ByModule->Write();
-    ANNVerticesDataERecoil_ByModule->Write();
-    TBVerticesDataERecoil_ByModule->Write();
+    ANNConf_vs_Ehad_Tracker_MC->Write();
+    ANNConf_vs_Ehad_Tgt2Iron_MC->Write();
+    ANNConf_vs_Ehad_Tgt2Lead_MC->Write();
+    ANNConf_vs_Ehad_Tgt3Iron_MC->Write();
+    ANNConf_vs_Ehad_Tgt3Lead_MC->Write();
+    ANNConf_vs_Ehad_Tgt3Carbon_MC->Write();
+    ANNConf_vs_Ehad_Tgt4Lead_MC->Write();
+    ANNConf_vs_Ehad_Tgt5Iron_MC->Write();
+    ANNConf_vs_Ehad_Tgt5Lead_MC->Write();
+    ANNConf_vs_Ehad_Water_MC->Write();
 
 
-    ANNVerticesData_ByZPosVsERecoil->Write();
-    ANNVerticesMC_ByZPosVsERecoil->Write();
+    ANNConf_MisrecoInTgt2Iron->Write();
+    ANNConf_MisrecoInTgt2Lead->Write();
+    ANNConf_MisrecoInTgt3Iron->Write();
+    ANNConf_MisrecoInTgt3Lead->Write();
+    ANNConf_MisrecoInTgt3Carbon->Write();
+    ANNConf_MisrecoInTgt4Lead->Write();
+    ANNConf_MisrecoInTgt5Iron->Write();
+    ANNConf_MisrecoInTgt5Lead->Write();
+    ANNConf_MisrecoInWater->Write();
 
-
-    ANNVerticesMC_BySegmentVsERecoil->Write();
-    TruthVerticesMC_BySegmentVsERecoil->Write();
-    ANNVerticesData_BySegmentVsERecoil->Write();
-
-
-    //Multiplicity
-    TruthVerticesMCMultiplicity_ByModule->Write();
-    ANNVerticesMCMultiplicity_ByModule->Write();
-    TBVerticesMCMultiplicity_ByModule->Write();
-    ANNVerticesDataMultiplicity_ByModule->Write();
-    TBVerticesDataMultiplicity_ByModule->Write();
-
-    //ANN Confidence
-    TruthVerticesMCANNConf_ByModule->Write();
-    ANNVerticesMCANNConf_ByModule->Write();
-    ANNVerticesDataANNConf_ByModule->Write();
-
-    ANNVerticesData_ByZPosVsANNConf->Write();
-    ANNVerticesMC_ByZPosVsANNConf->Write();
-
-    //For events misreconstructed in each target, what's the probability distribution
-    ANNConfMisrecoInTgt2Iron->Write();
-    ANNConfMisrecoInTgt2Lead->Write();
-    ANNConfMisrecoInTgt3Iron->Write();
-    ANNConfMisrecoInTgt3Lead->Write();
-    ANNConfMisrecoInTgt3Carbon->Write();
-    ANNConfMisrecoInTgt4Lead->Write();
-    ANNConfMisrecoInTgt5Iron->Write();
-    ANNConfMisrecoInTgt5Lead->Write();
-    ANNConfMisrecoInWater->Write();
-
-    ANNPlaneProbabilityVsPmuMC->Write();
-    ANNPlaneProbabilityVsPmuData->Write();
-
-    //Efficiency as a function of ANNConfidence and EHad bin
-
-    ANNPlaneProbabilityVsEhadNumerator->Write();
-    ANNPlaneProbabilityTrackerVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt2IronVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt2LeadVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt3IronVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt3LeadVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt3CarbonVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt4LeadVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt5IronVsEhadNumerator->Write();
-    ANNPlaneProbabilityTgt5LeadVsEhadNumerator->Write();
-    ANNPlaneProbabilityWaterVsEhadNumerator->Write();
-
-    ANNPlaneProbabilityVsEhadDenominator->Write();
-    ANNPlaneProbabilityTrackerVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt2IronVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt2LeadVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt3IronVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt3LeadVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt3CarbonVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt4LeadVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt5IronVsEhadDenominator->Write();
-    ANNPlaneProbabilityTgt5LeadVsEhadDenominator->Write();
-    ANNPlaneProbabilityWaterVsEhadDenominator->Write();
-
-
-    //Curvature signifiance
-    TruthVerticesMCCurvSig_ByModule->Write();
-    ANNVerticesMCCurvSig_ByModule->Write();
-    TBVerticesMCCurvSig_ByModule->Write();
-    ANNVerticesDataCurvSig_ByModule->Write();
-    TBVerticesDataCurvSig_ByModule->Write();
-
-    //Migration ANN only
-    ANNVerticesConfusion_ByModule->Write();
     ANNVerticesConfusion_ByZPos->Write();
 
+  //Investigating distance to division cut performance. We're plotting the 2D postions of the events based on 
+  //Investigating ANN reco performance by MC interaction channel
+  //Confusion matrices
+  ConfusionMatrixQE->Write();
+  ConfusionMatrixRES->Write();
+  ConfusionMatrixDIS->Write();
+  ConfusionMatrixCOHPI->Write();
+  ConfusionMatrixAMNUGAMMA->Write();
+  ConfusionMatrixIMD->Write();
+  ConfusionMatrixNUEEL->Write();
+  ConfusionMatrixMEC->Write();
+  ConfusionMatrixUnknownInt->Write();
+  //Number of tracks
+  ConfusionMatrixMultiplicity->Write();
+
+  ConfusionMatrixErecoil->Write();
+  ConfusionMatrixConf->Write();
+  ConfusionMatrix->Write();
+
+  //Confidence Breakdowns
+  // by interaction type
+  // MC
+  ANNConfidenceQE_MC->Write();
+  ANNConfidenceRES_MC->Write();
+  ANNConfidenceDIS_MC->Write();
+  ANNConfidenceCOHPI_MC->Write();
+  ANNConfidenceAMNUGAMMA_MC->Write();
+  ANNConfidenceIMD_MC->Write();
+  ANNConfidenceNUEEL_MC->Write();
+  ANNConfidenceMEC_MC->Write();
+  ANNConfidenceUnknownInt_MC->Write();
+  // Data
+  ANNConfidence_Data->Write();
+
+  // by multiplicity
+  ANNConfidence_vs_NTracks_MC->Write();
+  ANNConfidence_vs_NTracks_Data->Write();
 
     double potMC = options.m_mc_pot ;
     double potData = options.m_data_pot ;

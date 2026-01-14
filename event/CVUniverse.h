@@ -790,7 +790,7 @@ double GetDiffractiveUncWeight() const {
     //}
 
  //Taken from Oscar's code (/exp/minerva/app/users/omorenop/cmtuser/git-Mat/Personal/Test/InclusiveUtils.h)
-  double GetTruthSegment() const //Dangerous since ANN_vtx doesnt always have a 3-vector in it, calling SetCoordinates without a 3 vector gives a segfault
+  /* double GetTruthSegment() const //Dangerous since ANN_vtx doesnt always have a 3-vector in it, calling SetCoordinates without a 3 vector gives a segfault
   {
     int mdl = GetTruthVtxModule();
     int plane = GetTruthVtxPlane();
@@ -1171,7 +1171,175 @@ double GetDiffractiveUncWeight() const {
         if (plane == 2) {return 2;}  }
 
     return -999;
-  }
+  } */
+
+    double GetTruthSegment() const {
+        // 1. Check Targets (Highest Priority)
+        // Using a small switch or array for immediate return.
+        int tgtID = GetTruthTargetID();
+        switch (tgtID) {
+            case 1: return 9;
+            case 2: return 18;
+            case 3: return 27;
+            case 4: return 45;
+            case 5: return 50;
+        }
+
+        // 2. Retrieve Vertex Info
+        // (tgtZ was removed as it was unused in the original code)
+        int mdl = GetTruthVtxModule();
+        int plane = GetTruthVtxPlane();
+
+        // 3. Handle Special/Error Cases
+        // FIXED BUG: Original code had "if(plane = -999)" which is an assignment.
+        // Assuming you meant to check if this is the "Water" case.
+        if (mdl == -999) {
+            // Original logic implied returning 36 if mdl is -999,
+            // regardless of plane (due to the assignment bug evaluating to true).
+            return 36; 
+        }
+
+        // 4. Bounds Check
+        // Valid mdl range in your logic is -5 to 119.
+        // Valid plane is 1 or 2.
+        if (plane < 1 || plane > 2) return -999;
+        if (mdl < -5 || mdl > 119) return -999;
+
+        // 5. Lookup Table (O(1) access)
+        // The table handles the mapping. We offset mdl by +5 so -5 becomes index 0.
+        // [index][0] = plane 1, [index][1] = plane 2
+        static const int segment_lut[125][2] = {
+            /* mdl -5 */ {1, 2},
+            /* mdl -4 */ {3, 4},
+            /* mdl -3 */ {5, 6},
+            /* mdl -2 */ {7, 8},
+            /* mdl -1 */ {9, 9},
+            /* mdl  0 */ {10, 11},
+            /* mdl  1 */ {12, 13},
+            /* mdl  2 */ {14, 15},
+            /* mdl  3 */ {16, 17},
+            /* mdl  4 */ {18, -999}, // Plane 2 was missing in original -> -999
+            /* mdl  5 */ {19, 20},
+            /* mdl  6 */ {21, 22},
+            /* mdl  7 */ {23, 24},
+            /* mdl  8 */ {25, 26},
+            /* mdl  9 */ {27, 27},
+            /* mdl 10 */ {-999, -999}, // Missing in original
+            /* mdl 11 */ {28, 29},
+            /* mdl 12 */ {30, 31},
+            /* mdl 13 */ {32, 33},
+            /* mdl 14 */ {34, 35},
+            /* mdl 15 */ {37, 38},
+            /* mdl 16 */ {39, 40},
+            /* mdl 17 */ {41, 42},
+            /* mdl 18 */ {43, 44},
+            /* mdl 19 */ {45, 45},
+            /* mdl 20 */ {46, 47},
+            /* mdl 21 */ {48, 49},
+            /* mdl 22 */ {50, 50},
+            /* mdl 23 */ {51, 52},
+            /* mdl 24 */ {53, 54},
+            /* mdl 25 */ {55, 56},
+            /* mdl 26 */ {57, 58},
+            /* mdl 27 */ {59, 60},
+            /* mdl 28 */ {61, 62},
+            /* mdl 29 */ {63, 64},
+            /* mdl 30 */ {65, 66},
+            /* mdl 31 */ {67, 68},
+            /* mdl 32 */ {69, 70},
+            /* mdl 33 */ {71, 72},
+            /* mdl 34 */ {73, 74},
+            /* mdl 35 */ {75, 76},
+            /* mdl 36 */ {77, 78},
+            /* mdl 37 */ {79, 80},
+            /* mdl 38 */ {81, 82},
+            /* mdl 39 */ {83, 84},
+            /* mdl 40 */ {85, 86},
+            /* mdl 41 */ {87, 88},
+            /* mdl 42 */ {89, 90},
+            /* mdl 43 */ {91, 92},
+            /* mdl 44 */ {93, 94},
+            /* mdl 45 */ {95, 96},
+            /* mdl 46 */ {97, 98},
+            /* mdl 47 */ {99, 100},
+            /* mdl 48 */ {101, 102},
+            /* mdl 49 */ {103, 104},
+            /* mdl 50 */ {105, 106},
+            /* mdl 51 */ {107, 108},
+            /* mdl 52 */ {109, 110},
+            /* mdl 53 */ {111, 112},
+            /* mdl 54 */ {113, 114},
+            /* mdl 55 */ {115, 116},
+            /* mdl 56 */ {117, 118},
+            /* mdl 57 */ {119, 120},
+            /* mdl 58 */ {121, 122},
+            /* mdl 59 */ {123, 124},
+            /* mdl 60 */ {125, 126},
+            /* mdl 61 */ {127, 128},
+            /* mdl 62 */ {129, 130},
+            /* mdl 63 */ {131, 132},
+            /* mdl 64 */ {133, 134},
+            /* mdl 65 */ {135, 136},
+            /* mdl 66 */ {137, 138},
+            /* mdl 67 */ {139, 140},
+            /* mdl 68 */ {141, 142},
+            /* mdl 69 */ {143, 144},
+            /* mdl 70 */ {145, 146},
+            /* mdl 71 */ {147, 148},
+            /* mdl 72 */ {149, 150},
+            /* mdl 73 */ {151, 152},
+            /* mdl 74 */ {153, 154},
+            /* mdl 75 */ {155, 156},
+            /* mdl 76 */ {157, 158},
+            /* mdl 77 */ {159, 160},
+            /* mdl 78 */ {161, 162},
+            /* mdl 79 */ {163, 164},
+            /* mdl 80 */ {165, 166},
+            /* mdl 81 */ {167, 168},
+            /* mdl 82 */ {169, 170},
+            /* mdl 83 */ {171, 172},
+            /* mdl 84 */ {173, 174},
+            /* mdl 85 */ {175, 176},
+            /* mdl 86 */ {177, 178},
+            /* mdl 87 */ {179, 180},
+            /* mdl 88 */ {181, 182},
+            /* mdl 89 */ {183, 184},
+            /* mdl 90 */ {185, 186},
+            /* mdl 91 */ {187, 188},
+            /* mdl 92 */ {189, 190},
+            /* mdl 93 */ {191, 192},
+            /* mdl 94 */ {193, 194},
+            /* mdl 95 */ {195, 195},
+            /* mdl 96 */ {196, 196},
+            /* mdl 97 */ {197, 197},
+            /* mdl 98 */ {198, 198},
+            /* mdl 99 */ {199, 199},
+            /* mdl 100*/ {-999, 200}, // Plane 1 missing in original -> -999
+            /* mdl 101*/ {-999, 201},
+            /* mdl 102*/ {-999, 202},
+            /* mdl 103*/ {-999, 203},
+            /* mdl 104*/ {-999, 204},
+            /* mdl 105*/ {-999, 205},
+            /* mdl 106*/ {-999, 206},
+            /* mdl 107*/ {-999, 207},
+            /* mdl 108*/ {-999, 208},
+            /* mdl 109*/ {-999, 209},
+            /* mdl 110*/ {-999, 210},
+            /* mdl 111*/ {-999, 211},
+            /* mdl 112*/ {-999, 212},
+            /* mdl 113*/ {-999, 213},
+            /* mdl 114*/ {-999, 214},
+            /* mdl 115*/ {-999, 2},
+            /* mdl 116*/ {-999, 0},
+            /* mdl 117*/ {-999, 1},
+            /* mdl 118*/ {-999, 0},
+            /* mdl 119*/ {-999, 2}
+        };
+
+        // Access table: mdl + 5 to handle negative indices. 
+        // Plane - 1 to make it 0-indexed.
+        return segment_lut[mdl + 5][plane - 1];
+    }
 
   int GetMultiplicity() const {return GetInt("multiplicity");}
 

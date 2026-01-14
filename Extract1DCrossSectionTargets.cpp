@@ -1949,28 +1949,28 @@ int main(const int argc, const char **argv)
           std::cout<<"Tracker extracted cross sections found - plotting material/CH ratios\n";
           std::string titlebase;
           PlotUtils::MnvH1D* plasticxsec;
+
           if (tgtname == "Iron" || tgtname == "2026" || tgtname == "3026")
           {
             titlebase = "Fe";
-            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Fe_CrossSection").get();
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Fe_CrossSection").get()->Clone();
           }
           if (tgtname == "Lead")
           {
             titlebase="Pb";
-            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Pb_CrossSection").get();
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_Pb_CrossSection").get()->Clone();
           }
           if (tgtname == "Carbon")
           {
             titlebase="C";
-            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_C_CrossSection").get();
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFile, prefix+"_C_CrossSection").get()->Clone();
           }
            if (tgtname == "Water")
           {
             titlebase="H_{2}O";
-            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFileNoDaisy, "crossSection").get();
+            plasticxsec=util::GetIngredientSmart<PlotUtils::MnvH1D>(*trackerFileNoDaisy, "crossSection").get()->Clone();
           } 
           titlebase+="/CH Ratio in "+prefix;
-          
 
           if (prefix=="pTmu")
           {
@@ -1991,7 +1991,6 @@ int main(const int argc, const char **argv)
           {
             plasticxsec->GetXaxis()->SetRange(1, 11);
           } 
-
 
           TCanvas can("Temp");
           // Uncertainty summary

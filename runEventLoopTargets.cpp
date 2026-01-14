@@ -1047,7 +1047,7 @@ int main(const int argc, const char **argv)
     else nukePreCut.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in Nuclear Targets", PlotUtils::TargetProp::NukeRegion::Face, PlotUtils::TargetProp::NukeRegion::Back));
     nukePreCut.emplace_back(new reco::IsInTarget<CVUniverse, MichelEvent>(tgt, usingExtendedTargetDefintion));
     
-    nukePreCut.emplace_back(new reco::ANNDistToTgtDivCut<CVUniverse, MichelEvent>(25, "Interaction disance from target division"));
+    nukePreCut.emplace_back(new reco::ANNDistToTgtDivCut<CVUniverse, MichelEvent>(25));
     // nukeSidebands.emplace_back(new reco::ZRange<CVUniverse, MichelEvent>("Test sideband z pos", 0, 1000000000000.0));
     // nukeSidebands.emplace_back(new reco::USScintillator<CVUniverse, MichelEvent>());
     // nukeSidebands.emplace_back(new reco::DSScintillator<CVUniverse, MichelEvent>());
@@ -1057,7 +1057,7 @@ int main(const int argc, const char **argv)
     nukeSignalDefinition.emplace_back(new truth::IsCC<CVUniverse>());
     
     nukeSignalDefinition.emplace_back(new truth::IsInTarget<CVUniverse>(tgt, false));
-    nukeSignalDefinition.emplace_back(new truth::TruthDistToTgtDivCut<CVUniverse>(25, "Interaction disance from target division"));
+    nukeSignalDefinition.emplace_back(new truth::TruthDistToTgtDivCut<CVUniverse>(25));
     //^^^ False for the usingExtendedTargetDefintion option even when we are doing an analysis with the extended target definition since we're really
     //looking for events in the targets and not in this extended scintillator region, that is just a means to an end (where the end is capturing
     //misreconstructed events). If we left this in we'd be considering this region as part of our signal (which it isn't) which would raise our

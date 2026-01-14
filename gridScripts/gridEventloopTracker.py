@@ -185,6 +185,7 @@ if __name__ == '__main__':
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
             my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
+            my_wrapper.write("date\n")
             my_wrapper.write("echo Setting up environment\n")
             my_wrapper.write("export MINERVA_PREFIX=${INPUT_TAR_DIR_LOCAL}\n")
             if skipSys:
