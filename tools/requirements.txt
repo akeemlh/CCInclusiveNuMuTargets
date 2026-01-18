@@ -1,0 +1,10 @@
+probmetrics
+dirichletcal
+jax
+numpy
+matplotlib
+scikit-learn
+pandas
+autograd
+
+root
