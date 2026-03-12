@@ -180,7 +180,7 @@ if __name__ == '__main__':
                 print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
                 os.mkdir(outdirplaylist)
             # Create wrapper
-            wrapper_name = "wrapper-EvLoopTracker"+playlist+petal+".sh"
+            wrapper_name = "wrapper-EvLoopTracker"+playlist+petal+str(epoch_time)+".sh"
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")

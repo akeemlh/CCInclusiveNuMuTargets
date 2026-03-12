@@ -230,7 +230,9 @@ int main(const int argc, const char **argv)
   if (dirs.size()==0) dirs = {"./"};
   
   //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "BjorkenY", "Erecoil", "Emu" , "beamAngle", "segment"};
-  std::vector<std::string> crossSectionPrefixes = {"pTmu"};
+  //std::vector<std::string> crossSectionPrefixes = {"pTmu"};
+  std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu"};
+
 
   double mcPOT = 0;
   double dataPOT = 0;

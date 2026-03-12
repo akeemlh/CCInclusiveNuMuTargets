@@ -1,0 +1,10 @@
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist5A/MasterAnaDev_mc_AnaTuple_run00123007_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6A/MasterAnaDev_mc_AnaTuple_run00122006_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6B/MasterAnaDev_mc_AnaTuple_run00122241_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6B/MasterAnaDev_mc_AnaTuple_run00122249_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6B/MasterAnaDev_mc_AnaTuple_run00122280_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6C/MasterAnaDev_mc_AnaTuple_run00122417_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6C/MasterAnaDev_mc_AnaTuple_run00122433_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6F/MasterAnaDev_mc_AnaTuple_run00122896_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6G/MasterAnaDev_mc_AnaTuple_run00123128_Playlist.root
+root://fndcadoor.fnal.gov:1095/pnfs/fnal.gov/usr/minerva/persistent/OpenData/MediumEnergy_FHC/MC/StandardMC/Playlist6H/MasterAnaDev_mc_AnaTuple_run00123272_Playlist.root

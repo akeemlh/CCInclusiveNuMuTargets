@@ -97,6 +97,8 @@ enum ErrorCodes
 //ROOT includes
 #include "TParameter.h"
 
+#include <chrono>
+
 #include "Math/Vector3D.h"
 #include "TH3D.h"
 
@@ -105,6 +107,8 @@ enum ErrorCodes
 #include <cstdlib> //getenv()
 #include <fstream>
 #include <sstream> //reading input files
+
+#include "utilities/SMSCalibrator.h"
 
 
 //These 2 variables are used when doing broken down runs to speed up running on the grid
@@ -121,8 +125,12 @@ void LoopAndFillEventSelection(
     std::vector<Variable2D*> vars2D,
     std::vector<Study*> studies,
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-    PlotUtils::Model<CVUniverse, MichelEvent>& model, int inpetal)
+    PlotUtils::Model<CVUniverse, MichelEvent>& model,
+    int inpetal,
+    SMSCalibrator& calibrator)
 {
+  //calibrator.cacheEvt = -1;
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
   assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
   auto& cvUniv = error_bands["cv"].front();
 
@@ -133,8 +141,15 @@ void LoopAndFillEventSelection(
   PlotUtils::TargetUtils util;
   for (int i = 0; i < nEntries; ++i)
   {
-    if(i%1000==0) 
-      std::cout << i << " / " << nEntries << "\r" <<std::endl;
+    if (i % 1000 == 0)
+    { 
+      std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+      double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
+      double msperevent = mselapsed/i;
+      int sleft = (nEntries-i)*msperevent/1000;
+      double selapsed = ((int)mselapsed)/1000;
+      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+    }
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
     model.SetEntry(*cvUniv, cvEvent);
@@ -148,6 +163,7 @@ void LoopAndFillEventSelection(
       int univCount = 0;
       for (auto universe : error_band_universes)
       {
+        universe->SetCalibrator(&calibrator);
         univCount++; // Put the iterator right at the start so it's executed even in paths that lead to a continue, don't forget to subtract by 1 when we use it
         MichelEvent myevent; // make sure your event is inside the error band loop. 
     
@@ -214,14 +230,17 @@ void LoopAndFillEventSelection(
 }
 
 void LoopAndFillData( PlotUtils::ChainWrapper* data,
-			        std::vector<CVUniverse*> data_band,
-				std::vector<Variable*> vars,
-                                std::vector<Variable2D*> vars2D,
-                                std::vector<Study*> studies,
-				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts, int inpetal)
-
+    std::vector<CVUniverse*> data_band,
+    std::vector<Variable*> vars,
+    std::vector<Variable2D*> vars2D,
+    std::vector<Study*> studies,
+    PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
+    int inpetal,
+    SMSCalibrator& calibrator)
 {
+  //calibrator.cacheEvt = -1;
   std::cout << "Starting data loop...\n";
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
   const int nEntries = data->GetEntries();
   PlotUtils::TargetUtils util;
   //const int nEntries = 10000;
@@ -229,7 +248,16 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
   {
     for (auto universe : data_band) {
       universe->SetEntry(i);
-      if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
+      universe->SetCalibrator(&calibrator);
+      if (i % 1000 == 0)
+      { 
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
+        double msperevent = mselapsed/i;
+        int sleft = (nEntries-i)*msperevent/1000;
+        double selapsed = ((int)mselapsed)/1000;
+        std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+      }
       MichelEvent myevent; 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;
       //Get daisy petal
@@ -252,12 +280,14 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
 }
 
 void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
-    				std::map<std::string, std::vector<CVUniverse*> > truth_bands,
-    				std::vector<Variable*> vars,
-                                std::vector<Variable2D*> vars2D,
-    				PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-                                PlotUtils::Model<CVUniverse, MichelEvent>& model, int inpetal)
+    std::map<std::string, std::vector<CVUniverse*> > truth_bands,
+    std::vector<Variable*> vars,
+    std::vector<Variable2D*> vars2D,
+    PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
+    PlotUtils::Model<CVUniverse, MichelEvent>& model,
+    int inpetal)
 {
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
   assert(!truth_bands["cv"].empty() && "\"cv\" error band is empty!  Could not set Model entry.");
   auto& cvUniv = truth_bands["cv"].front();
   PlotUtils::TargetUtils util;
@@ -267,7 +297,15 @@ void LoopAndFillEffDenom( PlotUtils::ChainWrapper* truth,
 
   for (int i = 0; i < nEntries; ++i)
   {
-    if(i%1000==0) std::cout << i << " / " << nEntries << "\r" << std::flush;
+    if (i % 1000 == 0)
+    { 
+      std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+      double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
+      double msperevent = mselapsed/i;
+      int sleft = (nEntries-i)*msperevent/1000;
+      double selapsed = ((int)mselapsed)/1000;
+      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+    }
 
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -488,8 +526,8 @@ int main(const int argc, const char** argv)
   PlotUtils::Cutter<CVUniverse, MichelEvent>::reco_t sidebands, preCuts;
   PlotUtils::Cutter<CVUniverse, MichelEvent>::truth_t signalDefinition, phaseSpace;
 
-  //preCuts = util::GetAnalysisCuts(nupdg);
-  //preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
+  preCuts = util::GetAnalysisCuts(nupdg);
+  preCuts.emplace_back(new reco::ZRangeANN<CVUniverse, MichelEvent>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
 
                                                                                                                                                    
   //if (nupdg>0) signalDefinition.emplace_back(new truth::IsNeutrino<CVUniverse>());
@@ -498,7 +536,10 @@ int main(const int argc, const char** argv)
                                                                                                                                                    
   //phaseSpace = util::GetPhaseSpace();
   //phaseSpace.emplace_back(new truth::ZRange<CVUniverse>("Z pos in active tracker", PlotUtils::TargetProp::Tracker::Face, PlotUtils::TargetProp::Tracker::Back));
-                                                                                                                                                   
+
+  int filledOrEmpty = util::filledOrEmptyMEPlaylist(options.m_plist_string); //filled = 1, empty = 2
+  SMSCalibrator calibrator = util::loadCalibrator((nupdg == 14), (filledOrEmpty==1));
+
   PlotUtils::Cutter<CVUniverse, MichelEvent> mycuts(std::move(preCuts), std::move(sidebands) , std::move(signalDefinition),std::move(phaseSpace));
 
   const bool NO_2P2H_WARP = (getenv("NO_2P2H_WARP") != nullptr);
@@ -688,29 +729,31 @@ int main(const int argc, const char** argv)
   std::function<double(const CVUniverse &)> muonAngleDegreesTruth = [](const CVUniverse &univ) { return (univ.GetDouble("truth_muon_theta")* 180 / M_PI); };
   std::function<double(const CVUniverse &)> ANNConfPercentage = [](const CVUniverse &univ) { return univ.GetANNProb() * 100; };
   std::function<double(const CVUniverse &)> nullFunc = [](const CVUniverse &univ) { return 0; };  
+  std::function<double(const CVUniverse &)> GetANNSegment = [](const CVUniverse &univ) { return univ.GetANNSegment(); };
+  std::function<double(const CVUniverse &)> GetANNProb = [](const CVUniverse &univ) { return univ.GetANNProb(); };
 
 
-  /* vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetANNMuonPTGeV, &CVUniverse::GetMuonPTTrue));
+  vars.push_back(new Variable("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetANNMuonPTGeV, &CVUniverse::GetMuonPTTrue));
   vars.push_back(new Variable("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetANNMuonPzGeV, &CVUniverse::GetMuonPzTrue));
   vars.push_back(new Variable("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetANNEmuGeV, &CVUniverse::GetElepTrueGeV));
   vars.push_back(new Variable("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, &CVUniverse::GetANNRecoilEGeV, q0TrueGeV)); // TODO: q0 is not the same as recoil energy without a spline correction
   vars.push_back(new Variable("BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
-  vars.push_back(new Variable("BjorkenY", "Y", util::bjorkenYbins, &CVUniverse::GetBjorkenY, &CVUniverse::GetBjorkenYTrue));
-  vars.push_back(new Variable("segment", "segmentNum", segmentBins, &CVUniverse::GetANNSegment, &CVUniverse::GetTruthSegment)); // Just used for plotting events by detector position tbh - not for any actual physics
-  vars.push_back(new Variable("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
+  //vars.push_back(new Variable("BjorkenY", "Y", util::bjorkenYbins, &CVUniverse::GetBjorkenY, &CVUniverse::GetBjorkenYTrue));
+  vars.push_back(new Variable("segment", "segmentNum", segmentBins, GetANNSegment, &CVUniverse::GetTruthSegment)); // Just used for plotting events by detector position tbh - not for any actual physics
+  //vars.push_back(new Variable("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
   vars2D.push_back(new Variable2D("pTmu_pZmu", *vars[0], *vars[1]));
   vars2D.push_back(new Variable2D("Emu_Erecoil", *vars[2], *vars[3]));
-  vars2D.push_back(new Variable2D("BjorkenX_BjorkenY", *vars[4], *vars[5]));  */
+  //vars2D.push_back(new Variable2D("BjorkenX_BjorkenY", *vars[4], *vars[5]));
   //Probe some more variables?????
 
   //Testing ANN probability distribution
-  std::vector<double> probBins;
-  const double nProbBins = 200;
-  for (double whichBin = 0; whichBin < nProbBins+1; whichBin++)
-  {
-    probBins.push_back((1/nProbBins)*whichBin);
-  }
-  vars.push_back(new Variable("ANN Confidence", "Probs", probBins, ANNConfPercentage, ANNConfPercentage));
+  //std::vector<double> probBins;
+  //const double nProbBins = 200;
+  //for (double whichBin = 0; whichBin < nProbBins+1; whichBin++)
+  //{
+  //  probBins.push_back((1/nProbBins)*whichBin);
+  //}
+  //vars.push_back(new Variable("ANNConfidence", "Probs", probBins, ANNConfPercentage, nullFunc));
 
 
   std::vector<Study*> studies;
@@ -736,17 +779,17 @@ int main(const int argc, const char** argv)
     {
       CVUniverse::SetTruth(false);
       std::cout<<"Daisy reweight test0\n";
-      LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model, ptl);
+      LoopAndFillEventSelection(options.m_mc, error_bands, vars, vars2D, studies, mycuts, model, ptl, calibrator);
       CVUniverse::SetTruth(true);
       std::cout<<"Daisy reweight test1\n";
-      LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model, ptl);
+      LoopAndFillEffDenom(options.m_truth, truth_bands, vars, vars2D, mycuts, model, ptl);  //No calibrator needed with Eff Denom since it only uses truth values
         std::cout<<"Daisy reweight test2\n";
       options.PrintMacroConfiguration(argv[0]);
       std::cout << "MC cut summary:\n" << mycuts << "\n";
       mycuts.resetStats();
 
       CVUniverse::SetTruth(false);
-      LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts, ptl);
+      LoopAndFillData(options.m_data, data_band, vars, vars2D, data_studies, mycuts, ptl, calibrator);
       std::cout << "Data cut summary:\n" << mycuts << "\n";
 
       auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);

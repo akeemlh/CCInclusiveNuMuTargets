@@ -28,6 +28,9 @@ include_directories( "${PROJECT_SOURCE_DIR}" )
 list( APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 find_package(ROOT REQUIRED COMPONENTS RIO Net Tree Core Geom EG GenVector Minuit2 Minuit OPTIONAL_COMPONENTS Cintex)
 
+find_package(nlohmann_json REQUIRED)
+find_package(Eigen3 REQUIRED)
+
 if(${ROOT_VERSION} VERSION_LESS 6 AND NOT ${ROOT_Cintex_FOUND})
   MESSAGE(FATAL_ERROR "Cintex is optional except when it's not.  ROOT 6 has Reflex "
                       "support built in, so it doesn't have a separate component "
@@ -99,15 +102,15 @@ target_link_libraries(Extract2DCrossSectionTracker ${ROOT_LIBRARIES} util MAT Un
 install(TARGETS Extract2DCrossSectionTracker DESTINATION bin)
 
 add_executable(runXSecLooper runXSecLooper.cpp)
-target_link_libraries(runXSecLooper ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
+target_link_libraries(runXSecLooper ${ROOT_LIBRARIES} util MAT GENIEXSecExtract)
 install(TARGETS runXSecLooper DESTINATION bin)
 
 add_executable(runXSecLooperTracker runXSecLooperTracker.cpp)
-target_link_libraries(runXSecLooperTracker ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
+target_link_libraries(runXSecLooperTracker ${ROOT_LIBRARIES} util MAT GENIEXSecExtract)
 install(TARGETS runXSecLooperTracker DESTINATION bin)
 
 add_executable(runXSecLooperTargets_ByTarget runXSecLooperTargets_ByTarget.cpp)
-target_link_libraries(runXSecLooperTargets_ByTarget ${ROOT_LIBRARIES} MAT GENIEXSecExtract)
+target_link_libraries(runXSecLooperTargets_ByTarget ${ROOT_LIBRARIES} util MAT GENIEXSecExtract)
 install(TARGETS runXSecLooperTargets_ByTarget DESTINATION bin)
 
 install(FILES backgroundStack.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
@@ -118,3 +121,5 @@ install(FILES runTransWarp.sh PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE G
 
 configure_file(setup.sh.in setup_${PROJECT_NAME}.sh @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/setup_${PROJECT_NAME}.sh DESTINATION bin)
+
+install(DIRECTORY SMScalibrators DESTINATION etc)

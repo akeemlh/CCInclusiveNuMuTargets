@@ -272,10 +272,12 @@ int main(const int argc, const char **argv)
   }
   for (std::string &tgtname : targets)
   {
-    std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "BjorkenY", "Erecoil", "Emu" , "beamAngle", "segment"};
+    std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "Erecoil", "Emu", "segment"};
+    //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu", "BjorkenX", "BjorkenY", "Erecoil", "Emu" , "beamAngle", "segment", "ANNConfidence"};
     //std::vector<std::string> crossSectionPrefixes = {"pTmu"};
     //std::vector<std::string> crossSectionPrefixes = {"beamAngle"};
     //std::vector<std::string> crossSectionPrefixes = {"pTmu", "pZmu"};
+    //std::vector<std::string> crossSectionPrefixes = {"ANNConfidence"};
 
     for (const auto &prefix : crossSectionPrefixes)
     {
@@ -1172,7 +1174,6 @@ int main(const int argc, const char **argv)
 
           std::string tmp; 
           std::string y_title="Events#times10^{3}";
-          std::cout<<"Here2.n";
           double xmax = -1111; //Default value
           std::string xaxislabel = "";
           if (prefix=="pTmu")
@@ -1701,7 +1702,6 @@ int main(const int argc, const char **argv)
 
           std::string tmp; 
           std::string y_title="Events#times10^{3}";
-          std::cout<<"Here2.n";
           double xmax = -1111; //Default value
           std::string xaxislabel = "";
           if (prefix=="pTmu")
@@ -2005,7 +2005,7 @@ int main(const int argc, const char **argv)
           can.Print((tgtname+"CHRatio_"+prefix+".pdf").c_str());
           can.Print((tgtname+"CHRatio_"+prefix+".png").c_str());
         }
-        else std::cout<<"No tracker extracted cross sections found - Not plotting material/CH ratios\n";
+        else std::cout<<"Couldn't find or load file " << daisyFilepath <<" - No tracker extracted cross sections found - Not plotting material/CH ratios\n";
 
 
 

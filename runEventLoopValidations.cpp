@@ -1,4 +1,6 @@
 /* 
+Akeem Hart 2025
+
 To whoever stumbles across this in the future:
 
 This was intially intended to be a one-file-contains-all special event loop just to
@@ -6,9 +8,9 @@ produce validation plots or, more specifically, plots that aren't directly utili
 in extracting a cross section but are important to check or investigate something.
 This was initially derived from runEventLoop.cpp but has since significantly changed
 
-It has the same cuts and signal definition as the cross section event loops but this 
-allows me to keep those event loops, which I run more often, less bloated so they run
-faster, are easier to maintain/modify and have a lower memory footprint when running,
+It has the same (basic) cuts and signal definition as the cross section event loops but
+this allows me to keep those event loops, which I run more often, less bloated so they
+run faster, are easier to maintain/modify and have a lower memory footprint when running,
 so I can make lower grid memory requests and get higher priority.
 
 Currently main function of this macro is to produce z vertex plots initially intended
@@ -18,19 +20,16 @@ also includes an ERecoil segmentation into 4 quartiles and
 
 Consequently, because this event loop is where I just throw *everything* that isn't
 fed into the cross section pipeline, it's possible that it may in the future become
-bloated and require fragmentation. */
+bloated and require fragmentation. Note to future readers as of 9 March 2026 -  It 
+looks like that previous note has come to pass and this macro has become huge and
+bloated. Feel free to fragment it.
 
-/*-----------------------------------------------
-Akeem Hart 
-This script is used to generate plots of the true vertex posistions of interactions by whether they were reconstructed as being inside or outside the water target
-by different reconstruction approaches
 
 Build with:
-g++ -g runEventLoopTracker.cpp util/**.cpp -o runEventLoopTracker -I $CCQENU_ANA/ -I$CCQENU_INCLUDE_PATH -ggdb -Wall -fPIC -I$PLOTUTILSROOT/../include/ -I/exp/minerva/app/users/alhart/MAT_AL9/opt/include -I. `root-config --cflags --glibs --libs` -L$PLOTUTILSROOT -lMAT -lMAT-MINERvA -lUnfoldUtils -L.
+g++ -g runEventLoopValidations.cpp util/**.cpp -o runEventLoopValidations -I $CCQENU_ANA/ -I$CCQENU_INCLUDE_PATH -ggdb -Wall -fPIC -I$PLOTUTILSROOT/../include/ -I/exp/minerva/app/users/alhart/MAT_AL9/opt/include -I. `root-config --cflags --glibs --libs` -L$PLOTUTILSROOT -lMAT -lMAT-MINERvA -lUnfoldUtils -L.
 
-Or run with root -b -l TargetRegionValidation.cpp++g
-
-root -b -l "TargetRegionValidation.cpp++g('/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists/DataP6/Test1A-Data.txt', '/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists/MCP6/Test1A-MC.txt')"
+Or run with root -b -l runEventLoopValidations.cpp++g
+e.g root -b -l "runEventLoopValidations.cpp++g('/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists/DataP6/Test1A-Data.txt', '/exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/PlaylistFiles/me-playlists/MCP6/Test1A-MC.txt')"
 -----------------------------------------------*/
 
 #define USAGE \
@@ -135,6 +134,10 @@ enum ErrorCodes
 #include <cstdlib> //getenv()
 #include <fstream>
 
+#include "utilities/SMSCalibrator.h"
+
+#include <csignal>
+
 //These 2 variables are used when doing broken down runs to speed up running on the grid
 int nSubruns = 0;
 int nProcess = 0;
@@ -171,7 +174,26 @@ TH3D *ANNZ_vs_Conf_vs_Erecoil_MC = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_MC", "ANNZ
 TH3D *ANNWeightedZ_vs_Conf_vs_Erecoil_Data = new TH3D ("ANNWeightedZ_vs_Conf_vs_Erecoil_Data", "ANNWeightedZ_vs_Conf_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNWeightedZ_vs_Conf_vs_Erecoil_MC = new TH3D ("ANNWeightedZ_vs_Conf_vs_Erecoil_MC", "ANNWeightedZ_vs_Conf_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
+//With calibration
+TH3D *ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data = new TH3D ("ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", "ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC = new TH3D ("ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", "ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data = new TH3D ("ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", "ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC = new TH3D ("ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", "ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH1D *ANNWeightedZCalibratedMinusANNZ_Data = new TH1D ("ANNWeightedZCalibratedMinusANNZ_Data", "ANNWeightedZCalibratedMinusANNZ_Data", 101, -100, 100);
+TH1D *ANNWeightedZCalibratedMinusANNZ_MC = new TH1D ("ANNWeightedZCalibratedMinusANNZ_MC", "ANNWeightedZCalibratedMinusANNZ_MC", 101, -100, 100);
+TH1D *ANNZCalibratedMinusANNZ_Data = new TH1D ("ANNZCalibratedMinusANNZ_Data", "ANNZCalibratedMinusANNZ_Data", 101, -100, 100);
+TH1D *ANNZCalibratedMinusANNZ_MC = new TH1D ("ANNZCalibratedMinusANNZ_MC", "ANNZCalibratedMinusANNZ_MC", 101, -100, 100);
 
+TH1D *ANNZCalibrated_Data = new TH1D ("ANNZCalibrated_Data", "ANNZCalibrated_Data", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZCalibrated_MC = new TH1D ("ANNZCalibrated_MC", "ANNZCalibrated_MC", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZCalibratedWeighted_Data = new TH1D ("ANNZCalibratedWeighted_Data", "ANNZCalibratedWeighted_Data", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZCalibratedWeighted_MC = new TH1D ("ANNZCalibratedWeighted_MC", "ANNZCalibratedWeighted_MC", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZ_Data = new TH1D ("ANNZ_Data", "ANNZ_Data", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZ_MC = new TH1D ("ANNZ_MC", "ANNZ_MC", vertexBins.size()-1, &vertexBins[0]);
+
+
+
+TH3D *ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil = new TH3D ("ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", "ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil", "ANNZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
@@ -184,6 +206,7 @@ TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNZResidual_vs_Conf
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Water", "ANNZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
+TH3D *ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil = new TH3D ("ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", "ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil", "ANNWeightedZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
@@ -294,12 +317,118 @@ TH1D *ANNConfidenceIMD_MC = new TH1D ("ANNConfidenceIMD_MC", "ANNConfidenceIMD_M
 TH1D *ANNConfidenceNUEEL_MC = new TH1D ("ANNConfidenceNUEEL_MC", "ANNConfidenceNUEEL_MC", ConfBins2.size()-1, &ConfBins2[0]);
 TH1D *ANNConfidenceMEC_MC = new TH1D ("ANNConfidenceMEC_MC", "ANNConfidenceMEC_MC", ConfBins2.size()-1, &ConfBins2[0]);
 TH1D *ANNConfidenceUnknownInt_MC = new TH1D ("ANNConfidenceUnknownInt_MC", "ANNConfidenceUnknownInt_MC", ConfBins2.size()-1, &ConfBins2[0]);
-// Data
-TH1D *ANNConfidence_Data = new TH1D ("ANNConfidence_Data", "ANNConfidence_Data", ConfBins2.size()-1, &ConfBins2[0]);
-
 // by multiplicity
 TH2D *ANNConfidence_vs_NTracks_MC = new TH2D ("ANNConfidence_vs_NTracks_MC", "ANNConfidence_vs_NTracks_MC", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0]);
 TH2D *ANNConfidence_vs_NTracks_Data = new TH2D ("ANNConfidence_vs_NTracks_Data", "ANNConfidence_vs_NTracks_Data", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+
+TH1D *ANNConfidence_Data = new TH1D ("ANNConfidence_Data", "ANNConfidence_Data", 100, 0, 1);
+TH1D *ANNConfidence_MC = new TH1D ("ANNConfidence_MC", "ANNConfidence_MC", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Data = new TH1D ("ANNCalibratedConfidence_Data", "ANNCalibratedConfidence_Data", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_MC = new TH1D ("ANNCalibratedConfidence_MC", "ANNCalibratedConfidence_MC", 100, 0, 1);
+
+
+//Iron
+TH1D *ANNCalibratedConfidence_Iron_Selected = new TH1D ("ANNCalibratedConfidence_Iron_Selected", "ANNCalibratedConfidence_Iron_Selected", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Iron_SelectedSignal = new TH1D ("ANNCalibratedConfidence_Iron_SelectedSignal", "ANNCalibratedConfidence_Iron_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Iron_Signal = new TH1D ("ANNCalibratedConfidence_Iron_Signal", "ANNCalibratedConfidence_Iron_Signal", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence1_Iron_SelectedSignal = new TH1D ("ANNCalibratedConfidence1_Iron_SelectedSignal", "ANNCalibratedConfidence1_Iron_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Iron_Signal = new TH1D ("ANNCalibratedConfidence1_Iron_Signal", "ANNCalibratedConfidence1_Iron_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Iron_Selected = new TH1D ("ANNCalibratedConfidence1_Iron_Selected", "ANNCalibratedConfidence1_Iron_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence2_Iron_SelectedSignal = new TH1D ("ANNCalibratedConfidence2_Iron_SelectedSignal", "ANNCalibratedConfidence2_Iron_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Iron_Signal = new TH1D ("ANNCalibratedConfidence2_Iron_Signal", "ANNCalibratedConfidence2_Iron_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Iron_Selected = new TH1D ("ANNCalibratedConfidence2_Iron_Selected", "ANNCalibratedConfidence2_Iron_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence3_Iron_SelectedSignal = new TH1D ("ANNCalibratedConfidence3_Iron_SelectedSignal", "ANNCalibratedConfidence3_Iron_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Iron_Signal = new TH1D ("ANNCalibratedConfidence3_Iron_Signal", "ANNCalibratedConfidence3_Iron_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Iron_Selected = new TH1D ("ANNCalibratedConfidence3_Iron_Selected", "ANNCalibratedConfidence3_Iron_Selected", 100, 0, 1);
+//Lead
+TH1D *ANNCalibratedConfidence_Lead_Selected = new TH1D ("ANNCalibratedConfidence_Lead_Selected", "ANNCalibratedConfidence_Lead_Selected", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Lead_SelectedSignal = new TH1D ("ANNCalibratedConfidence_Lead_SelectedSignal", "ANNCalibratedConfidence_Lead_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Lead_Signal = new TH1D ("ANNCalibratedConfidence_Lead_Signal", "ANNCalibratedConfidence_Lead_Signal", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence1_Lead_SelectedSignal = new TH1D ("ANNCalibratedConfidence1_Lead_SelectedSignal", "ANNCalibratedConfidence1_Lead_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Lead_Signal = new TH1D ("ANNCalibratedConfidence1_Lead_Signal", "ANNCalibratedConfidence1_Lead_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Lead_Selected = new TH1D ("ANNCalibratedConfidence1_Lead_Selected", "ANNCalibratedConfidence1_Lead_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence2_Lead_SelectedSignal = new TH1D ("ANNCalibratedConfidence2_Lead_SelectedSignal", "ANNCalibratedConfidence2_Lead_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Lead_Signal = new TH1D ("ANNCalibratedConfidence2_Lead_Signal", "ANNCalibratedConfidence2_Lead_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Lead_Selected = new TH1D ("ANNCalibratedConfidence2_Lead_Selected", "ANNCalibratedConfidence2_Lead_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence3_Lead_SelectedSignal = new TH1D ("ANNCalibratedConfidence3_Lead_SelectedSignal", "ANNCalibratedConfidence3_Lead_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Lead_Signal = new TH1D ("ANNCalibratedConfidence3_Lead_Signal", "ANNCalibratedConfidence3_Lead_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Lead_Selected = new TH1D ("ANNCalibratedConfidence3_Lead_Selected", "ANNCalibratedConfidence3_Lead_Selected", 100, 0, 1);
+//Carbon
+TH1D *ANNCalibratedConfidence_Carbon_Selected = new TH1D ("ANNCalibratedConfidence_Carbon_Selected", "ANNCalibratedConfidence_Carbon_Selected", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Carbon_SelectedSignal = new TH1D ("ANNCalibratedConfidence_Carbon_SelectedSignal", "ANNCalibratedConfidence_Carbon_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Carbon_Signal = new TH1D ("ANNCalibratedConfidence_Carbon_Signal", "ANNCalibratedConfidence_Carbon_Signal", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence1_Carbon_SelectedSignal = new TH1D ("ANNCalibratedConfidence1_Carbon_SelectedSignal", "ANNCalibratedConfidence1_Carbon_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Carbon_Signal = new TH1D ("ANNCalibratedConfidence1_Carbon_Signal", "ANNCalibratedConfidence1_Carbon_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Carbon_Selected = new TH1D ("ANNCalibratedConfidence1_Carbon_Selected", "ANNCalibratedConfidence1_Carbon_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence2_Carbon_SelectedSignal = new TH1D ("ANNCalibratedConfidence2_Carbon_SelectedSignal", "ANNCalibratedConfidence2_Carbon_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Carbon_Signal = new TH1D ("ANNCalibratedConfidence2_Carbon_Signal", "ANNCalibratedConfidence2_Carbon_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Carbon_Selected = new TH1D ("ANNCalibratedConfidence2_Carbon_Selected", "ANNCalibratedConfidence2_Carbon_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence3_Carbon_SelectedSignal = new TH1D ("ANNCalibratedConfidence3_Carbon_SelectedSignal", "ANNCalibratedConfidence3_Carbon_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Carbon_Signal = new TH1D ("ANNCalibratedConfidence3_Carbon_Signal", "ANNCalibratedConfidence3_Carbon_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Carbon_Selected = new TH1D ("ANNCalibratedConfidence3_Carbon_Selected", "ANNCalibratedConfidence3_Carbon_Selected", 100, 0, 1);
+//Water
+TH1D *ANNCalibratedConfidence_Water_Selected = new TH1D ("ANNCalibratedConfidence_Water_Selected", "ANNCalibratedConfidence_Water_Selected", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidence_Water_SelectedSignal", "ANNCalibratedConfidence_Water_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Water_Signal = new TH1D ("ANNCalibratedConfidence_Water_Signal", "ANNCalibratedConfidence_Water_Signal", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence1_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidence1_Water_SelectedSignal", "ANNCalibratedConfidence1_Water_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Water_Signal = new TH1D ("ANNCalibratedConfidence1_Water_Signal", "ANNCalibratedConfidence1_Water_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence1_Water_Selected = new TH1D ("ANNCalibratedConfidence1_Water_Selected", "ANNCalibratedConfidence1_Water_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence2_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidence2_Water_SelectedSignal", "ANNCalibratedConfidence2_Water_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Water_Signal = new TH1D ("ANNCalibratedConfidence2_Water_Signal", "ANNCalibratedConfidence2_Water_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence2_Water_Selected = new TH1D ("ANNCalibratedConfidence2_Water_Selected", "ANNCalibratedConfidence2_Water_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence3_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidence3_Water_SelectedSignal", "ANNCalibratedConfidence3_Water_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Water_Signal = new TH1D ("ANNCalibratedConfidence3_Water_Signal", "ANNCalibratedConfidence3_Water_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidence3_Water_Selected = new TH1D ("ANNCalibratedConfidence3_Water_Selected", "ANNCalibratedConfidence3_Water_Selected", 100, 0, 1);
+
+
+//Iron
+
+TH1D *ANNCalibratedConfidenceRatio2_Iron_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio2_Iron_SelectedSignal", "ANNCalibratedConfidenceRatio2_Iron_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Iron_Signal = new TH1D ("ANNCalibratedConfidenceRatio2_Iron_Signal", "ANNCalibratedConfidenceRatio2_Iron_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Iron_Selected = new TH1D ("ANNCalibratedConfidenceRatio2_Iron_Selected", "ANNCalibratedConfidenceRatio2_Iron_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidenceRatio3_Iron_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio3_Iron_SelectedSignal", "ANNCalibratedConfidenceRatio3_Iron_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Iron_Signal = new TH1D ("ANNCalibratedConfidenceRatio3_Iron_Signal", "ANNCalibratedConfidenceRatio3_Iron_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Iron_Selected = new TH1D ("ANNCalibratedConfidenceRatio3_Iron_Selected", "ANNCalibratedConfidenceRatio3_Iron_Selected", 100, 0, 1);
+//Lead
+
+TH1D *ANNCalibratedConfidenceRatio2_Lead_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio2_Lead_SelectedSignal", "ANNCalibratedConfidenceRatio2_Lead_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Lead_Signal = new TH1D ("ANNCalibratedConfidenceRatio2_Lead_Signal", "ANNCalibratedConfidenceRatio2_Lead_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Lead_Selected = new TH1D ("ANNCalibratedConfidenceRatio2_Lead_Selected", "ANNCalibratedConfidenceRatio2_Lead_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidenceRatio3_Lead_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio3_Lead_SelectedSignal", "ANNCalibratedConfidenceRatio3_Lead_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Lead_Signal = new TH1D ("ANNCalibratedConfidenceRatio3_Lead_Signal", "ANNCalibratedConfidenceRatio3_Lead_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Lead_Selected = new TH1D ("ANNCalibratedConfidenceRatio3_Lead_Selected", "ANNCalibratedConfidenceRatio3_Lead_Selected", 100, 0, 1);
+//Carbon
+
+TH1D *ANNCalibratedConfidenceRatio2_Carbon_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio2_Carbon_SelectedSignal", "ANNCalibratedConfidenceRatio2_Carbon_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Carbon_Signal = new TH1D ("ANNCalibratedConfidenceRatio2_Carbon_Signal", "ANNCalibratedConfidenceRatio2_Carbon_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Carbon_Selected = new TH1D ("ANNCalibratedConfidenceRatio2_Carbon_Selected", "ANNCalibratedConfidenceRatio2_Carbon_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidenceRatio3_Carbon_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio3_Carbon_SelectedSignal", "ANNCalibratedConfidenceRatio3_Carbon_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Carbon_Signal = new TH1D ("ANNCalibratedConfidenceRatio3_Carbon_Signal", "ANNCalibratedConfidenceRatio3_Carbon_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Carbon_Selected = new TH1D ("ANNCalibratedConfidenceRatio3_Carbon_Selected", "ANNCalibratedConfidenceRatio3_Carbon_Selected", 100, 0, 1);
+//Water
+
+TH1D *ANNCalibratedConfidenceRatio2_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio2_Water_SelectedSignal", "ANNCalibratedConfidenceRatio2_Water_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Water_Signal = new TH1D ("ANNCalibratedConfidenceRatio2_Water_Signal", "ANNCalibratedConfidenceRatio2_Water_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio2_Water_Selected = new TH1D ("ANNCalibratedConfidenceRatio2_Water_Selected", "ANNCalibratedConfidenceRatio2_Water_Selected", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidenceRatio3_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio3_Water_SelectedSignal", "ANNCalibratedConfidenceRatio3_Water_SelectedSignal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Water_Signal = new TH1D ("ANNCalibratedConfidenceRatio3_Water_Signal", "ANNCalibratedConfidenceRatio3_Water_Signal", 100, 0, 1);
+TH1D *ANNCalibratedConfidenceRatio3_Water_Selected = new TH1D ("ANNCalibratedConfidenceRatio3_Water_Selected", "ANNCalibratedConfidenceRatio3_Water_Selected", 100, 0, 1);
 
 //==============================================================================
 // End - Declaring histograms
@@ -322,7 +451,7 @@ void PlotRegions(double ymin, double ymax, double mcpot_input, double datapot_in
 //Add option to draw by module
 //Add option to draw immediate US and DS scintillator
 {
-        //These were all taken from https://cdcvs.fnal.gov/redmine/projects/minerva/wiki/Z_Positions_of_Planes_in_the_Full_MINERvA_Detector
+    //These were all taken from https://cdcvs.fnal.gov/redmine/projects/minerva/wiki/Z_Positions_of_Planes_in_the_Full_MINERvA_Detector
     //For target 3 the centre was taken as the mid point between the US and DS planes, the stated centre gives weird looking results I suspect because it's a 3 material target the reported centre may not be actual centre
     double tgt1centre = 4481; 
     double tgt1thickness = 25.78; 
@@ -335,12 +464,29 @@ void PlotRegions(double ymin, double ymax, double mcpot_input, double datapot_in
     double tgt5centre = 5778; 
     double tgt5thickness = 13.17; 
 
+    double scintillatorthickness = 10;
+
     TBox *tgt1 = new TBox(tgt1centre-tgt1thickness/2, ymin, tgt1centre+tgt1thickness/2, ymax);
     TBox *tgt2 = new TBox(tgt2centre-tgt2thickness/2, ymin, tgt2centre+tgt2thickness/2, ymax);
     TBox *tgt3 = new TBox(tgt3centre-tgt3thickness/2, ymin, tgt3centre+tgt3thickness/2, ymax);
     TBox *tgt4 = new TBox(tgt4centre-tgt4thickness/2, ymin, tgt4centre+tgt4thickness/2, ymax);
     TBox *tgt5 = new TBox(tgt5centre-tgt5thickness/2, ymin, tgt5centre+tgt5thickness/2, ymax);
     TBox *tgt6 = new TBox(5200, ymin, 5420, ymax);
+
+    TBox *tgt1US = new TBox(4446.33-scintillatorthickness, ymin, 4446.33+scintillatorthickness, ymax);
+    TBox *tgt2US = new TBox(4667.4-scintillatorthickness, ymin, 4667.4+scintillatorthickness, ymax);
+    TBox *tgt3US = new TBox(4888.48-scintillatorthickness, ymin, 4888.48+scintillatorthickness, ymax);
+    TBox *tgt4US = new TBox(5610.02-scintillatorthickness, ymin, 5610.02+scintillatorthickness, ymax);
+    TBox *tgt5US = new TBox(5742.67-scintillatorthickness, ymin, 5742.67+scintillatorthickness, ymax);
+    TBox *tgt6US = new TBox(5153.77-scintillatorthickness, ymin, 5153.77+scintillatorthickness, ymax);
+
+
+    TBox *tgt1DS = new TBox(4514.11-scintillatorthickness, ymin, 4514.11+scintillatorthickness, ymax);
+    TBox *tgt2DS = new TBox(4735.19-scintillatorthickness, ymin, 4735.19+scintillatorthickness, ymax);
+    TBox *tgt3DS = new TBox(5000.48-scintillatorthickness, ymin, 5000.48+scintillatorthickness, ymax);
+    TBox *tgt4DS = new TBox(5677.81-scintillatorthickness, ymin, 5677.81+scintillatorthickness, ymax);
+    TBox *tgt5DS = new TBox(5810.45-scintillatorthickness, ymin, 5810.45+scintillatorthickness, ymax);
+    TBox *tgt6DS = new TBox(5456.74-scintillatorthickness, ymin, 5456.74+scintillatorthickness, ymax);
 
     std::stringstream mcpot, datapot;
     mcpot << std::fixed << std::scientific << std::setprecision(3) << mcpot_input;
@@ -372,7 +518,7 @@ void PlotRegions(double ymin, double ymax, double mcpot_input, double datapot_in
     TLatex resLabel = TLatex( xhigh , ymax*1.04,resStr.c_str());
     resLabel.SetTextAlign(32);
     resLabel.SetTextFont(43);
-    resLabel.SetTextSize(20); 
+    resLabel.SetTextSize(0.035); 
     resLabel.Draw("SAME");
     
     TLatex titlelabel = TLatex( 5000 , ymax*1.08, (std::string("True Vertex Positions of Interactions reconstructed inside the ")).c_str());
@@ -416,131 +562,193 @@ void PlotRegions(double ymin, double ymax, double mcpot_input, double datapot_in
     tgt6->SetLineWidth(0);
     tgt6->SetLineColor(1);
     tgt6->Draw("same");
+
+
+
+    tgt1US->SetFillColorAlpha(kRed,0.5);
+    //tgt1US->SetFillStyle(3004);
+    tgt1US->SetLineWidth(0);
+    tgt1US->SetLineColor(1);
+    tgt1US->Draw("same");
+    tgt2US->SetFillColorAlpha(kRed,0.5);
+    //tgt2US->SetFillStyle(3004);
+    tgt2US->SetLineWidth(0);
+    tgt2US->SetLineColor(1);
+    tgt2US->Draw("same");
+    tgt3US->SetFillColorAlpha(kRed,0.5);
+    //tgt3US->SetFillStyle(3004);
+    tgt3US->SetLineWidth(0);
+    tgt3US->SetLineColor(1);
+    tgt3US->Draw("same");
+    tgt4US->SetFillColorAlpha(kRed,0.5);
+    //tgt4US->SetFillStyle(3004);
+    tgt4US->SetLineWidth(0);
+    tgt4US->SetLineColor(1);
+    tgt4US->Draw("same");
+    tgt5US->SetFillColorAlpha(kRed,0.5);
+    //tgt5US->SetFillStyle(3004);
+    tgt5US->SetLineWidth(0);
+    tgt5US->SetLineColor(1);
+    tgt5US->Draw("same");
+    tgt6US->SetFillColorAlpha(kRed,0.5);
+    //tgt6US->SetFillStyle(3004);
+    tgt6US->SetLineWidth(0);
+    tgt6US->SetLineColor(1);
+    tgt6US->Draw("same");
+
+
+    tgt1DS->SetFillColorAlpha(kGreen,0.5);
+    //tgt1DS->SetFillStyle(3004);
+    tgt1DS->SetLineWidth(0);
+    tgt1DS->SetLineColor(1);
+    tgt1DS->Draw("same");
+    tgt2DS->SetFillColorAlpha(kGreen,0.5);
+    //tgt2DS->SetFillStyle(3004);
+    tgt2DS->SetLineWidth(0);
+    tgt2DS->SetLineColor(1);
+    tgt2DS->Draw("same");
+    tgt3DS->SetFillColorAlpha(kGreen,0.5);
+    //tgt3DS->SetFillStyle(3004);
+    tgt3DS->SetLineWidth(0);
+    tgt3DS->SetLineColor(1);
+    tgt3DS->Draw("same");
+    tgt4DS->SetFillColorAlpha(kGreen,0.5);
+    //tgt4DS->SetFillStyle(3004);
+    tgt4DS->SetLineWidth(0);
+    tgt4DS->SetLineColor(1);
+    tgt4DS->Draw("same");
+    tgt5DS->SetFillColorAlpha(kGreen,0.5);
+    //tgt5DS->SetFillStyle(3004);
+    tgt5DS->SetLineWidth(0);
+    tgt5DS->SetLineColor(1);
+    tgt5DS->Draw("same");
+    tgt6DS->SetFillColorAlpha(kGreen,0.5);
+    //tgt6DS->SetFillStyle(3004);
+    tgt6DS->SetLineWidth(0);
+    tgt6DS->SetLineColor(1);
+    tgt6DS->Draw("same");
+
+}
+
+void DrawDataMC(TH1D* DataIn, TH1D* MCIn, std::string name, double mcpot, double datapot, bool ZoomTargets = false)
+{
+  double xaxismin = 4280;
+  double xaxismax = ZoomTargets ? 6000 : 8400;
+  TCanvas *canvas = new TCanvas("canvas", "canvas", 1500, 1000);
+  TH1D *DataHist = (TH1D*)DataIn->Clone();
+  TH1D *MCHist = (TH1D*)MCIn->Clone();
+  DataHist->GetXaxis()->SetRangeUser(xaxismin, xaxismax);
+  MCHist->GetXaxis()->SetRangeUser(xaxismin, xaxismax);
+  MCHist->SetTitle("MC");
+  DataHist->SetTitle("Data");
+  name.erase(std::remove(name.begin(), name.end(), ' '), name.end()); //remove spaces
+  name.erase(std::remove(name.begin(), name.end(), '-'), name.end()); //remove dashes
+  PlotUtils::MnvPlotter plotter;
+  plotter.ApplyStyle(PlotUtils::kDefaultStyle);
+  //plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
+  plotter.DrawDataMC(DataHist, MCHist, datapot/mcpot, "TL", true);
+  double ymin = gPad->GetFrame()->GetY1();
+  double ymax = gPad->GetFrame()->GetY2();
+  PlotRegions(ymin, ymax, mcpot, datapot);
+  canvas->SaveAs((std::string("./")+name+std::string(".png")).c_str());
+  canvas->Clear();
+  //canvas->SetLogy(0);
+  plotter.DrawDataMCRatio(DataHist, MCHist, datapot/mcpot, true, 0.0, 2.0, "Data/MC Ratio");
+  ymin = gPad->GetFrame()->GetY1();
+  ymax = gPad->GetFrame()->GetY2();
+  PlotRegions(ymin, ymax, mcpot, datapot);
+  canvas->SaveAs((std::string("./")+name+std::string("Ratio.png")).c_str());
+
+  canvas->Clear();
+  canvas->SetLogy();
+  DataHist->SetMinimum(10);
+  MCHist->SetMinimum(10);
+  plotter.DrawDataMC(DataHist, MCHist, datapot/mcpot, "TL", true);
+  ymin = gPad->GetFrame()->GetY1();
+  ymax = gPad->GetFrame()->GetY2();
+  PlotRegions(std::pow(10,ymin), std::pow(10,ymax), mcpot, datapot);
+  TH1D* tmpMC = (TH1D*)canvas->GetPrimitive("tmpMC"); //The name of the MC histogram from DrawDataMC, which is drawn first
+  canvas->SaveAs((std::string("./")+name+std::string("Log.png")).c_str());
 }
 
 
-void DrawDataMC(TH1D* DataIn, TH1D* MCIn, std::string name, double mcpot, double datapot)
+
+void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty, TH1D* MCInEmpty, std::string name, double mcpotfull, double datapotfull, double mcpotempty, double datapotempty, bool ZoomTargets = false)
 {
         TCanvas *canvas = new TCanvas("canvas", "canvas", 1500, 1000);
-        TH1D *DataHist = (TH1D*)DataIn->Clone();
-        TH1D *MCHist = (TH1D*)MCIn->Clone();
-        MCHist->SetTitle("MC");
-        DataHist->SetTitle("Data");
-        
-        //std::cout<<"name: " <<name  <<std::endl;
-        name.erase(std::remove(name.begin(), name.end(), ' '), name.end()); //remove spaces
-        //std::cout<<"name after spaces: " <<name  <<std::endl;
-        name.erase(std::remove(name.begin(), name.end(), '-'), name.end()); //remove dashes
-        //std::cout<<"name after dashes: " <<name  <<std::endl;
-
-        PlotUtils::MnvPlotter plotter;
-        plotter.ApplyStyle(PlotUtils::kDefaultStyle);
-        //plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
-        plotter.DrawDataMC(DataHist, MCHist, 1.0, "TL", true);
-        double ymin = gPad->GetFrame()->GetY1();
-        double ymax = gPad->GetFrame()->GetY2();
-        PlotRegions(ymin, ymax, mcpot, datapot);
-        std::cout<<"Test0\n";
-        canvas->SaveAs((std::string("/pnfs/minerva/persistent/users/alhart/31JulTemp/")+name+std::string(".png")).c_str());
-        std::cout<<"Test1\n";
-        canvas->Clear();
-        std::cout<<"Test2\n";
-        //canvas->SetLogy(0);
-        plotter.DrawDataMCRatio(DataHist, MCHist, 1.0, true, -1.0, -1.0, "Data MC Ratio");
-        std::cout<<"Test3\n";
-        ymin = gPad->GetFrame()->GetY1();
-        std::cout<<"Test4\n";
-        ymax = gPad->GetFrame()->GetY2();
-        std::cout<<"Test5\n";
-        PlotRegions(ymin, ymax, mcpot, datapot);
-        std::cout<<"Test6\n";
-        canvas->SaveAs((std::string("/pnfs/minerva/persistent/users/alhart/31JulTemp/")+name+std::string("Ratio.png")).c_str());
-
-        canvas->Clear();
-        canvas->SetLogy();
-        DataHist->SetMinimum(10);
-        MCHist->SetMinimum(10);
-        std::cout<< "Literally just set min to 1\n";
-        plotter.DrawDataMC(DataHist, MCHist, 1.0, "TL", true);
-        ymin = gPad->GetFrame()->GetY1();
-        ymax = gPad->GetFrame()->GetY2();
-        PlotRegions(std::pow(10,ymin), std::pow(10,ymax), mcpot, datapot);
-        std::cout<<"LogY set: " << gPad->GetLogy() << std::endl;
-        TH1D* tmpMC = (TH1D*)canvas->GetPrimitive("tmpMC"); //The name of the MC histogram from DrawDataMC, which is drawn first
-        std::cout << "minimum: " << tmpMC->GetMinimum() << std::endl; //For log plot we start at 1 not 0
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/")+name+std::string("Log.png")).c_str());
-}
-
-
-
-void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty, TH1D* MCInEmpty, std::string name, double mcpotfull, double datapotfull, double mcpotempty, double datapotempty)
-{
-        TCanvas *canvas = new TCanvas("canvas", "canvas", 1500, 1000);
-
         //TH1D *DataHist = (TH1D*)DataIn->Clone();
         //TH1D *MCHist = (TH1D*)MCIn->Clone();
         MCInFull->SetTitle("MC");
         DataInFull->SetTitle("Data");
         MCInEmpty->SetTitle("MC");
         DataInEmpty->SetTitle("Data");
-        
+        double xaxismin = 4280;
+        double xaxismax = ZoomTargets ? 6000 : 8400;
+        DataInFull->GetXaxis()->SetRangeUser(xaxismin, xaxismax);
+        DataInEmpty->GetXaxis()->SetRangeUser(xaxismin, xaxismax);
+        MCInFull->GetXaxis()->SetRangeUser(xaxismin, xaxismax);
+        MCInEmpty->GetXaxis()->SetRangeUser(xaxismin, xaxismax);
+        DataInFull->SetXTitle("Z Position (mm)");
+        DataInEmpty->SetXTitle("Z Position (mm)");
+        MCInFull->SetXTitle("Z Position (mm)");
+        MCInEmpty->SetXTitle("Z Position (mm)");
         PlotUtils::MnvPlotter plotter;
         plotter.ApplyStyle(PlotUtils::kCCQENuStyle);
 
         //Draw filled linear plot
-        plotter.DrawDataMC(DataInFull, MCInFull, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInFull, MCInFull, datapotfull/mcpotfull, "TL", true);
         double ymin = gPad->GetFrame()->GetY1();
         double ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("Filled.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("Filled.png")).c_str());
         
         //Draw empty linear plot
         canvas->Clear();
-        plotter.DrawDataMC(DataInEmpty, MCInEmpty, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInEmpty, MCInEmpty, datapotempty/mcpotempty, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("Empty.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("Empty.png")).c_str());
 
 
         //Draw filled ratio plot
         canvas->Clear();
-        plotter.DrawDataMCRatio(DataInFull, MCInFull, 1.0, true, -1.0, -1.0, "Data MC Ratio");
+        plotter.DrawDataMCRatio(DataInFull, MCInFull, datapotfull/mcpotfull, true, 0, 2.0, "Data MC Ratio");
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("FilledRatio.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("FilledRatio.png")).c_str());
 
 
         //Draw empty ratio plot
         canvas->Clear();
-        plotter.DrawDataMCRatio(DataInEmpty, MCInEmpty, 1.0, true, -1.0, -1.0, "Data MC Ratio");
+        plotter.DrawDataMCRatio(DataInEmpty, MCInEmpty, datapotempty/mcpotempty, true, 0.0, 2.0, "Data MC Ratio");
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("FilledRatio.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("FilledRatio.png")).c_str());
 
         //Draw filled log plot
         canvas->Clear();
         canvas->SetLogy();
         DataInFull->SetMinimum(1);
         MCInFull->SetMinimum(1);
-        plotter.DrawDataMC(DataInFull, MCInFull, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInFull, MCInFull, datapotfull/mcpotfull, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(std::pow(10,ymin), std::pow(10,ymax), 0, 0);
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("FilledLog.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("FilledLog.png")).c_str());
 
         //Draw empty log plot
         canvas->Clear();
         canvas->SetLogy();
         DataInEmpty->SetMinimum(1);
         MCInEmpty->SetMinimum(1);
-        plotter.DrawDataMC(DataInEmpty, MCInEmpty, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInEmpty, MCInEmpty, datapotempty/mcpotempty, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(std::pow(10,ymin), std::pow(10,ymax), 0, 0);
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("EmptyLog.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("EmptyLog.png")).c_str());
 
 
         //Drawing split plots, with both filled and empty in the same plot
@@ -552,13 +760,13 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         auto tex3 = new TLatex(.5,.95,"Title2");
         tex3->SetTextAlign(22);
         tex3->SetTextSize(0.025);
-        std::string title = name + " Z vertex distributions - water filled (top) and empty (bottom) for 1.57<ERecoil<50";
+        std::string title =" Z vertex distributions - Calibrated (and weighted) (top) and uncalibrated (bottom)";
         tex3->DrawLatexNDC(.5,.95, title.c_str());
         //Draw linear plots
         p1->Draw();
         p1->cd();
         //Draw filled linear plot
-        plotter.DrawDataMC(DataInFull, MCInFull, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInFull, MCInFull, datapotfull/mcpotfull, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
@@ -566,12 +774,12 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         p2->Draw();
         p2->cd();
         //Draw empty linear plot
-        plotter.DrawDataMC(DataInEmpty, MCInEmpty, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInEmpty, MCInEmpty, datapotempty/mcpotempty, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
         canvas->cd();
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("Split.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("Split.png")).c_str());
 
 
         //Draw ratio plots
@@ -583,7 +791,7 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         //Draw filled ratio plot
         p1->Draw();
         p1->cd();
-        plotter.DrawDataMCRatio(DataInFull, MCInFull, 1.0, true, -1.0, -1.0, "Data MC Ratio");
+        plotter.DrawDataMCRatio(DataInFull, MCInFull, datapotfull/mcpotfull, true, 0.0, 2.0, "Data MC Ratio");
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
@@ -595,7 +803,7 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         canvas->cd();
         p2->Draw();
         p2->cd();
-        plotter.DrawDataMCRatio(DataInEmpty, MCInEmpty, 1.0, true, -1.0, -1.0, "Data MC Ratio");
+        plotter.DrawDataMCRatio(DataInEmpty, MCInEmpty, datapotempty/mcpotempty, true, 0.0, 2.0, "Data MC Ratio");
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         PlotRegions(ymin, ymax, 0, 0);
@@ -605,7 +813,7 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         tex2->Draw("SAME");
         canvas->cd();
 
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("RatioSplit.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("RatioSplit.png")).c_str());
 
 
 
@@ -622,7 +830,7 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         p1->SetLogy();
         DataInFull->SetMinimum(1);
         MCInFull->SetMinimum(1);
-        plotter.DrawDataMC(DataInFull, MCInFull, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInFull, MCInFull, datapotfull/mcpotfull, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         std::cout << "Filled ymin: " << ymin << " ymax: " << ymax << std::endl;
@@ -635,19 +843,51 @@ void DrawFullAndEmptyDataMC(TH1D* DataInFull, TH1D* MCInFull, TH1D* DataInEmpty,
         //canvas->SetLogy();
         DataInEmpty->SetMinimum(1);
         MCInEmpty->SetMinimum(1);
-        plotter.DrawDataMC(DataInEmpty, MCInEmpty, 1.0, "TL", true);
+        plotter.DrawDataMC(DataInEmpty, MCInEmpty, datapotempty/mcpotempty, "TL", true);
         ymin = gPad->GetFrame()->GetY1();
         ymax = gPad->GetFrame()->GetY2();
         std::cout << "Empty ymin: " << ymin << " ymax: " << ymax << std::endl;
         PlotRegions(std::pow(10,ymin), std::pow(10,ymax), 0, 0);
         canvas->cd();
-        canvas->SaveAs((std::string("/exp/minerva/app/users/alhart/MAT_AL9/AnalysisPlotScripts/TargetRegionValidationPlotsQ4/")+name+std::string("LogSplit.png")).c_str());
+        canvas->SaveAs((std::string("./")+name+std::string("LogSplit.png")).c_str());
 }
 
 //==============================================================================
 // End - Plotting Functions
 //==============================================================================
 
+  int getTgtCodeFromCalibrator(CVUniverse *universe, int ord, bool useExtendedTarget )
+  {
+    double vtx_x, vtx_y, vtx_z;
+    //First step, what target does the tuple say it's in
+    int ANNTgtCode = universe->GetCalibratedANNTargetCode(ord);
+    //std::cout<<"ANNTgtCode: " << ANNTgtCode << " LatexName: " << universe->LatexName()<< " sigma: " << universe->GetSigma() << std::endl;
+    if (ANNTgtCode > 0) return ANNTgtCode; //Maybe do a more explicit check for if it's a valid target code?
+
+    //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the regular tuple branch, instead we check if the ANN reconstruction put in the water segment (36)
+    //if (universe->GetANNSegment() == 36 ) return 6000;
+
+    ROOT::Math::XYZVector Vtx = universe->GetCalibratedANNVertex();
+    vtx_x = Vtx.X();
+    vtx_y = Vtx.Y();
+    vtx_z = Vtx.Z();
+    PlotUtils::TargetUtils tgtUtil;
+    if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. )) return 6000;
+    return -999;
+  }
+
+double GetANNProbFromCalibrator(CVUniverse *universe, int ord) {
+  SMSCalibrator::CalibratedProbs cal = universe->GetANNSegmentsCalibrated();
+  double excludedProb = 0;
+  for (int i = 0; i < ord; i++)
+  {
+    excludedProb += cal.probs[i];
+  }
+  
+  double prob = cal.probs[ord]/(1-excludedProb);
+  //std::cout<<"prob: " << prob << " sigma: " << T::m_nsigma << std::endl;
+  return prob;
+}
 
 
 //==============================================================================
@@ -657,17 +897,19 @@ void LoopAndFillMC(
     PlotUtils::ChainWrapper* chain,
     std::map<std::string, std::vector<CVUniverse*> > error_bands,
     PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
-    PlotUtils::Model<CVUniverse, MichelEvent>& model
+    PlotUtils::Model<CVUniverse, MichelEvent>& model,
+    SMSCalibrator& calibrator
     )
 {
+  //calibrator.cacheEvt = -1;
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
   assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
   auto& cvUniv = error_bands["cv"].front();
 
   std::cout << "Starting MC reco loop...\n";
 
-  const int nEntries = chain->GetEntries();
-  //const int nEntries = 10000;
+  //const int nEntries = chain->GetEntries();
+  const int nEntries = 10000;
   int  startNum = 0;
   int endNum = nEntries;
   if (nSubruns != 0 )
@@ -693,7 +935,7 @@ void LoopAndFillMC(
       double msperevent = mselapsed/i;
       int sleft = (nEntries-i)*msperevent/1000;
       double selapsed = ((int)mselapsed)/1000;
-      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"\r" <<std::flush;
+      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
     }
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -714,6 +956,9 @@ void LoopAndFillMC(
         MichelEvent myevent; // make sure your event is inside the error band loop. 
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
+        //std::cout<<"Here1\n";
+        universe->SetCalibrator(&calibrator);
+        //std::cout<<"Here2\n";
         bool hasMLPred=universe->hasMLPred();
         ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
         ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
@@ -726,32 +971,107 @@ void LoopAndFillMC(
 
         PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        double ANNProb = universe->GetANNProb();
+        double ANNProb = universe->GetANNProb(false);
         double erecoil = universe->GetRecoilE()/pow(10,3);
         double curvsig = 1/universe->GetMuonQPErr();
         double pmu = universe->GetPmu()/1000;
         int multiplicity = universe->GetMultiplicity();
+        double ANNTopProbCalibrated = universe->GetANNProb();
+        double ANNProb1Calibrated = universe->GetCalibratedANNProbAdjusted(0);
+        double ANNProb2Calibrated = universe->GetCalibratedANNProbAdjusted(1);
+        double ANNProb3Calibrated = universe->GetCalibratedANNProbAdjusted(2);
+
+        double ANNProbFromCalibratorRaw1 = universe->GetCalibratedANNProb(0);
+        double ANNProbFromCalibratorRaw2 = universe->GetCalibratedANNProb(1);
+        double ANNProbFromCalibratorRaw3 = universe->GetCalibratedANNProb(2);
+        const bool isSignal = michelcuts.isSignal(*universe, weight);
 
         // This is where you would Access/create a Michel
 
+        if (isSignal && hasMLPred)
+        {
+          int tgtCode = util::getTgtCode(universe, true, true ); //The second bool (true) turns on the extended target
+
+          if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
+          {
+            ANNCalibratedConfidence_Iron_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence1_Iron_Signal->Fill(ANNProb1Calibrated, weight);
+            ANNCalibratedConfidence2_Iron_Signal->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidence3_Iron_Signal->Fill(ANNProb3Calibrated, weight);
+
+            ANNCalibratedConfidenceRatio2_Iron_Signal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+            ANNCalibratedConfidenceRatio3_Iron_Signal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+
+          }
+          if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
+          {
+            ANNCalibratedConfidence_Lead_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence1_Lead_Signal->Fill(ANNProb1Calibrated, weight);
+            ANNCalibratedConfidence2_Lead_Signal->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidence3_Lead_Signal->Fill(ANNProb3Calibrated, weight);
+
+            ANNCalibratedConfidenceRatio2_Lead_Signal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+            ANNCalibratedConfidenceRatio3_Lead_Signal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+          }
+          if ((tgtCode == 3006))
+          {
+            ANNCalibratedConfidence_Carbon_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence1_Carbon_Signal->Fill(ANNProb1Calibrated, weight);
+            ANNCalibratedConfidence2_Carbon_Signal->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidence3_Carbon_Signal->Fill(ANNProb3Calibrated, weight);
+
+            ANNCalibratedConfidenceRatio2_Carbon_Signal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+            ANNCalibratedConfidenceRatio3_Carbon_Signal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+          }
+          if ((tgtCode == 6000))
+          {
+            ANNCalibratedConfidence_Water_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence1_Water_Signal->Fill(ANNProb1Calibrated, weight);
+            ANNCalibratedConfidence2_Water_Signal->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidence3_Water_Signal->Fill(ANNProb3Calibrated, weight);
+
+            ANNCalibratedConfidenceRatio2_Water_Signal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+            ANNCalibratedConfidenceRatio3_Water_Signal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+          }
+        }
+
         //weight is ignored in isMCSelected() for all but the CV Universe.
-        if (!michelcuts.isMCSelected(*universe, myevent, cvWeight).all()) continue;   //All cuts except ANN confidence cut
+        if (!michelcuts.isMCSelected(*universe, myevent, weight).all()) continue;   //All cuts except ANN confidence cut
 
         if(hasMLPred)
         {
-          ANNZ_vs_Conf_vs_Erecoil_MC->Fill( ANNVtx.Z(), ANNProb, erecoil, cvWeight);
-          ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Fill( WeightedANNZ, ANNProb, erecoil, cvWeight);
+          ANNZ_vs_Conf_vs_Erecoil_MC->Fill( ANNVtx.Z(), ANNProb, erecoil, weight);
+          ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Fill( WeightedANNZ, ANNProb, erecoil, weight);
 
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_MC->Fill( ANNProb, erecoil, cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_MC->Fill( ANNProb, erecoil, cvWeight);
+          //Calibrated
+          //std::cout<<"Here3\n";
+          double calibratedZ = universe->GetANNZPos();
+          double calibratedWeightedZ = universe->GetANNZPosWeightedCalibrator();
+          //std::cout<<"calibratedWeightedZ: " << calibratedWeightedZ <<std::endl;
+          //std::cout<<"Here3a\n";
+          ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Fill( calibratedZ, ANNTopProbCalibrated, erecoil, weight);
+          //std::cout<<"Here3b\n";
+          ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Fill( calibratedWeightedZ, ANNTopProbCalibrated, erecoil, weight);
+          //std::cout<<"Here4\n";
+          ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Fill( (calibratedZ - TrueVtx.Z()), ANNTopProbCalibrated, weight);
+          ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Fill( (calibratedWeightedZ - TrueVtx.Z()), ANNTopProbCalibrated, weight);
+          ANNWeightedZCalibratedMinusANNZ_MC->Fill( (universe->GetANNZPosWeightedCalibrator()-ANNVtx.Z()), weight);
+          ANNZCalibratedMinusANNZ_MC->Fill( (calibratedZ-ANNVtx.Z()), weight);
+          ANNZCalibrated_MC->Fill( calibratedZ, weight);
+          ANNZCalibratedWeighted_MC->Fill( (universe->GetANNZPosWeightedCalibrator()), weight);
+          ANNZ_MC->Fill( (ANNVtx.Z()), weight);
+
+
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_MC->Fill( ANNProb, erecoil, weight);
           
           //For events misreconstructed in each target, what's the probability distribution
           if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Iron->Fill( ANNProb);
@@ -765,52 +1085,141 @@ void LoopAndFillMC(
           if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInWater->Fill( ANNProb);
 
 
-          ANNZResidual_vs_Conf_vs_Erecoil->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNVtx.Z() - TrueVtx.Z()), ANNProb, cvWeight);
+          ANNZResidual_vs_Conf_vs_Erecoil->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Water->Fill( ANNZResidual, ANNProb, weight);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( ANNZResidual, ANNProb, weight);
 
-          ANNWeightedZResidual_vs_Conf_vs_Erecoil->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNWeightedZResidual), ANNProb, cvWeight);
+          ANNWeightedZResidual_vs_Conf_vs_Erecoil->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNWeightedZResidual), ANNProb, weight);
+          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNWeightedZResidual), ANNProb, weight);
 
-          if (ANNConfCut->passesCut(*universe, myevent, cvWeight)) //ANN confidence cut
+          if (ANNConfCut->passesCut(*universe, myevent, weight)) //ANN confidence cut
           {
-            ANNWeightedZ_minus_UnweightedZMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
-            if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerMC->Fill( ANNWeightedMinusUnweighted, cvWeight);
+            ANNWeightedZ_minus_UnweightedZMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterMC->Fill( ANNWeightedMinusUnweighted, weight);
+            if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerMC->Fill( ANNWeightedMinusUnweighted, weight);
+          }
+          ANNConfidence_MC->Fill(ANNProb, weight);
+          ANNCalibratedConfidence_MC->Fill(ANNTopProbCalibrated, weight);
+
+          int tgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
+
+          //Weighted Average
+          int ANNtgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
+          if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
+          {
+            ANNCalibratedConfidence_Iron_Selected->Fill(ANNTopProbCalibrated, weight);
+          }
+          if ((ANNtgtCode == 2082) || (ANNtgtCode == 3082) || (ANNtgtCode == 4082) || (ANNtgtCode == 5082))
+          {
+            ANNCalibratedConfidence_Lead_Selected->Fill(ANNTopProbCalibrated, weight);
+          }
+          if ((ANNtgtCode == 3006))
+          {
+            ANNCalibratedConfidence_Carbon_Selected->Fill(ANNTopProbCalibrated, weight);
+          }
+          if ((ANNtgtCode == 6000))
+          {
+            ANNCalibratedConfidence_Water_Selected->Fill(ANNTopProbCalibrated, weight);
+          }
+          
+          //Top plane
+          ANNtgtCode =   getTgtCodeFromCalibrator(universe, 0, true ); //The bool (true) turns on the extended target
+          //std::cout<<"Top plane target code: " << ANNtgtCode << std::endl;
+          if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
+          {
+            ANNCalibratedConfidence1_Iron_Selected->Fill(ANNProb1Calibrated, weight);
+          }
+          if ((ANNtgtCode == 2082) || (ANNtgtCode == 3082) || (ANNtgtCode == 4082) || (ANNtgtCode == 5082))
+          {
+            ANNCalibratedConfidence1_Lead_Selected->Fill(ANNProb1Calibrated, weight);
+          }
+          if ((ANNtgtCode == 3006))
+          {
+            ANNCalibratedConfidence1_Carbon_Selected->Fill(ANNProb1Calibrated, weight);
+          }
+          if ((ANNtgtCode == 6000))
+          {
+            ANNCalibratedConfidence1_Water_Selected->Fill(ANNProb1Calibrated, weight);
+          }
+          //2nd plane
+          ANNtgtCode =   getTgtCodeFromCalibrator(universe, 1, true ); //The bool (true) turns on the extended target
+          //std::cout<<"2nd plane target code: " << ANNtgtCode << std::endl;
+          if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
+          {
+            ANNCalibratedConfidence2_Iron_Selected->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidenceRatio2_Iron_Selected->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+          }
+          if ((ANNtgtCode == 2082) || (ANNtgtCode == 3082) || (ANNtgtCode == 4082) || (ANNtgtCode == 5082))
+          {
+            ANNCalibratedConfidence2_Lead_Selected->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidenceRatio2_Lead_Selected->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+          }
+          if ((ANNtgtCode == 3006))
+          {
+            ANNCalibratedConfidence2_Carbon_Selected->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidenceRatio2_Carbon_Selected->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+          }
+          if ((ANNtgtCode == 6000))
+          {
+            ANNCalibratedConfidence2_Water_Selected->Fill(ANNProb2Calibrated, weight);
+            ANNCalibratedConfidenceRatio2_Water_Selected->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+          }
+          //3rd plane
+          ANNtgtCode =   getTgtCodeFromCalibrator(universe, 2, true ); //The bool (true) turns on the extended target
+          //std::cout<<"3rd plane target code: " << ANNtgtCode << std::endl;
+          if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
+          {
+            ANNCalibratedConfidence3_Iron_Selected->Fill(ANNProb3Calibrated, weight);
+            ANNCalibratedConfidenceRatio3_Iron_Selected->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+          }
+          if ((ANNtgtCode == 2082) || (ANNtgtCode == 3082) || (ANNtgtCode == 4082) || (ANNtgtCode == 5082))
+          {
+            ANNCalibratedConfidence3_Lead_Selected->Fill(ANNProb3Calibrated, weight);
+            ANNCalibratedConfidenceRatio3_Lead_Selected->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+          }
+          if ((ANNtgtCode == 3006))
+          {
+            ANNCalibratedConfidence3_Carbon_Selected->Fill(ANNProb3Calibrated, weight);
+            ANNCalibratedConfidenceRatio3_Carbon_Selected->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+          }
+          if ((ANNtgtCode == 6000))
+          {
+            ANNCalibratedConfidence3_Water_Selected->Fill(ANNProb3Calibrated, weight);
+            ANNCalibratedConfidenceRatio3_Water_Selected->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
           }
         }
 
-        //if (!ANNConfCut->passesCut(*universe, myevent, cvWeight);) continue;   //ANN confidence cut
+        //if (!ANNConfCut->passesCut(*universe, myevent, weight);) continue;   //ANN confidence cut
 
         //Performing vtx validation check Deborah suggested
         //double batchPOT = cvUniv->GetBatchPOT();
         //double efficiency = 0.5563 - (0.01353*batchPOT); //Based on MINERvA-doc-21436
-        //cvWeight/=efficiency; //Not doing efficiency correction right now
+        //weight/=efficiency; //Not doing efficiency correction right now
         //Hadron Energy Spectrum plot
         //int multiplicity = cvUniv->GetMultiplicity();
 
@@ -823,61 +1232,159 @@ void LoopAndFillMC(
           std::string ArachneLink = "https://mnvevdgpvm02.fnal.gov/Arachne/?det=SIM_minerva&recoVer=v22r1p1&run="+std::to_string(universe->GetInt("mc_run"))+"&subrun="+std::to_string(universe->GetInt("mc_subrun"))+"&gate="+std::to_string(universe->GetInt("mc_nthEvtInFile")+1)+"&slice=-1";
           std::cout<<"Arachne Link: " << ArachneLink << std::endl;
         }
+        ANNVerticesConfusion_ByZPos->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
         int intType = universe->GetInteractionType();
         if (intType == 1)
         {
-          ConfusionMatrixQE->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceQE_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixQE->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceQE_MC->Fill(ANNProb, weight);
         }
         else if (intType == 2)
         {
-          ConfusionMatrixRES->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceRES_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixRES->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceRES_MC->Fill(ANNProb, weight);
         }
         else if (intType == 3)
         {
-          ConfusionMatrixDIS->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceDIS_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixDIS->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceDIS_MC->Fill(ANNProb, weight);
         }
         else if (intType == 4)
         {
-          ConfusionMatrixCOHPI->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceCOHPI_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixCOHPI->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceCOHPI_MC->Fill(ANNProb, weight);
         }
         else if (intType == 5)
         {
-          ConfusionMatrixAMNUGAMMA->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceAMNUGAMMA_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixAMNUGAMMA->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceAMNUGAMMA_MC->Fill(ANNProb, weight);
         }
         else if (intType == 6)
         {
-          ConfusionMatrixIMD->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceIMD_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixIMD->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceIMD_MC->Fill(ANNProb, weight);
         }
         else if (intType == 7)
         {
-          ConfusionMatrixNUEEL->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceNUEEL_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixNUEEL->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceNUEEL_MC->Fill(ANNProb, weight);
         }
         else if (intType == 8)
         {
-          ConfusionMatrixMEC->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceMEC_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixMEC->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceMEC_MC->Fill(ANNProb, weight);
         }
         else
         {
-          ConfusionMatrixUnknownInt->Fill(TrueVtx.Z(), ANNVtx.Z(), cvWeight);
-          ANNConfidenceUnknownInt_MC->Fill(ANNProb, cvWeight);
+          ConfusionMatrixUnknownInt->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
+          ANNConfidenceUnknownInt_MC->Fill(ANNProb, weight);
         }
-        ANNConfidence_vs_NTracks_MC->Fill(ANNProb, multiplicity, cvWeight);
-        ConfusionMatrixMultiplicity->Fill(TrueVtx.Z(), ANNVtx.Z(), multiplicity, cvWeight);
-        ConfusionMatrixErecoil->Fill(TrueVtx.Z(), ANNVtx.Z(), erecoil, cvWeight);
-        ConfusionMatrixConf->Fill(TrueVtx.Z(), ANNVtx.Z(), ANNProb, cvWeight);
-        ConfusionMatrix->Fill(TrueVtx.Z(), ANNVtx.Z(),cvWeight);
-        const bool isSignal = michelcuts.isSignal(*universe, weight);
+        ANNConfidence_vs_NTracks_MC->Fill(ANNProb, multiplicity, weight);
+
+        ConfusionMatrixMultiplicity->Fill(TrueVtx.Z(), ANNVtx.Z(), multiplicity, weight);
+        ConfusionMatrixErecoil->Fill(TrueVtx.Z(), ANNVtx.Z(), erecoil, weight);
+        ConfusionMatrixConf->Fill(TrueVtx.Z(), ANNVtx.Z(), ANNProb, weight);
+        ConfusionMatrix->Fill(TrueVtx.Z(), ANNVtx.Z(),weight);
         if (isSignal) // If it is signal
         {
-          ; // Put something here eventually?
+          if (hasMLPred)
+          {
+
+            int tgtCode = util::getTgtCode(universe, true, true ); //The second bool (true) turns on the extended target
+            //Weighted Average
+            int ANNtgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
+            if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
+            {
+              if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
+              {
+                ANNCalibratedConfidence_Iron_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+              if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
+              {
+                ANNCalibratedConfidence_Lead_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+              if ((tgtCode == 3006))
+              {
+                ANNCalibratedConfidence_Carbon_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+              if ((tgtCode == 6000))
+              {
+                ANNCalibratedConfidence_Water_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+            }
+            //Top plane
+            ANNtgtCode =   getTgtCodeFromCalibrator(universe, 0, true ); //The bool (true) turns on the extended target
+            if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
+            {
+              if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
+              {
+                ANNCalibratedConfidence1_Iron_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+              if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
+              {
+                ANNCalibratedConfidence1_Lead_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+              if ((tgtCode == 3006))
+              {
+                ANNCalibratedConfidence1_Carbon_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+              if ((tgtCode == 6000))
+              {
+                ANNCalibratedConfidence1_Water_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+              }
+            }
+            //2nd plane
+            ANNtgtCode =   getTgtCodeFromCalibrator(universe, 1, true ); //The bool (true) turns on the extended target
+            if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
+            {
+              if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
+              {
+                ANNCalibratedConfidence2_Iron_SelectedSignal->Fill(ANNProb2Calibrated, weight);
+                ANNCalibratedConfidenceRatio2_Iron_SelectedSignal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+              }
+              if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
+              {
+                ANNCalibratedConfidence2_Lead_SelectedSignal->Fill(ANNProb2Calibrated, weight);
+                ANNCalibratedConfidenceRatio2_Lead_SelectedSignal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+              }
+              if ((tgtCode == 3006))
+              {
+                ANNCalibratedConfidence2_Carbon_SelectedSignal->Fill(ANNProb2Calibrated, weight);
+                ANNCalibratedConfidenceRatio2_Carbon_SelectedSignal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+              }
+              if ((tgtCode == 6000))
+              {
+                ANNCalibratedConfidence2_Water_SelectedSignal->Fill(ANNProb2Calibrated, weight);
+                ANNCalibratedConfidenceRatio2_Water_SelectedSignal->Fill(ANNProbFromCalibratorRaw2/ANNProbFromCalibratorRaw1, weight);
+              }
+            }
+            //3rd plane
+            ANNtgtCode =   getTgtCodeFromCalibrator(universe, 2, true ); //The bool (true) turns on the extended target
+            if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
+            {
+              if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
+              {
+                ANNCalibratedConfidence3_Iron_SelectedSignal->Fill(ANNProb3Calibrated, weight);
+                ANNCalibratedConfidenceRatio3_Iron_SelectedSignal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+              }
+              if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
+              {
+                ANNCalibratedConfidence3_Lead_SelectedSignal->Fill(ANNProb3Calibrated, weight);
+                ANNCalibratedConfidenceRatio3_Lead_SelectedSignal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+              }
+              if ((tgtCode == 3006))
+              {
+                ANNCalibratedConfidence3_Carbon_SelectedSignal->Fill(ANNProb3Calibrated, weight);
+                ANNCalibratedConfidenceRatio3_Carbon_SelectedSignal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+              }
+              if ((tgtCode == 6000))
+              {
+                ANNCalibratedConfidence3_Water_SelectedSignal->Fill(ANNProb3Calibrated, weight);
+                ANNCalibratedConfidenceRatio3_Water_SelectedSignal->Fill(ANNProbFromCalibratorRaw3/ANNProbFromCalibratorRaw2, weight);
+              }
+            }
+
+          }
         }
       }
     }
@@ -885,8 +1392,10 @@ void LoopAndFillMC(
   std::cout << "Finished MC reco loop.\n"; 
 }
 
-void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> data_band, PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts)
+void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> data_band, PlotUtils::Cutter<CVUniverse, MichelEvent>& michelcuts,
+    SMSCalibrator& calibrator)
 {
+  //calibrator.cacheEvt = -1;
   std::cout << "Starting data loop...\n";
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
   const int nEntries = data->GetEntries();
@@ -895,6 +1404,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> da
   int endNum = nEntries;
   if (nSubruns != 0 )
   {
+    std::raise(SIGINT);
     int chunkSize = std::floor(nEntries/nSubruns);
     startNum = nProcess*chunkSize;
     if (nProcess == (nSubruns-1)) //The last one, run to the end
@@ -907,10 +1417,13 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> da
     }
   }
   // const int nEntries = 10000;
+  std::cout<<" endNum: "<< endNum << std::endl;
   for (int i = startNum; i < endNum; ++i)
   {
     for (auto universe : data_band) {
+      //std::cout<<"i: " << i << std::endl;
       universe->SetEntry(i);
+      universe->SetCalibrator(&calibrator);
       if(i%1000==0)
       { 
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
@@ -918,18 +1431,20 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> da
         double msperevent = mselapsed/i;
         int sleft = (nEntries-i)*msperevent/1000;
         double selapsed = ((int)mselapsed)/1000;
-        std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"\r" <<std::flush;
+        std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
       }
       MichelEvent myevent; 
 
       bool hasMLPred=universe->hasMLPred();
+      //std::raise(SIGINT);
       ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
+      //std::cout<<"ANNVtx.Z1() : " << ANNVtx.Z()<< std::endl;
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
 
       double WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
       double ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
 
-      double ANNProb = universe->GetANNProb();
+      double ANNProb = universe->GetANNProb(false);
       double erecoil = universe->GetRecoilE()/pow(10,3);
       double curvsig = 1/universe->GetMuonQPErr();
 
@@ -941,6 +1456,21 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> da
       {
         ANNZ_vs_Conf_vs_Erecoil_Data->Fill( ANNVtx.Z(), ANNProb, erecoil);
         ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Fill( WeightedANNZ, ANNProb, erecoil);
+
+        //Calibrated
+        double ANNTopProbCalibrated = universe->GetANNProb();
+        double calibratedZ = universe->GetANNZPos();
+        ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Fill( calibratedZ, ANNTopProbCalibrated, erecoil);
+        ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Fill( universe->GetANNZPosWeightedCalibrator(), ANNTopProbCalibrated, erecoil);
+        ANNWeightedZCalibratedMinusANNZ_Data->Fill( (universe->GetANNZPosWeightedCalibrator()-ANNVtx.Z()));
+        ANNZCalibratedMinusANNZ_Data->Fill( (calibratedZ-ANNVtx.Z()));
+
+        ANNZCalibrated_Data->Fill( calibratedZ);
+        ANNZCalibratedWeighted_Data->Fill( (universe->GetANNZPosWeightedCalibrator()));
+        ANNZ_Data->Fill( (ANNVtx.Z()));
+        //std::cout<<"ANNVtx.Z2() : " << ANNVtx.Z()<< std::endl;
+
+
 
         if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_Data->Fill( ANNProb, erecoil);
         if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_Data->Fill( ANNProb, erecoil);
@@ -967,8 +1497,10 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> da
           if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerData->Fill( ANNWeightedMinusUnweighted);
         }
         int multiplicity = universe->GetMultiplicity();
+        std::cout<<"i: " << i << " ANNProb: " << ANNProb << " ANNVtx.Z(): " << ANNVtx.Z() <<std::endl;
         ANNConfidence_vs_NTracks_Data->Fill(ANNProb, multiplicity);
         ANNConfidence_Data->Fill(ANNProb);
+        ANNCalibratedConfidence_Data->Fill(ANNTopProbCalibrated);
       }
       //if (!ANNConfCut->passesCut(*universe, myevent)) continue;   //ANN confidence cut
     }
@@ -1121,23 +1653,40 @@ int main(const int argc, char** argv)
   }
 
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
-  std::cout<<"Here\n";
+  //std::cout<<"Here\n";
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, "minervame1A", true); //minervame1A is just a placeholder, it gets overwritted immediately below
-  std::cout<<"Here1\n";
+  //std::cout<<"Here1\n";
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); //TODO: Put GetPlaylist into PlotUtils::MacroUtil
-  std::cout<<"Here2\n";
+  //std::cout<<"Here2\n";
 
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
   PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); //TODO: Infer this from the files somehow?
   int nuoranu = nuOrAntiNuMode(options.m_plist_string);
   int nupdg;
-  if (nuoranu==1) nupdg = 14;
-  else if (nuoranu==2) nupdg = -14;
+  if (nuoranu == 1)
+  {
+    nupdg = 14;
+  }
+  else if (nuoranu == 2)
+  {
+    nupdg = -14;
+  }
   PlotUtils::MinervaUniverse::SetAnalysisNuPDG(nupdg);
   //PlotUtils::MinervaUniverse::SetNFluxUniverses(100);
   PlotUtils::MinervaUniverse::SetZExpansionFaReweight(false);
 
+
+  int filledOrEmpty = util::filledOrEmptyMEPlaylist(options.m_plist_string); //filled = 1, empty = 2
+  SMSCalibrator calibrator = util::loadCalibrator((nupdg == 14), (filledOrEmpty==1));
+
+
+  std::vector<int> testSegments = {199, 200, 198};
+  std::vector<double> testProbs = {0.906584, 0.0906537, 0.00170366};
+  SMSCalibrator::CalibratedProbs cal = calibrator.Top3Calibrated(testSegments, testProbs, -1);
+  std::cout<<"Test Calibrated Probability " << cal.segments[0]<< ":" << cal.probs[0]<< " " << cal.segments[1]<< ":" << cal.probs[1]<< " " << cal.segments[2]<< ":" << cal.probs[2]<< "\n";
+
+  //return 0;
   PlotUtils::MinervaUniverse::RPAMaterials(true); 
 
   //Now that we've defined what a cross section is, decide which sample and model
@@ -1289,14 +1838,14 @@ int main(const int argc, char** argv)
   {
     std::cout << "Staring event loops\n";
     CVUniverse::SetTruth(false);
-    LoopAndFillMC(options.m_mc, error_bands, mycuts, model);
+    LoopAndFillMC(options.m_mc, error_bands, mycuts, model, calibrator);
     CVUniverse::SetTruth(true);
-    //LoopAndFillEffDenom(options.m_truth, truth_bands, mycuts, model);
+    //LoopAndFillEffDenom(options.m_truth, truth_bands, mycuts, model); //Stay commented out
     options.PrintMacroConfiguration(argv[0]);
     std::cout << "MC cut summary:\n" << mycuts << "\n";
     mycuts.resetStats();
     CVUniverse::SetTruth(false);
-    LoopAndFillData(options.m_data, data_band, mycuts);
+    LoopAndFillData(options.m_data, data_band, mycuts, calibrator);
     std::cout << "Data cut summary:\n" << mycuts << "\n";
 
     std::string outFileName = "VertexValidations.root";
@@ -1310,6 +1859,25 @@ int main(const int argc, char** argv)
     ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Write();
     ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Write();
 
+    ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Write();
+    ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Write();
+    ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Write();
+    ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Write();
+
+    ANNWeightedZCalibratedMinusANNZ_Data->Write();
+    ANNWeightedZCalibratedMinusANNZ_MC->Write();
+
+    ANNZCalibratedMinusANNZ_Data->Write();
+    ANNZCalibratedMinusANNZ_MC->Write();
+
+    ANNZCalibrated_Data->Write();
+    ANNZCalibrated_MC->Write();
+    ANNZCalibratedWeighted_Data->Write();
+    ANNZCalibratedWeighted_MC->Write();
+    ANNZ_Data->Write();
+    ANNZ_MC->Write();
+
+    ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Write();
     ANNZResidual_vs_Conf_vs_Erecoil->Write();
     ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
     ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
@@ -1322,6 +1890,7 @@ int main(const int argc, char** argv)
     ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
     ANNZResidual_vs_Conf_vs_Erecoil_Water->Write();
 
+    ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Write();
     ANNWeightedZResidual_vs_Conf_vs_Erecoil->Write();
     ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
     ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
@@ -1412,9 +1981,7 @@ int main(const int argc, char** argv)
   ConfusionMatrixConf->Write();
   ConfusionMatrix->Write();
 
-  //Confidence Breakdowns
-  // by interaction type
-  // MC
+  //Confidence
   ANNConfidenceQE_MC->Write();
   ANNConfidenceRES_MC->Write();
   ANNConfidenceDIS_MC->Write();
@@ -1424,8 +1991,105 @@ int main(const int argc, char** argv)
   ANNConfidenceNUEEL_MC->Write();
   ANNConfidenceMEC_MC->Write();
   ANNConfidenceUnknownInt_MC->Write();
-  // Data
+
   ANNConfidence_Data->Write();
+  ANNConfidence_MC->Write();
+  ANNCalibratedConfidence_Data->Write();
+
+  ANNCalibratedConfidence_MC->Write();
+  
+  ANNCalibratedConfidence_Iron_Selected->Write();
+  ANNCalibratedConfidence1_Iron_Selected->Write();
+  ANNCalibratedConfidence2_Iron_Selected->Write();
+  ANNCalibratedConfidence3_Iron_Selected->Write();
+  ANNCalibratedConfidence_Iron_SelectedSignal->Write();
+  ANNCalibratedConfidence1_Iron_SelectedSignal->Write();
+  ANNCalibratedConfidence2_Iron_SelectedSignal->Write();
+  ANNCalibratedConfidence3_Iron_SelectedSignal->Write();
+  ANNCalibratedConfidence_Iron_Signal->Write();
+  ANNCalibratedConfidence1_Iron_Signal->Write();
+  ANNCalibratedConfidence2_Iron_Signal->Write();
+  ANNCalibratedConfidence3_Iron_Signal->Write();
+
+  ANNCalibratedConfidence_Lead_Selected->Write();
+  ANNCalibratedConfidence1_Lead_Selected->Write();
+  ANNCalibratedConfidence2_Lead_Selected->Write();
+  ANNCalibratedConfidence3_Lead_Selected->Write();
+  ANNCalibratedConfidence_Lead_SelectedSignal->Write();
+  ANNCalibratedConfidence1_Lead_SelectedSignal->Write();
+  ANNCalibratedConfidence2_Lead_SelectedSignal->Write();
+  ANNCalibratedConfidence3_Lead_SelectedSignal->Write();
+  ANNCalibratedConfidence_Lead_Signal->Write();
+  ANNCalibratedConfidence1_Lead_Signal->Write();
+  ANNCalibratedConfidence2_Lead_Signal->Write();
+  ANNCalibratedConfidence3_Lead_Signal->Write();
+
+  ANNCalibratedConfidence_Carbon_Selected->Write();
+  ANNCalibratedConfidence1_Carbon_Selected->Write();
+  ANNCalibratedConfidence2_Carbon_Selected->Write();
+  ANNCalibratedConfidence3_Carbon_Selected->Write();
+  ANNCalibratedConfidence_Carbon_SelectedSignal->Write();
+  ANNCalibratedConfidence1_Carbon_SelectedSignal->Write();
+  ANNCalibratedConfidence2_Carbon_SelectedSignal->Write();
+  ANNCalibratedConfidence3_Carbon_SelectedSignal->Write();
+  ANNCalibratedConfidence_Carbon_Signal->Write();
+  ANNCalibratedConfidence1_Carbon_Signal->Write();
+  ANNCalibratedConfidence2_Carbon_Signal->Write();
+  ANNCalibratedConfidence3_Carbon_Signal->Write();
+
+  ANNCalibratedConfidence_Water_Selected->Write();
+  ANNCalibratedConfidence1_Water_Selected->Write();
+  ANNCalibratedConfidence2_Water_Selected->Write();
+  ANNCalibratedConfidence3_Water_Selected->Write();
+  ANNCalibratedConfidence_Water_SelectedSignal->Write();
+  ANNCalibratedConfidence1_Water_SelectedSignal->Write();
+  ANNCalibratedConfidence2_Water_SelectedSignal->Write();
+  ANNCalibratedConfidence3_Water_SelectedSignal->Write();
+  ANNCalibratedConfidence_Water_Signal->Write();
+  ANNCalibratedConfidence1_Water_Signal->Write();
+  ANNCalibratedConfidence2_Water_Signal->Write();
+  ANNCalibratedConfidence3_Water_Signal->Write();
+
+
+
+
+  //Iron
+
+  ANNCalibratedConfidenceRatio2_Iron_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio2_Iron_Signal->Write();
+  ANNCalibratedConfidenceRatio2_Iron_Selected->Write();
+
+  ANNCalibratedConfidenceRatio3_Iron_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio3_Iron_Signal->Write();
+  ANNCalibratedConfidenceRatio3_Iron_Selected->Write();
+  //Lead
+
+  ANNCalibratedConfidenceRatio2_Lead_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio2_Lead_Signal->Write();
+  ANNCalibratedConfidenceRatio2_Lead_Selected->Write();
+
+  ANNCalibratedConfidenceRatio3_Lead_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio3_Lead_Signal->Write();
+  ANNCalibratedConfidenceRatio3_Lead_Selected->Write();
+  //Carbon
+
+  ANNCalibratedConfidenceRatio2_Carbon_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio2_Carbon_Signal->Write();
+  ANNCalibratedConfidenceRatio2_Carbon_Selected->Write();
+
+  ANNCalibratedConfidenceRatio3_Carbon_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio3_Carbon_Signal->Write();
+  ANNCalibratedConfidenceRatio3_Carbon_Selected->Write();
+  //Water
+
+  ANNCalibratedConfidenceRatio2_Water_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio2_Water_Signal->Write();
+  ANNCalibratedConfidenceRatio2_Water_Selected->Write();
+
+  ANNCalibratedConfidenceRatio3_Water_SelectedSignal->Write();
+  ANNCalibratedConfidenceRatio3_Water_Signal->Write();
+  ANNCalibratedConfidenceRatio3_Water_Selected->Write();
+
 
   // by multiplicity
   ANNConfidence_vs_NTracks_MC->Write();
@@ -1444,7 +2108,378 @@ int main(const int argc, char** argv)
     DataPOT->Write();
     OutDir->Close();
 
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      ANNWeightedZCalibratedMinusANNZ_Data->SetTitle("Calibrated Z Positions (weighted average) - Uncalibrated most probable position");
+      ANNWeightedZCalibratedMinusANNZ_Data->SetYTitle("Percentage of events");
+      ANNWeightedZCalibratedMinusANNZ_Data->SetXTitle("Distance (mm)");
+      ANNWeightedZCalibratedMinusANNZ_Data->Scale(100/ANNWeightedZCalibratedMinusANNZ_Data->GetEntries());
+      ANNWeightedZCalibratedMinusANNZ_Data->SetLineWidth(3);
+      ANNWeightedZCalibratedMinusANNZ_Data->SetLineColor(kBlue);
+      ANNWeightedZCalibratedMinusANNZ_Data->SetStats(0);
+      ANNWeightedZCalibratedMinusANNZ_Data->Draw("HIST");
+      ANNWeightedZCalibratedMinusANNZ_MC->SetLineWidth(3);
+      ANNWeightedZCalibratedMinusANNZ_MC->Scale(100/ANNWeightedZCalibratedMinusANNZ_MC->GetEntries());
+      ANNWeightedZCalibratedMinusANNZ_MC->SetLineColor(kRed);
+      ANNWeightedZCalibratedMinusANNZ_MC->Draw("HIST SAME");
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(ANNWeightedZCalibratedMinusANNZ_Data,"Data","l");
+      legend->AddEntry(ANNWeightedZCalibratedMinusANNZ_MC,"MC","l");
+      legend->Draw();
+      canvas->SaveAs("WeightedZMinusANNZ.png");
+    }
+    {
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      ANNZCalibratedMinusANNZ_Data->SetTitle("Most probable z position Calibrated - Uncalibrated");
+      ANNZCalibratedMinusANNZ_Data->SetYTitle("Percentage of events");
+      ANNZCalibratedMinusANNZ_Data->SetXTitle("Distance (mm)");
+      ANNZCalibratedMinusANNZ_Data->Scale(100/ANNZCalibratedMinusANNZ_Data->GetEntries());
+      ANNZCalibratedMinusANNZ_Data->SetLineWidth(3);
+      ANNZCalibratedMinusANNZ_Data->SetLineColor(kBlue);
+      ANNZCalibratedMinusANNZ_Data->SetStats(0);
+      ANNZCalibratedMinusANNZ_Data->Draw("HIST");
+      ANNZCalibratedMinusANNZ_MC->SetLineWidth(3);
+      ANNZCalibratedMinusANNZ_MC->Scale(100/ANNZCalibratedMinusANNZ_MC->GetEntries());
+      ANNZCalibratedMinusANNZ_MC->SetLineColor(kRed);
+      ANNZCalibratedMinusANNZ_MC->Draw("HIST SAME");
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(ANNZCalibratedMinusANNZ_Data,"Data","l");
+      legend->AddEntry(ANNZCalibratedMinusANNZ_MC,"MC","l");
+      legend->Draw();
+      canvas->SaveAs("ZMinusANNZ.png");
+    }
 
+      //TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      DrawDataMC(ANNZCalibrated_Data, ANNZCalibrated_MC, "ANNCalibratedZPositions", potMC, potData);
+      DrawDataMC(ANNZCalibrated_Data, ANNZCalibrated_MC, "ANNCalibratedZPositionsZoomed", potMC, potData, true);
+      DrawDataMC(ANNZCalibratedWeighted_Data, ANNZCalibratedWeighted_MC, "ANNCalibratedWeightedZPositions", potMC, potData);
+      DrawDataMC(ANNZCalibratedWeighted_Data, ANNZCalibratedWeighted_MC, "ANNCalibratedWeightedZPositionsZoomed", potMC, potData, true);
+      DrawDataMC(ANNZ_Data, ANNZ_MC, "ANNUncalibratedZPositions", potMC, potData);
+      DrawDataMC(ANNZ_Data, ANNZ_MC, "ANNUncalibratedZPositionsZoomed", potMC, potData, true);
+
+      DrawFullAndEmptyDataMC(ANNZCalibratedWeighted_Data, ANNZCalibratedWeighted_MC,ANNZ_Data, ANNZ_MC, "ANNCalibratedAndUncalibratedSplit", potMC, potData, potMC, potData);
+      DrawFullAndEmptyDataMC(ANNZCalibratedWeighted_Data, ANNZCalibratedWeighted_MC,ANNZ_Data, ANNZ_MC, "ANNCalibratedAndUncalibratedSplitZoomed", potMC, potData, potMC, potData, true);
+
+      TH1D* selected = (TH1D*)ANNCalibratedConfidence_Iron_Selected->GetCumulative(false);
+      TH1D* selected1 = (TH1D*)ANNCalibratedConfidence1_Iron_Selected->GetCumulative(false);
+      TH1D* selected2 = (TH1D*)ANNCalibratedConfidence2_Iron_Selected->GetCumulative(false);
+      TH1D* selected3 = (TH1D*)ANNCalibratedConfidence3_Iron_Selected->GetCumulative(false);
+
+      TH1D* selectedRatio2 = (TH1D*)ANNCalibratedConfidenceRatio2_Iron_Selected->GetCumulative(false);
+      TH1D* selectedRatio3 = (TH1D*)ANNCalibratedConfidenceRatio3_Iron_Selected->GetCumulative(false);
+
+      TH1D* selectedSignal = (TH1D*)ANNCalibratedConfidence_Iron_SelectedSignal->GetCumulative(false);
+      TH1D* selectedSignal1 = (TH1D*)ANNCalibratedConfidence1_Iron_SelectedSignal->GetCumulative(false);
+      TH1D* selectedSignal2 = (TH1D*)ANNCalibratedConfidence2_Iron_SelectedSignal->GetCumulative(false);
+      TH1D* selectedSignal3 = (TH1D*)ANNCalibratedConfidence3_Iron_SelectedSignal->GetCumulative(false);
+
+      TH1D* selectedSignalRatio2 = (TH1D*)ANNCalibratedConfidenceRatio2_Iron_SelectedSignal->GetCumulative(false);
+      TH1D* selectedSignalRatio3 = (TH1D*)ANNCalibratedConfidenceRatio3_Iron_SelectedSignal->GetCumulative(false);
+
+      double signal = ANNCalibratedConfidence_Iron_Signal->GetSumOfWeights();
+      //TH1D* signal2 = (TH1D*)ANNCalibratedConfidence2_Iron_Signal->GetCumulative(false);
+      //TH1D* signal3 = (TH1D*)ANNCalibratedConfidence3_Iron_Signal->GetCumulative(false);
+
+      TH1D* purity = (TH1D*)selectedSignal->Clone("Purity");
+      TH1D* purity1 = (TH1D*)selectedSignal1->Clone("Purity");
+      TH1D* purity2 = (TH1D*)selectedSignal2->Clone("Purity");
+      TH1D* purity3 = (TH1D*)selectedSignal3->Clone("Purity");
+
+      TH1D* purityRatio2 = (TH1D*)selectedSignalRatio2->Clone("Purity");
+      TH1D* purityRatio3 = (TH1D*)selectedSignalRatio3->Clone("Purity");
+
+      TH1D* recall = (TH1D*)selectedSignal->Clone("Recall");
+      TH1D* recall1 = (TH1D*)selectedSignal1->Clone("Recall");
+      TH1D* recall2 = (TH1D*)selectedSignal2->Clone("Recall");
+      TH1D* recall3 = (TH1D*)selectedSignal3->Clone("Recall");
+
+      TH1D* recallRatio2 = (TH1D*)selectedSignalRatio2->Clone("Recall");
+      TH1D* recallRatio3 = (TH1D*)selectedSignalRatio3->Clone("Recall");
+
+      TH1D* F1Score = (TH1D*)selectedSignal->Clone("F1 Score");
+      TH1D* F1Score1 = (TH1D*)selectedSignal1->Clone("F1 Score");
+      TH1D* F1Score2 = (TH1D*)selectedSignal2->Clone("F1 Score");
+      TH1D* F1Score3 = (TH1D*)selectedSignal3->Clone("F1 Score");
+
+      TH1D* F1ScoreRatio2 = (TH1D*)selectedSignalRatio2->Clone("F1 Score");
+      TH1D* F1ScoreRatio3 = (TH1D*)selectedSignalRatio3->Clone("F1 Score");
+
+      purity->Divide(selected);
+      purity1->Divide(selected1);
+      purity2->Divide(selected2);
+      purity3->Divide(selected3);
+
+      purityRatio2->Divide(selectedRatio2);
+      purityRatio3->Divide(selectedRatio3);
+
+      recall->Scale(1/signal);
+      recall1->Scale(1/signal);
+      recall2->Scale(1/signal);
+      recall3->Scale(1/signal);
+
+      recallRatio2->Scale(1/signal);
+      recallRatio3->Scale(1/signal);
+
+      TH1D* PrecisionRecallSum = (TH1D*)recall->Clone("Precision + Recall");
+      TH1D* PrecisionRecallSum1 = (TH1D*)recall1->Clone("Precision + Recall");
+      TH1D* PrecisionRecallSum2 = (TH1D*)recall2->Clone("Precision + Recall");
+      TH1D* PrecisionRecallSum3 = (TH1D*)recall3->Clone("Precision + Recall");
+
+      TH1D* PrecisionRecallSumRatio2 = (TH1D*)recall2->Clone("Precision + Recall");
+      TH1D* PrecisionRecallSumRatio3 = (TH1D*)recall3->Clone("Precision + Recall");
+
+      PrecisionRecallSum->Add(purity);
+      PrecisionRecallSum1->Add(purity1);
+      PrecisionRecallSum2->Add(purity2);
+      PrecisionRecallSum3->Add(purity3);
+
+      PrecisionRecallSumRatio2->Add(purityRatio2);
+      PrecisionRecallSumRatio3->Add(purityRatio3);
+
+      F1Score->Multiply(purity, recall, 2);
+      F1Score1->Multiply(purity1, recall1, 2);
+      F1Score2->Multiply(purity2, recall2, 2);
+      F1Score3->Multiply(purity3, recall3, 2);
+
+      F1ScoreRatio2->Multiply(purityRatio2, recallRatio2, 2);
+      F1ScoreRatio3->Multiply(purityRatio3, recallRatio3, 2);
+
+      F1Score->Divide(PrecisionRecallSum);
+      F1Score1->Divide(PrecisionRecallSum1);
+      F1Score2->Divide(PrecisionRecallSum2);
+      F1Score3->Divide(PrecisionRecallSum3);
+
+      F1ScoreRatio2->Divide(PrecisionRecallSumRatio2);
+      F1ScoreRatio3->Divide(PrecisionRecallSumRatio3);
+
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      selectedSignal1->SetTitle("Selected Signal");
+      selectedSignal1->SetYTitle("Number of events");
+      selectedSignal1->SetXTitle("Calibrated ANN Confidence");
+      selectedSignal1->SetLineWidth(3);
+      selectedSignal1->SetLineColor(kBlue);
+      selectedSignal1->SetStats(0);
+      selectedSignal1->Draw("HIST");
+
+      selectedSignal2->SetLineWidth(3);
+      selectedSignal2->SetLineColor(kRed);
+      selectedSignal2->Draw("HIST SAME");
+
+      selectedSignal3->SetLineWidth(3);
+      selectedSignal3->SetLineColor(kGreen);
+      selectedSignal3->Draw("HIST SAME");
+
+      /* selectedSignalRatio2->SetLineWidth(3);
+      selectedSignalRatio2->SetLineColor(kOrange);
+      selectedSignalRatio2->Draw("HIST SAME");
+
+      selectedSignalRatio3->SetLineWidth(3);
+      selectedSignalRatio3->SetLineColor(kPink);
+      selectedSignalRatio3->Draw("HIST SAME"); */
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(selectedSignal1,"Top Plane","l");
+      legend->AddEntry(selectedSignal2,"2nd Plane","l");
+      legend->AddEntry(selectedSignal3,"3rd Plane","l");
+      //legend->AddEntry(selectedSignalRatio2,"2nd Plane/1st Plane Ratio","l");
+      //legend->AddEntry(selectedSignalRatio3,"3rd Plane/2nd Plane Ratio","l");
+      legend->Draw();
+      canvas->SaveAs("SelectedSignal.png");
+    }
+
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      selected1->SetTitle("Selected");
+      selected1->SetYTitle("Number of events");
+      selected1->SetXTitle("Calibrated ANN Confidence");
+      selected1->SetLineWidth(3);
+      selected1->SetLineColor(kBlue);
+      selected1->SetStats(0);
+      selected1->Draw("HIST");
+
+      selected2->SetLineWidth(3);
+      selected2->SetLineColor(kRed);
+      selected2->Draw("HIST SAME");
+
+      selected3->SetLineWidth(3);
+      selected3->SetLineColor(kGreen);
+      selected3->Draw("HIST SAME");
+
+      /* selectedRatio2->SetLineWidth(3);
+      selectedRatio2->SetLineColor(kOrange);
+      selectedRatio2->Draw("HIST SAME");
+
+      selectedRatio3->SetLineWidth(3);
+      selectedRatio3->SetLineColor(kPink);
+      selectedRatio3->Draw("HIST SAME"); */
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(selected1,"Top Plane","l");
+      legend->AddEntry(selected2,"2nd Plane","l");
+      legend->AddEntry(selected3,"3rd Plane","l");
+      //legend->AddEntry(selectedRatio2,"2nd Plane/1st Plane Ratio","l");
+      //legend->AddEntry(selectedRatio3,"3rd Plane/2nd Plane Ratio","l");
+      legend->Draw();
+      canvas->SaveAs("Selected.png");
+    }
+    /* std::cout<<"Total number of signal events: " << signal << ":" << signal2 << ":" << signal3 << std::endl;
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      signal->SetTitle("Signal");
+      signal->SetYTitle("Number of events");
+      signal->SetXTitle("Calibrated ANN Confidence");
+      signal->SetLineWidth(3);
+      signal->SetLineColor(kBlue);
+      signal->SetStats(0);
+      signal->Draw("HIST");
+
+      signal2->SetLineWidth(3);
+      signal2->SetLineColor(kRed);
+      signal2->Draw("HIST SAME");
+
+      signal3->SetLineWidth(3);
+      signal3->SetLineColor(kGreen);
+      signal3->Draw("HIST SAME");
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(signal,"Top Plane","l");
+      legend->AddEntry(signal2,"2nd Plane","l");
+      legend->AddEntry(signal3,"3rd Plane","l");
+      legend->Draw();
+      canvas->SaveAs("Signal.png");
+    } */
+
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      purity1->SetTitle("Purity");
+      purity1->SetYTitle("Number of events");
+      purity1->SetXTitle("Calibrated ANN Confidence");
+      purity1->SetLineWidth(3);
+      purity1->SetLineColor(kBlue);
+      purity1->SetStats(0);
+      purity1->Draw("HIST");
+
+      purity2->SetLineWidth(3);
+      purity2->SetLineColor(kRed);
+      purity2->Draw("HIST SAME");
+
+      purity3->SetLineWidth(3);
+      purity3->SetLineColor(kGreen);
+      purity3->Draw("HIST SAME");
+
+      /* purityRatio2->SetLineWidth(3);
+      purityRatio2->SetLineColor(kOrange);
+      purityRatio2->Draw("HIST SAME");
+
+      purityRatio3->SetLineWidth(3);
+      purityRatio3->SetLineColor(kPink);
+      purityRatio3->Draw("HIST SAME"); */
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(purity1,"Top Plane","l");
+      legend->AddEntry(purity2,"2nd Plane","l");
+      legend->AddEntry(purity3,"3rd Plane","l");
+      //legend->AddEntry(purityRatio2,"2nd Plane/1st Plane Ratio","l");
+      //legend->AddEntry(purityRatio3,"3rd Plane/2nd Plane Ratio","l");
+      legend->Draw();
+      canvas->SaveAs("Purity.png");
+    }
+
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      recall1->SetTitle("Recall");
+      recall1->SetYTitle("Number of events");
+      recall1->SetXTitle("Calibrated ANN Confidence");
+      recall1->SetLineWidth(3);
+      recall1->SetLineColor(kBlue);
+      recall1->SetStats(0);
+      recall1->Draw("HIST");
+
+      recall2->SetLineWidth(3);
+      recall2->SetLineColor(kRed);
+      recall2->Draw("HIST SAME");
+
+      recall3->SetLineWidth(3);
+      recall3->SetLineColor(kGreen);
+      recall3->Draw("HIST SAME");
+
+      /* recallRatio2->SetLineWidth(3);
+      recallRatio2->SetLineColor(kOrange);
+      recallRatio2->Draw("HIST SAME");
+
+      recallRatio3->SetLineWidth(3);
+      recallRatio3->SetLineColor(kPink);
+      recallRatio3->Draw("HIST SAME"); */
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(recall1,"Top Plane","l");
+      legend->AddEntry(recall2,"2nd Plane","l");
+      legend->AddEntry(recall3,"3rd Plane","l");
+      //legend->AddEntry(recallRatio2,"2nd Plane/1st Plane Ratio","l");
+      //legend->AddEntry(recallRatio3,"3rd Plane/2nd Plane Ratio","l");
+      legend->Draw();
+      canvas->SaveAs("Recall.png");
+    }
+
+    {
+      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      F1Score1->SetTitle("F1Score");
+      F1Score1->SetYTitle("Number of events");
+      F1Score1->SetXTitle("Calibrated ANN Confidence");
+      F1Score1->SetLineWidth(3);
+      F1Score1->SetLineColor(kBlue);
+      F1Score1->SetStats(0);
+      F1Score1->Draw("HIST");
+
+      F1Score2->SetLineWidth(3);
+      F1Score2->SetLineColor(kRed);
+      F1Score2->Draw("HIST SAME");
+
+      F1Score3->SetLineWidth(3);
+      F1Score3->SetLineColor(kGreen);
+      F1Score3->Draw("HIST SAME");
+
+      /* F1ScoreRatio2->SetLineWidth(3);
+      F1ScoreRatio2->SetLineColor(kOrange);
+      F1ScoreRatio2->Draw("HIST SAME");
+
+      F1ScoreRatio3->SetLineWidth(3);
+      F1ScoreRatio3->SetLineColor(kPink);
+      F1ScoreRatio3->Draw("HIST SAME"); */
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(F1Score1,"Top Plane","l");
+      legend->AddEntry(F1Score2,"2nd Plane","l");
+      legend->AddEntry(F1Score3,"3rd Plane","l");
+      //legend->AddEntry(F1ScoreRatio2,"2nd Plane/1st Plane Ratio","l");
+      //legend->AddEntry(F1ScoreRatio3,"3rd Plane/2nd Plane Ratio","l");
+      legend->Draw();
+      canvas->SaveAs("F1Score.png");
+    }
+
+    /* ANNZCalibrated_Data
+    ANNZCalibrated_MC
+    ANNZCalibratedWeighted_Data
+    ANNZCalibratedWeighted_MC
+    ANNZ_Data
+    ANNZ_MC
+    */
     //==============================================================================
     // Drawing Plots
     //==============================================================================

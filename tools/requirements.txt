@@ -1,10 +1,27 @@
+wheel
+torch
+pytorch-minimize
+jaxlib<=0.4.20
+jax<=0.4.20
 probmetrics
 dirichletcal
-jax
+
 numpy
 matplotlib
-scikit-learn
+#scikit-learn
 pandas
 autograd
+tqdm
 
-root
+#root
+uproot
+fsspec-xrootd
+#fsspec
+#xrootd
+awkward-pandas
+memory_profiler
+#For vscode debugging
+#debugpy
+#importlib-metadata
+more-itertools
+joblib

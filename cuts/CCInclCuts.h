@@ -24,6 +24,19 @@ namespace reco
   };
 
   template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class HasMLPredCut: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      HasMLPredCut(): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Has ML Prediction")){}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        return univ.hasMLPred(); 
+      }
+  };
+
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
   using MuonEnergyMax = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetEmu, EVENT>;
 
   template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>

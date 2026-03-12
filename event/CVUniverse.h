@@ -20,12 +20,15 @@
 #include "utilities/PhysicsVariables.h"
 #include "Math/Vector3D.h"
 #include "PlotUtils/CaloCorrection.h"
+#include "utilities/SMSCalibrator.h"
+#include <cmath>
 
 class CVUniverse : public PlotUtils::MinervaUniverse {
 
   public:
   #include "PlotUtils/MuonFunctions.h" // GetMinosEfficiencyWeight
   #include "PlotUtils/TruthFunctions.h" //Getq3True
+  
   // ========================================================================
   // Constructor/Destructor
   // ========================================================================
@@ -45,6 +48,15 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
 
   static constexpr int PDG_n = 2112;
   static constexpr int PDG_p = 2212;
+
+  SMSCalibrator *calibrator =nullptr;
+  bool calibratorSet = false;
+
+  void SetCalibrator(SMSCalibrator* cal)
+  {
+    calibrator = cal;
+    calibratorSet = true;
+  }
 
   // ========================================================================
   // Write a "Get" function for all quantities access by your analysis.
@@ -101,7 +113,7 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return GetANNMuonPz()/1000;
   }
 
-  double GetANNEmu() const //MeV
+  virtual double GetANNEmu() const //MeV
   {
     return GetVecElem("muon_corrected_p", 3);
   }
@@ -240,6 +252,14 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return retval;
   }
 
+  //Akeem - Note to self, check this over? Is this what we want and is it overridden in systematic universes?
+  virtual double GetCalRecoilEnergy() const {
+    //return GetDouble("part_response_total_recoil_passive_allNonMuonClusters_id")+ GetDouble("part_response_total_recoil_passive_allNonMuonClusters_od"); // in MeV
+    return GetDouble((GetAnaToolName() + "_ANN_recoil_E").c_str());  // [MeV]
+    // usual inclusive recoil energy should just be calorimetric energy
+    // instead of Gonzalo's return GetDouble("Recoil_Ecalo") / 1000.0;  // [GeV]
+  }
+
   virtual double GetANNRecoilE() const {
     return GetDouble("MasterAnaDev_ANN_recoil_E");
   }
@@ -259,7 +279,20 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
 
 
 
+ROOT::Math::XYZVector adjustDNNVertex( double zPos ) const
+{
+    if (zPos <= 0) return ROOT::Math::XYZVector( -999, -999, -999 );
+    std::vector<double> annVtx = GetVecDouble("ANN_vtx");
+    double mu_px = GetDouble("MasterAnaDev_muon_Px");
+    double mu_py = GetDouble("MasterAnaDev_muon_Py");
+    double mu_pz = GetDouble("MasterAnaDev_muon_Pz");
+    double mu_time = GetDouble("muon_trackVertexTime");
 
+    double projx = annVtx[0] + ( mu_px / mu_pz ) * ( zPos - annVtx[2] );
+    double projy = annVtx[1] + ( mu_py / mu_pz ) * ( zPos - annVtx[2] );
+    ROOT::Math::XYZVector outVtx = ROOT::Math::XYZVector( projx, projy, zPos );
+    return outVtx;
+}
 
 
 
@@ -482,12 +515,1393 @@ double getZPosFromSegment(int segment) const
     if (segment == 212) return 9892.73;
     if (segment == 213) return 9940.07;
     if (segment == 214) return 9987.4;
+    else
+    {
+        //std::cout<<"Invalid segment passed to getZPosFromSegment: " << segment << std::endl;
+        return -999;
+    }
+}
+
+
+
+int getNearestSegmentToZPos(double zpos) const  //A very rough way of getting the segment number from a given z vertex
+{
+    //The centre of the scintillator planes, from (https://cdcvs.fnal.gov/redmine/projects/minerva/wiki/Z_Positions_of_Planes_in_the_Full_MINERvA_Detector)
+    std::vector<double> plane_centres = {4293.04,
+    4313.68,
+    4337.25,
+    4357.9,
+    4381.47,
+    4402.11,
+    4425.68,
+    4446.33,
+    4514.11,
+    4534.76,
+    4558.33,
+    4578.97,
+    4602.54,
+    4623.19,
+    4646.76,
+    4667.4,
+    4735.19,
+    4755.83,
+    4779.4,
+    4800.05,
+    4823.62,
+    4844.26,
+    4867.83,
+    4888.48,
+    5000.48,
+    5021.12,
+    5044.69,
+    5065.34,
+    5088.91,
+    5109.55,
+    5133.12,
+    5153.77,
+    5456.74,
+    5477.38,
+    5500.95,
+    5521.6,
+    5545.17,
+    5565.81,
+    5589.38,
+    5610.02,
+    5677.81,
+    5698.45,
+    5722.03,
+    5742.67,
+    5810.45,
+    5831.1,
+    5855.68,
+    5876.33,
+    5900.91,
+    5921.56,
+    5946.14,
+    5966.79,
+    5991.37,
+    6012.01,
+    6036.6,
+    6057.24,
+    6081.83,
+    6102.47,
+    6127.06,
+    6147.7,
+    6172.29,
+    6192.93,
+    6217.52,
+    6238.16,
+    6262.74,
+    6283.39,
+    6307.97,
+    6328.62,
+    6353.2,
+    6373.85,
+    6398.43,
+    6419.08,
+    6443.66,
+    6464.3,
+    6488.89,
+    6509.53,
+    6534.12,
+    6554.76,
+    6579.35,
+    6599.99,
+    6624.58,
+    6645.22,
+    6669.81,
+    6690.45,
+    6715.03,
+    6735.68,
+    6760.26,
+    6780.91,
+    6805.49,
+    6826.14,
+    6850.72,
+    6871.37,
+    6895.95,
+    6916.59,
+    6941.18,
+    6961.82,
+    6986.41,
+    7007.05,
+    7031.64,
+    7052.28,
+    7076.87,
+    7097.51,
+    7122.1,
+    7142.74,
+    7167.32,
+    7187.97,
+    7212.55,
+    7233.2,
+    7257.78,
+    7278.43,
+    7303.01,
+    7323.66,
+    7348.24,
+    7368.88,
+    7393.47,
+    7414.11,
+    7438.7,
+    7459.34,
+    7483.93,
+    7504.57,
+    7529.16,
+    7549.8,
+    7574.39,
+    7595.03,
+    7619.61,
+    7640.26,
+    7664.84,
+    7685.49,
+    7710.07,
+    7730.72,
+    7755.3,
+    7775.95,
+    7800.53,
+    7821.17,
+    7845.76,
+    7866.4,
+    7890.99,
+    7911.63,
+    7936.22,
+    7956.86,
+    7981.45,
+    8002.09,
+    8026.68,
+    8047.32,
+    8071.9,
+    8092.55,
+    8117.13,
+    8137.78,
+    8162.36,
+    8183.01,
+    8207.59,
+    8228.24,
+    8252.82,
+    8273.46,
+    8298.05,
+    8318.69,
+    8343.28,
+    8363.92,
+    8388.51,
+    8409.15,
+    8433.74,
+    8454.38,
+    8478.97,
+    8499.61,
+    8524.19,
+    8544.84,
+    8569.42,
+    8590.07,
+    8614.65,
+    8635.3,
+    8659.46,
+    8680.1,
+    8704.26,
+    8724.9,
+    8749.06,
+    8769.71,
+    8793.86,
+    8814.51,
+    8838.67,
+    8859.31,
+    8883.47,
+    8904.11,
+    8928.27,
+    8948.92,
+    8973.08,
+    8993.72,
+    9017.88,
+    9038.52,
+    9088.08,
+    9135.41,
+    9182.75,
+    9230.08,
+    9277.41,
+    9324.74,
+    9372.08,
+    9419.41,
+    9466.74,
+    9514.07,
+    9561.41,
+    9608.74,
+    9656.07,
+    9703.4,
+    9750.74,
+    9798.07,
+    9845.4,
+    9892.73,
+    9940.07,
+    9987.4};
+
+    PlotUtils::TargetUtils util;
+    if (util.InTarget1ZMC (zpos, 26)) return 9;
+    else if (util.InTarget2ZMC (zpos, 26)) return 18;
+    else if (util.InTarget3ZMC (zpos, 6)) return 27;
+    else if (util.InWaterTargetZMC (zpos)) return 36;
+    else if (util.InTarget4ZMC (zpos, 26)) return 45;
+    else if (util.InTarget5ZMC (zpos, 26)) return 50;
+
+    if (zpos < 4290.11) return 0;
+    if (zpos > 10034.73) return 0;
+    auto it = std::lower_bound(plane_centres.begin(), plane_centres.end(), zpos);
+
+    // Case: zpos is smaller than or equal to the first element
+    if (it == plane_centres.begin()) {
+        return 0;
+    }
+
+    // Case: zpos is strictly larger than the last element
+    if (it == plane_centres.end()) {
+        return plane_centres.size() - 1;
+    }
+
+    // Case: zpos is between two elements
+    // We compare zpos to the element at *it (the upper bound)
+    // and the element at *(it - 1) (the lower bound)
+    double valAbove = *it;
+    double valBelow = *(it - 1);
+
+    int retVal = -999;
+    if (std::abs(zpos - valBelow) < std::abs(zpos - valAbove)) {
+        // The element BEFORE the iterator is closer
+        int idx = std::distance(plane_centres.begin(), it) - 1;
+        retVal = (idx+1); // +1 because segments and indices are shifted by 1, i.e plane_centres[0] is segment 1 not 0
+    } else {
+        // The element AT the iterator is closer
+        int idx = std::distance(plane_centres.begin(), it);
+        retVal = (idx+1); // +1 because segments and indices are shifted by 1, i.e plane_centres[0] is segment 1 not 0
+    }
+    //Shifting by +1 for every target this event is more downstream than to account for the fact that the nuclear targets
+    //take up a segment number each but are not represented in the vector of scintillator plane centre positions above
+    if (retVal > 9) retVal += 1;
+    if (retVal > 18) retVal += 1;
+    if (retVal > 27) retVal += 1;
+    if (retVal > 36) retVal += 1;
+    if (retVal > 45) retVal += 1;
+    if (retVal > 50) retVal += 1;
+    return retVal;
+}
+
+
+
+int getAdjustedTargetCode(double xpos, double ypos, double zpos) const
+{
+    PlotUtils::TargetUtils util;
+    if (util.InIron1VolMC(xpos, ypos, zpos)) return 1026;
+    else if (util.InLead1VolMC(xpos, ypos, zpos)) return 1082;
+    else if (util.InIron2VolMC(xpos, ypos, zpos)) return 2026;
+    else if (util.InLead2VolMC(xpos, ypos, zpos)) return 2082;
+    else if (util.InCarbon3VolMC(xpos, ypos, zpos)) return 3006;
+    else if (util.InIron3VolMC(xpos, ypos, zpos)) return 3026;
+    else if (util.InLead3VolMC(xpos, ypos, zpos)) return 3082;
+    else if (util.InLead4VolMC(xpos, ypos, zpos )) return 4082;
+    else if (util.InIron5VolMC(xpos, ypos, zpos)) return 5026;
+    else if (util.InLead5VolMC(xpos, ypos, zpos)) return 5082;
+    else return -999; //If you're not in a target you don't get a target code
 }
 
 
 
 
 
+
+
+
+//Taken from MasterAnaDev.cpp
+int GetTargetFromSegment( int segment, int& vtx_module, int& vtx_plane ) const
+{
+    int targetID = -1;
+    vtx_module = -999;
+    vtx_plane = -999;
+
+    if( segment == 0 ){
+        vtx_module = -5;
+        vtx_plane = 0;
+        targetID = -1;
+    }
+    else if( segment == 1 ){
+        vtx_module = -5;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 2 ){
+        vtx_module = -5;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 3 ){
+        vtx_module = -4;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 4 ){
+        vtx_module = -4;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 5 ){
+        vtx_module = -3;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 6 ){
+        vtx_module = -3;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 7 ){
+        vtx_module = -2;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 8 ){
+        vtx_module = -2;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 9 ){
+        vtx_module = -1;
+        vtx_plane = 1;
+        targetID = 1;
+    }
+    else if( segment == 10 ){
+        vtx_module = 0;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 11 ){
+        vtx_module = 0;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 12 ){
+        vtx_module = 1;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 13 ){
+        vtx_module = 1;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 14 ){
+        vtx_module = 2;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 15 ){
+        vtx_module = 2;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 16 ){
+        vtx_module = 3;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 17 ){
+        vtx_module = 3;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 18 ){
+        vtx_module = 4;
+        vtx_plane = 1;
+        targetID = 2;
+    }
+    else if( segment == 19 ){
+        vtx_module = 5;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 20 ){
+        vtx_module = 5;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 21 ){
+        vtx_module = 6;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 22 ){
+        vtx_module = 6;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 23 ){
+        vtx_module = 7;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 24 ){
+        vtx_module = 7;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 25 ){
+        vtx_module = 8;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 26 ){
+        vtx_module = 8;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 27 ){
+        vtx_module = 9;
+        vtx_plane = 2;
+        targetID = 3;
+    }
+    else if( segment == 28 ){
+        vtx_module = 11;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 29 ){
+        vtx_module = 11;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 30 ){
+        vtx_module = 12;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 31 ){
+        vtx_module = 12;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 32 ){
+        vtx_module = 13;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 33 ){
+        vtx_module = 13;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 34 ){
+        vtx_module = 14;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 35 ){
+        vtx_module = 14;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    //segment 36 is water!!
+    /*  else if( segment == 36 ){
+        vtx_module = 15;
+        vtx_plane = 1;
+        targetID = 6;
+    }*/
+    else if( segment == 36 ){
+        vtx_module = -999;
+        vtx_plane = -999;
+        targetID = 6;
+    }
+    else if( segment == 37 ){
+        vtx_module = 15;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 38 ){
+        vtx_module = 15;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 39 ){
+        vtx_module = 16;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 40 ){
+        vtx_module = 16;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 41 ){
+        vtx_module = 17;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 42 ){
+        vtx_module = 17;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 43 ){
+        vtx_module = 18;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 44 ){
+        vtx_module = 18;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 45 ){
+        vtx_module = 19;
+        vtx_plane = 1;
+        targetID = 4;
+    }
+    else if( segment == 46 ){
+        vtx_module = 20;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 47 ){
+        vtx_module = 20;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 48 ){
+        vtx_module = 21;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 49 ){
+        vtx_module = 21;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 50 ){
+        vtx_module = 22;
+        vtx_plane = 1;
+        targetID = 5;
+    }
+    else if( segment == 51 ){
+        vtx_module = 23;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 52 ){
+        vtx_module = 23;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 53 ){
+        vtx_module = 24;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 54 ){
+        vtx_module = 24;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 55 ){
+        vtx_module = 25;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 56 ){
+        vtx_module = 25;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 57 ){
+        vtx_module = 26;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 58 ){
+        vtx_module = 26;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 59 ){
+        vtx_module = 27;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 60 ){
+        vtx_module = 27;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 61 ){
+        vtx_module = 28;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 62 ){
+        vtx_module = 28;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 63 ){
+        vtx_module = 29;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 64 ){
+        vtx_module = 29;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 65 ){
+        vtx_module = 30;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 66 ){
+        vtx_module = 30;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 67 ){
+        vtx_module = 31;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 68 ){
+        vtx_module = 31;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 69 ){
+        vtx_module = 32;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 70 ){
+        vtx_module = 32;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 71 ){
+        vtx_module = 33;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 72 ){
+        vtx_module = 33;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 73 ){
+        vtx_module = 34;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 74 ){
+        vtx_module = 34;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 75 ){
+        vtx_module = 35;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 76 ){
+        vtx_module = 35;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 77 ){
+        vtx_module = 36;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 78 ){
+        vtx_module = 36;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 79 ){
+        vtx_module = 37;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 80 ){
+        vtx_module = 37;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 81 ){
+        vtx_module = 38;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 82 ){
+        vtx_module = 38;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 83 ){
+        vtx_module = 39;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 84 ){
+        vtx_module = 39;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 85 ){
+        vtx_module = 40;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 86 ){
+        vtx_module = 40;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 87 ){
+        vtx_module = 41;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 88 ){
+        vtx_module = 41;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 89 ){
+        vtx_module = 42;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 90 ){
+        vtx_module = 42;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 91 ){
+        vtx_module = 43;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 92 ){
+        vtx_module = 43;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 93 ){
+        vtx_module = 44;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 94 ){
+        vtx_module = 44;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 95 ){
+        vtx_module = 45;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 96 ){
+        vtx_module = 45;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 97 ){
+        vtx_module = 46;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 98 ){
+        vtx_module = 46;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 99 ){
+        vtx_module = 47;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 100 ){
+        vtx_module = 47;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 101 ){
+        vtx_module = 48;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 102 ){
+        vtx_module = 48;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 103 ){
+        vtx_module = 49;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 104 ){
+        vtx_module = 49;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 105 ){
+        vtx_module = 50;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 106 ){
+        vtx_module = 50;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 107 ){
+        vtx_module = 51;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 108 ){
+        vtx_module = 51;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 109 ){
+        vtx_module = 52;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 110 ){
+        vtx_module = 52;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 111 ){
+        vtx_module = 53;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 112 ){
+        vtx_module = 53;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 113 ){
+        vtx_module = 54;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 114 ){
+        vtx_module = 54;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 115 ){
+        vtx_module = 55;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 116 ){
+        vtx_module = 55;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 117 ){
+        vtx_module = 56;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 118 ){
+        vtx_module = 56;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 119 ){
+        vtx_module = 57;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 120 ){
+        vtx_module = 57;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 121 ){
+        vtx_module = 58;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 122 ){
+        vtx_module = 58;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 123 ){
+        vtx_module = 59;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 124 ){
+        vtx_module = 59;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 125 ){
+        vtx_module = 60;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 126 ){
+        vtx_module = 60;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 127 ){
+        vtx_module = 61;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 128 ){
+        vtx_module = 61;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 129 ){
+        vtx_module = 62;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 130 ){
+        vtx_module = 62;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 131 ){
+        vtx_module = 63;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 132 ){
+        vtx_module = 63;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 133 ){
+        vtx_module = 64;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 134 ){
+        vtx_module = 64;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 135 ){
+        vtx_module = 65;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 136 ){
+        vtx_module = 65;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 137 ){
+        vtx_module = 66;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 138 ){
+        vtx_module = 66;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 139 ){
+        vtx_module = 67;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 140 ){
+        vtx_module = 67;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 141 ){
+        vtx_module = 68;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 142 ){
+        vtx_module = 68;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 143 ){
+        vtx_module = 69;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 144 ){
+        vtx_module = 69;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 145 ){
+        vtx_module = 70;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 146 ){
+        vtx_module = 70;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 147 ){
+        vtx_module = 71;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 148 ){
+        vtx_module = 71;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 149 ){
+        vtx_module = 72;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 150 ){
+        vtx_module = 72;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 151 ){
+        vtx_module = 73;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 152 ){
+        vtx_module = 73;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 153 ){
+        vtx_module = 74;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 154 ){
+        vtx_module = 74;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 155 ){
+        vtx_module = 75;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 156 ){
+        vtx_module = 75;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 157 ){
+        vtx_module = 76;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 158 ){
+        vtx_module = 76;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 159 ){
+        vtx_module = 77;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 160 ){
+        vtx_module = 77;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 161 ){
+        vtx_module = 78;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 162 ){
+        vtx_module = 78;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 163 ){
+        vtx_module = 79;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 164 ){
+        vtx_module = 79;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 165 ){
+        vtx_module = 80;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 166 ){
+        vtx_module = 80;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 167 ){
+        vtx_module = 81;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 168 ){
+        vtx_module = 81;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 169 ){
+        vtx_module = 82;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 170 ){
+        vtx_module = 82;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 171 ){
+        vtx_module = 83;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 172 ){
+        vtx_module = 83;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 173 ){
+        vtx_module = 84;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 174 ){
+        vtx_module = 84;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    //Oscar added this part for DSCAL region
+    else if( segment == 175 ){
+        vtx_module = 85;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 176 ){
+        vtx_module = 85;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 177 ){
+        vtx_module = 86;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 178 ){
+        vtx_module = 86;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 179 ){
+        vtx_module = 87;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 180 ){
+        vtx_module = 87;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 181 ){
+        vtx_module = 88;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 182 ){
+        vtx_module = 88;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 183 ){
+        vtx_module = 89;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 184 ){
+        vtx_module = 89;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 185 ){
+        vtx_module = 90;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 186 ){
+        vtx_module = 90;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 187 ){
+        vtx_module = 91;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 188 ){
+        vtx_module = 91;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 189 ){
+        vtx_module = 92;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 190 ){
+        vtx_module = 92;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 191 ){
+        vtx_module = 93;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 192 ){
+        vtx_module = 93;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 193 ){
+        vtx_module = 94;
+        vtx_plane = 1;
+        targetID = -1;
+    }
+    else if( segment == 194){
+        vtx_module = 94;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 195 ){
+        vtx_module = 95;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 196 ){
+        vtx_module = 96;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 197 ){
+        vtx_module = 97;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 198 ){
+        vtx_module = 98;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 199 ){
+        vtx_module = 99;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 200 ){
+        vtx_module = 100;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 201 ){
+        vtx_module = 101;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 202 ){
+        vtx_module = 102;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 203 ){
+        vtx_module = 103;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 204 ){
+        vtx_module = 104;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 205 ){
+        vtx_module = 105;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 206 ){
+        vtx_module = 106;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 207 ){
+        vtx_module = 107;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 208 ){
+        vtx_module = 108;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 209 ){
+        vtx_module = 109;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 210 ){
+        vtx_module = 110;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 211 ){
+        vtx_module = 111;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 212 ){
+        vtx_module = 112;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 213 ){
+        vtx_module = 113;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    else if( segment == 214 ){
+        vtx_module = 114;
+        vtx_plane = 2;
+        targetID = -1;
+    }
+    if( targetID == -999 ) std::cerr << "Can't find any module/plane for given segment " << segment << std::endl;
+    return targetID;
+}
 
 
 
@@ -677,7 +2091,6 @@ double GetDiffractiveUncWeight() const {
 
   bool hasMLPred() const {return (GetInt("hasMLPrediction")==1);}
 
-  double GetANNProb() const { return GetVecElem("ANN_plane_probs", 0); }
   double GetTruthMuE() const { return GetDouble("truth_muon_E") ; }
 
   int GetTargetZ() const {
@@ -695,64 +2108,293 @@ double GetDiffractiveUncWeight() const {
   int GetANNTargetID() const {return GetInt("MasterAnaDev_ANN_targetID");}
   int GetTruthTargetID() const {return GetInt("truth_targetID");}
 
-  int GetANNTargetCode() const {return GetInt("MasterAnaDev_ANN_target_code");}
   int GetTruthTargetCode() const {return GetInt("truth_target_code");}
 
-  int GetANNVtxPlane() const {return GetVecElemInt("ANN_vtx_planes", 0);}
   int GetTruthVtxPlane() const {return GetInt("truth_vtx_plane");}
   int GetMADVtxPlane() const {return GetInt("MasterAnaDev_vtx_plane");}
 
-  int GetANNVtxModule() const {return GetVecElemInt("ANN_vtx_modules", 0);}
   int GetTruthVtxModule() const {return GetInt("truth_vtx_module");}
   int GetMADVtxModule() const {return GetInt("MasterAnaDev_vtx_module");}
-  
-  ROOT::Math::XYZVector GetANNVertex() const //Dangerous since ANN_vtx doesnt always have a 3-vector in it, calling SetCoordinates without a 3 vector gives a segfault
+
+
+  SMSCalibrator::CalibratedProbs GetANNSegmentsCalibrated() const
   {
-    ROOT::Math::XYZVector result;
-    //std::cout<<"GetInt(\"ANN_vtx_sz\"): " << GetInt("ANN_vtx_sz") <<std::endl;
-    if (GetInt("ANN_vtx_sz") != 3) return ROOT::Math::XYZVector(-999,-999,-999); //To prevent segfaults when accessing events for which there is no ANN_vtx 3-vector
-    result.SetCoordinates(GetVec<double>("ANN_vtx").data());
-    return result;
+    int currentEntry = GetEntry();
+    std::vector<int> segments = {};
+    std::vector<double> probs = {};
+    if (!calibrator->isCurrentCachedEntry(currentEntry)) //We actually don't need to load the segments and plane_probs if this event has already been evaluated and cached, saves us a few I/O operations
+    {    
+        segments = GetVecInt("ANN_segments");
+        probs = GetVecDouble("ANN_plane_probs");
+        if (!calibrator) {
+            std::cerr << "CRITICAL ERROR: Calibrator pointer is NULL in Universe " 
+                    << ShortName() << std::endl;
+            throw std::runtime_error("Calibrator not set");
+        }
+        //std::cout<<"Uncalib - " << segments[0] << ":" << probs[0] << ", "<< segments[1] << ":" << probs[1] << ", "<< segments[2] << ":" << probs[2] << "\n";
+        int seg0 = segments[0];
+        //std::cout<<"seg0: " << seg0 << std::endl;
+    }
+    SMSCalibrator::CalibratedProbs cal = calibrator->Top3Calibrated(segments, probs, currentEntry);
+    //std::cout<<"Calib - " << cal.segments[0] << ":" << cal.probs[0] << ", "<< cal.segments[1] << ":" << cal.probs[1] << ", "<< cal.segments[2] << ":" << cal.probs[2] << "\n";
+    return cal;
   }
 
-  std::vector<double> GetANNVertexVector() const { return GetVecDouble("ANN_vtx");}
+  //------------------------------------------------------------------
+  //Calibrator methods - Used when for some reason you want to select a specific classification (0-2)
+  //I imagine the one would rarely want to use this so you don't mess with the normal shifting of classifications
+  //During the MLVertexClassificationUniverse shifts, but included here for completeness and diagnostics
+  //------------------------------------------------------------------
 
-  double GetANNSegment() const
+  double GetCalibratedANNProb(int i = 0)
   {
-    return GetVecElemInt("ANN_segments", 0);
+    return GetANNSegmentsCalibrated().probs[i];
+  }
+  double GetCalibratedANNProbAdjusted(int i = 0)
+  {
+    SMSCalibrator::CalibratedProbs c = GetANNSegmentsCalibrated();
+    if (i == 0) return c.probs[0];
+    if (i == 1) return c.probs[1]/(1-c.probs[0]);
+    if (i == 2) return c.probs[2]/(1-(c.probs[0]+c.probs[1]));
+  }
+  int GetCalibratedANNSegment(int i = 0)
+  {
+    return GetANNSegmentsCalibrated().segments[i];
+  }
+  double GetCalibratedANNZPos(int i = 0)
+  {
+    return getZPosFromSegment(GetANNSegmentsCalibrated().segments[i]);
+  }
+  virtual ROOT::Math::XYZVector GetCalibratedANNVertex(int i = 0)
+  {
+    double calibratedZ = GetCalibratedANNZPos(i);
+    //std::cout<<"calibratedZ: " << calibratedZ << std::endl;
+    if (calibratedZ == -999) return ROOT::Math::XYZVector(-999, -999, -999);
+    ROOT::Math::XYZVector adjustedVertex = adjustDNNVertex(calibratedZ);
+    return adjustedVertex;
+  }
+  int GetCalibratedANNTargetCode(int i = 0) {
+    ROOT::Math::XYZVector vtx = GetCalibratedANNVertex(i);
+    //std::cout<<"vtx.Z(): " << vtx.Z() << std::endl;
+    if (vtx.Z() == -999) return -999;
+    int tgtCode = getAdjustedTargetCode(vtx.X(), vtx.Y(), vtx.Z());
+    //std::cout<<"tgtCode: " << tgtCode << std::endl;
+    return tgtCode;
+  }
+  //------------------------------------------------------------------
+  //End - Calibrator methods - Used when for some reason you want to select a specific classification (0-2)
+  //------------------------------------------------------------------
+
+  //------------------------------------------------------------------
+  //Calibrator methods - that I expect you to actually use
+  //------------------------------------------------------------------
+
+  virtual double GetANNProb(bool useCalibrator = true) const
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        return GetANNSegmentsCalibrated().probs[0];
+    }
+    else
+    {
+        return GetVecElem("ANN_plane_probs", 0);
+    }
   }
 
-  double GetANNSegmentsWeighted() const
+  double GetANNZPosWeightedCalibrator() const
   {
-    return GetVecElemInt("ANN_segments", 0)*GetVecElem("ANN_plane_probs", 0) + GetVecElemInt("ANN_segments", 1)*GetVecElem("ANN_plane_probs", 1);
+    SMSCalibrator::CalibratedProbs cal = GetANNSegmentsCalibrated();
+    double totalProb = 0;
+    double totalZPos = 0;
+    if (cal.probs[0] == -999) return -999;
+    for (int i = 0; i < 3; i++) //Only average over valid segments
+    {
+        double zpos = getZPosFromSegment(cal.segments[i]);
+        if (zpos>0)
+        {
+            totalZPos+=zpos*cal.probs[i];
+            totalProb+=cal.probs[i];
+        }
+    }
+    return totalZPos/totalProb;
   }
+
+  int GetANNSegmentWeighted() const
+  {
+    double calibratedZ = GetANNZPos();
+    if (calibratedZ == -999) return -999;
+    int uncalibratedSegment = GetANNSegmentsCalibrated().segments[0];
+    double unweightedZ = getZPosFromSegment(uncalibratedSegment);
+    //If the difference between the weighted and unweighted top plane is less than the thicnkess of
+    // a scintillator plane then no need to make any changes, we can just return that plane
+    if (std::abs(calibratedZ-unweightedZ) < 20) return uncalibratedSegment; //20 is not the exact width of a plane but is a good-enough conservative rounding
+    else
+    {
+        return getNearestSegmentToZPos(calibratedZ);
+    }
+  }
+
+  virtual int GetANNSegment(bool useCalibrator = true) const
+  {
+    if (calibratorSet && useCalibrator)
+    {
+
+        //return GetANNSegmentWeighted(); //Weighted
+        return GetANNSegmentsCalibrated().segments[0]; //Unweighted
+    }
+    else
+    {
+        return GetVecElem("ANN_segments", 0);
+    }
+  }
+
+  int GetANNVtxPlane(bool useCalibrator = true) const 
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        int segment = GetANNSegment();
+        int mod;
+        int plane;
+        GetTargetFromSegment( segment, mod, plane );
+        return plane;
+    }
+    else
+    {
+        return GetVecElemInt("ANN_vtx_planes", 0);
+    }
+  }
+
+
+  int GetANNVtxModule(bool useCalibrator = true) const 
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        int segment = GetANNSegment();
+        int mod;
+        int plane;
+        GetTargetFromSegment( segment, mod, plane );
+        return mod;
+    }
+    else
+    {
+        return GetVecElemInt("ANN_vtx_modules", 0);
+    }
+  }
+
+  virtual double GetANNZPos(bool useCalibrator = true) const
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        //return GetANNZPosWeightedCalibrator(); //Weighted
+        return getZPosFromSegment(GetANNSegment()); //Unweighted
+    }
+    else
+    {
+        return GetVecElem("ANN_vtx", 2);
+    }
+  }
+
+  virtual ROOT::Math::XYZVector GetANNVertex(bool useCalibrator = true) const
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        double calibratedZ = GetANNZPos();
+        if (calibratedZ == -999) return ROOT::Math::XYZVector(-999, -999, -999);
+        ROOT::Math::XYZVector adjustedVertex = adjustDNNVertex(calibratedZ);
+        return adjustedVertex;
+    }
+    else
+    {
+        ROOT::Math::XYZVector result;
+        //std::cout<<"GetInt(\"ANN_vtx_sz\"): " << GetInt("ANN_vtx_sz") <<std::endl;
+        if (GetInt("ANN_vtx_sz") != 3) return ROOT::Math::XYZVector(-999,-999,-999); //To prevent segfaults when accessing events for which there is no ANN_vtx 3-vector
+        result.SetCoordinates(GetVec<double>("ANN_vtx").data());
+        return result;
+    }
+  }
+
+
+  virtual int GetANNTargetCode(bool useCalibrator = true) const
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        ROOT::Math::XYZVector vtx = GetANNVertex();
+        if (vtx.Z() == -999) return -999;
+        PlotUtils::TargetUtils util;
+        int seg = GetANNSegment();
+        std::string name = LatexName();
+        //The nuclear targets
+        if (seg == 9)
+        {
+            if (util.InIron1VolMC(vtx.X(), vtx.Y(), util.GetTarget1CenterZMC())) return 1026;
+            else if (util.InLead1VolMC(vtx.X(), vtx.Y(), util.GetTarget1CenterZMC())) return 1082;
+        } 
+        else if (seg == 18)
+        {
+            if (util.InIron2VolMC(vtx.X(), vtx.Y(), util.GetTarget2CenterZMC())) return 2026;
+            else if (util.InLead2VolMC(vtx.X(), vtx.Y(), util.GetTarget2CenterZMC())) return 2082;
+        } 
+        else if (seg == 27)
+        {
+            if (util.InCarbon3VolMC(vtx.X(), vtx.Y(), util.GetTarget3CenterZMC())) return 3006;
+            else if (util.InIron3VolMC(vtx.X(), vtx.Y(), util.GetTarget3CenterZMC())) return 3026;
+            else if (util.InLead3VolMC(vtx.X(), vtx.Y(), util.GetTarget3CenterZMC())) return 3082;
+        } 
+        else if (seg == 36) {return 6000;}
+        else if (seg == 45) {return 4082;}
+        else if (seg == 50)
+        {
+            if (util.InIron5VolMC(vtx.X(), vtx.Y(), util.GetTarget5CenterZMC())) return 5026;
+            else if (util.InLead5VolMC(vtx.X(), vtx.Y(), util.GetTarget5CenterZMC())) return 5082;
+        }
+        else
+        {
+            return seg;
+        }
+        return -999;
+    }
+    else
+    {
+        return GetInt("MasterAnaDev_ANN_target_code");
+    }
+  }
+
+  virtual std::vector<double> GetANNVertexVector(bool useCalibrator = true) const
+  {
+    if (calibratorSet && useCalibrator)
+    {
+        ROOT::Math::XYZVector vtx = GetANNVertex();
+        std::vector outVtx = {vtx.X(), vtx.Y(), vtx.Z()};
+        return outVtx;
+    }
+    else
+    {
+        return GetVecDouble("ANN_vtx");
+    }
+  }
+
+
+
+
+
+  //Stuff to do with weighting
 
   double GetANNSegmentsZPosWeighted() const
   {
     if (!hasMLPred()) return -999;
     double zPosFromSegment0 = getZPosFromSegment(GetVecElemInt("ANN_segments", 0));
     double zPosFromSegment1 = getZPosFromSegment(GetVecElemInt("ANN_segments", 1));
+    double zPosFromSegment2 = getZPosFromSegment(GetVecElemInt("ANN_segments", 2));
     double conf0 = GetVecElem("ANN_plane_probs", 0);
     double conf1 = GetVecElem("ANN_plane_probs", 1);
-    return (zPosFromSegment0*conf0+zPosFromSegment1*conf1)/(conf0+conf1);
+    double conf2 = GetVecElem("ANN_plane_probs", 2);
+    return (zPosFromSegment0*conf0+zPosFromSegment1*conf1+zPosFromSegment2*conf2)/(conf0+conf1+conf2);
   }
 
-   double GetANNSegmentsZPosWeighted2(int cutoff) const
-  {
 
-    double zPosFromSegment0 = getZPosFromSegment(GetVecElemInt("ANN_segments", 0));
-    double zPosFromSegment1 = getZPosFromSegment(GetVecElemInt("ANN_segments", 1));
-    double conf0 = GetVecElem("ANN_plane_probs", 0);
-    double conf1 = GetVecElem("ANN_plane_probs", 1);
-    //std::cout<<"cutoff: "<<cutoff<< " Segment0: " << GetVecElemInt("ANN_segments", 0) << " conf0 "<< conf0<< " Segment1: " << GetVecElemInt("ANN_segments", 1) << " zPosFromSegment0: " << zPosFromSegment0 << " conf0 "<< conf0<< " zPosFromSegment1: " << zPosFromSegment1 << " conf1 "<< conf1 <<  std::endl;
-    if (std::abs(GetVecElemInt("ANN_segments", 0)-GetVecElemInt("ANN_segments", 1)) < cutoff)
-    {
-        return (zPosFromSegment0*conf0+zPosFromSegment1*conf1)/(conf0+conf1);
-        //return (zPosFromSegment0*conf0*conf0+zPosFromSegment1*conf1*conf1)/(conf0*conf0+conf1*conf1);
-    }
-    else return zPosFromSegment0;
-  }
-
+  //------------------------------------------------------------------
+  //End Calibrator methods
+  //------------------------------------------------------------------
 
     // ========================================================================
     //  ENERGY FUNCTIONS

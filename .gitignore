@@ -1,3 +1,4 @@
 .vscode/*
 build/*
 /tools/venv/*
+/tools/__pycache__

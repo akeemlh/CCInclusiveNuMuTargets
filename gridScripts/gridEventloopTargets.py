@@ -180,7 +180,7 @@ if __name__ == '__main__':
                 print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
                 os.mkdir(outdirplaylist)
             # Create wrapper
-            wrapper_name = "wrapper-EvLoopTargets"+playlist+target+".sh"
+            wrapper_name = "wrapper-EvLoopTargets"+playlist+target+str(epoch_time)+".sh"
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
@@ -201,7 +201,6 @@ if __name__ == '__main__':
                 my_wrapper.write("export SUSA_2P2H_WARP=True\n")
             tuneStr ="export MnvTune="+tune+"\n"
             my_wrapper.write(tuneStr)
-            my_wrapper.write("export SUSA_2P2H_WARP=True\n")
             if numOfSubRuns != 0:
                 subrunstr = "export NumGridSubruns="+str(numOfSubRuns)+"\n"
                 my_wrapper.write(subrunstr)

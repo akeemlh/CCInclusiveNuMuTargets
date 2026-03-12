@@ -13,7 +13,11 @@
 #include "PlotUtils/MnvTuneSystematics.h"
 #include "PlotUtils/MuonResolutionSystematics.h"
 #include "PlotUtils/AngleSystematics.h"
+#include "PlotUtils/TargetMassSystematics.h"
 #include "PlotUtils/MLVertexSystematics.h"
+#include "PlotUtils/CoherentPiSystematics.h"
+#include "PlotUtils/DiffractiveUncSystematics.h"
+#include "universes/ResponseSystematics.h"
 
 typedef std::map<std::string, std::vector<CVUniverse*>> UniverseMap;
 
@@ -77,6 +81,10 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   UniverseMap bands_muon_resolution = PlotUtils::GetMuonResolutionSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_muon_resolution.begin(), bands_muon_resolution.end());
 
+  //Muon Angle Resolution
+  UniverseMap muonAngle_resolutions = PlotUtils::GetMuonAngleResolutionSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(muonAngle_resolutions.begin(),muonAngle_resolutions.end());
+
   UniverseMap bands_geant = PlotUtils::GetGeantHadronSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_geant.begin(), bands_geant.end());
 
@@ -84,16 +92,60 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   UniverseMap bands_angle = PlotUtils::GetAngleSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_angle.begin(), bands_angle.end());
 
+  // Target Mass Systematics
+  UniverseMap targetMass_systematics = PlotUtils::GetTargetMassSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(targetMass_systematics.begin(), targetMass_systematics.end());
+
   // Hadron inelastics cross sections
   //TODO: There's some special recoil function I need to write for the response systematics to work correctly
   /*UniverseMap bands_response = PlotUtils::GetResponseSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_response.begin(), bands_response.end());*/
 
   //========================================================================
-  // ML Vertex uncertainty
+  // Particle Response Systematics (Detector)
   //========================================================================
+
+  const bool use_ID = true;
+  const bool use_OD = true;
+  std::string name_tag = "allNonMuonClusters";
+  const bool use_neutron = false;
+  const bool use_new = false;
+  const bool use_proton = true;
+  //const bool use_nucl = false;
+  //const bool use_tracker = false;
+  //const bool use_ecal = false;
+  //const bool use_hcal = false;
+  // ID, OD, nucl, tracker, ecal, hcal
+  UniverseMap response_systematics = PlotUtils::GetResponseSystematicsMap<CVUniverse>(chain, use_ID, use_OD, name_tag, use_neutron, use_new, use_proton); //, use_ID, use_OD, use_nucl, use_tracker, use_ecal, use_hcal);
+
+  error_bands.insert(response_systematics.begin(), response_systematics.end());
+
+  //========================================================================
+  // ML Vertex Systematics
+  //========================================================================
+  //Efficiency
   UniverseMap ml_vertex_systematics = PlotUtils::GetMLVertexSystematicsMap<CVUniverse>(chain);
   error_bands.insert(ml_vertex_systematics.begin(), ml_vertex_systematics.end());
+ 
+  //Classification
+  UniverseMap ml_vertex_classification_systematics = PlotUtils::GetMLVertexClassificationSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(ml_vertex_classification_systematics.begin(), ml_vertex_classification_systematics.end());
+
+  //========================================================================
+  // Model uncertainties
+  //========================================================================
+ 
+  //Bercellie's low Q2 suppression uncertainty - since we're using tune x.3.z which uses the A. Bercellie low Q2 pion production suppression
+  UniverseMap lowq2_systematics = PlotUtils::GetLowQ2PiSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(lowq2_systematics.begin(), lowq2_systematics.end());
+
+  // Diffractive uncertainty
+  UniverseMap diff_systematics = PlotUtils::GetDiffractiveUncSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(diff_systematics.begin(), diff_systematics.end());
+
+  // Coherent uncertainty
+  UniverseMap coh_systematics = PlotUtils::GetCoherentPiSystematicsMap<CVUniverse>(chain);
+  error_bands.insert(coh_systematics.begin(), coh_systematics.end());
 
   return error_bands;
 }

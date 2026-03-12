@@ -22,6 +22,7 @@
 #include "PlotUtils/MINOSEfficiencyReweighter.h"
 #include "PlotUtils/LowQ2PiReweighter.h"
 #include "PlotUtils/AMUDISReweighter.h"
+#include "utilities/SMSCalibrator.h"
 namespace util
 {
     //Just used to store objects useful for nuclear target study
@@ -662,9 +663,10 @@ namespace util
 
     }
 
+    static PlotUtils::TargetUtils tgtUtil; 
+
     int getExtendedTarget(int mod, int plane, double vtx_x, double vtx_y) //Get which target this module and plane corresponds to if using extended target definition
     {
-        PlotUtils::TargetUtils tgtUtil;
         bool distanceToDivCut = true;
         //Upstream
         if ((mod == -2 && plane == 2) || (mod == 0 && plane == 1)) //US/DS of tgt 1
@@ -701,7 +703,6 @@ namespace util
 
     int getTargetCodeFromVtxInfo(double vtx_x, double vtx_y, double vtx_z, int mod, int plane, bool extendedTargetDefinition = true)
     {
-        PlotUtils::TargetUtils tgtUtil;
         bool distanceToDivCut = true;
         //tgtUtil.SetDistToDivCut( ??? ); //What was Anezka's + what is it in GenieXSecExtract/ Should this be tweaked?
         //2/Jul/2025 Answer to above question, Anezka used 25mm which is also the default so I will leave it at that
@@ -854,15 +855,16 @@ namespace util
         //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the tuple branch, instead compare it's vertex position
         //if (universe->GetTruthVtxModule() == -999 && universe->GetTruthVtxPlane() == -999  && (mcTgtZ = 6 || mcTgtZ == 1) ) return 6000;
         //if (universe->GetTruthVtxModule() == 15 && universe->GetTruthVtxPlane() == 1  && (mcTgtZ = 6 || mcTgtZ == 1) ) return 6000;
-        PlotUtils::TargetUtils tgtUtil;
         if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. )) return 6000;
     }
     else // ANN
     {
         //First step, what target does the tuple say it's in
         int ANNTgtCode = universe->GetANNTargetCode();
-        if (ANNTgtCode > 0) return ANNTgtCode; //Maybe do a more explicit check for if it's a valid target code?
-
+        if ((ANNTgtCode > 1000) && (ANNTgtCode < 7000)) //In the range that the nuclear target codes are in
+        {
+            return ANNTgtCode;
+        }
         //Water is a special case, due to (I think?) a bug in the MAT tuples. To figure out if an event happened in water we cant use the regular tuple branch, instead we check if the ANN reconstruction put in the water segment (36)
         //if (universe->GetANNSegment() == 36 ) return 6000;
 
@@ -872,7 +874,6 @@ namespace util
         vtx_x = Vtx.X();
         vtx_y = Vtx.Y();
         vtx_z = Vtx.Z();
-        PlotUtils::TargetUtils tgtUtil;
         if (tgtUtil.InWaterTargetVolMC( vtx_x, vtx_y, vtx_z, 850. )) return 6000;
     }
     //Next determine if the interaction vertex is within the extended target definition (if applicable)
@@ -886,10 +887,150 @@ namespace util
 
     //Return value for function will be -1 if no target or pseudotarget is determined for this event
     }
-
-
+    
     bool isTargetSideband(CVUniverse *universe, int mode /*mc = 0, ANN = 1, TB = 2*/, int targetCode, int USorDS /*Some planes are both the US planes of one target but the DS planes of another and so need to be treated twice*/, bool removeNeighbors = true)
     {
+        // Early exits before any vertex reconstruction
+        if (targetCode < 1000) return false;
+
+        int mod, plane;
+        // Defer vertex extraction - only fetch what's needed when needed
+        double vtx_x = 0, vtx_y = 0;
+
+        // Get mod/plane first - cheap integer operations
+        if (mode == 0) {
+            mod = universe->GetTruthVtxModule();
+            plane = universe->GetTruthVtxPlane();
+        } else if (mode == 1) {
+            mod = universe->GetANNVtxModule();
+            plane = universe->GetANNVtxPlane();
+        } else {
+            mod = universe->GetMADVtxModule();
+            plane = universe->GetMADVtxPlane();
+        }
+
+        // Pseudotarget sideband
+        if (targetCode < 12) {
+            if (targetCode == 7 && !USorDS) return false;
+            if (targetCode == 7  && USorDS  && mod == -2 && plane == 2) return true;
+            if (targetCode == 8  && USorDS  && mod == 3  && plane == 2) return true;
+            if (targetCode == 8  && !USorDS && mod == 0  && plane == 1) return true;
+            if (targetCode == 9  && USorDS  && mod == 8  && plane == 2) return true;
+            if (targetCode == 9  && !USorDS && mod == 5  && plane == 1) return true;
+            if (targetCode == 10 && USorDS  && mod == 14 && plane == 2) return true;
+            if (targetCode == 10 && !USorDS && mod == 11 && plane == 1) return true;
+            if (targetCode == 11 && USorDS  && mod == 18 && plane == 2) return true;
+            if (targetCode == 11 && !USorDS && mod == 15 && plane == 1) return true;
+            if (targetCode == 12 && USorDS  && mod == 21 && plane == 2) return true;
+            if (targetCode == 12 && !USorDS && mod == 20 && plane == 1) return true;
+            return false; // targetCode < 12 but not matched above
+        }
+
+        // Neighbor removal
+        if (removeNeighbors) {
+            switch (mod) {
+                case -2: if (plane == 2) return false; break;
+                case  0: if (plane == 1) return false; break;
+                case  3: if (plane == 2) return false; break;
+                case  5: if (plane == 1) return false; break;
+                case  8: if (plane == 2) return false; break;
+                case 11: if (plane == 1) return false; break;
+                case 14: if (plane == 2) return false; break;
+                case 15: if (plane == 1) return false; break;
+                case 18: if (plane == 2) return false; break;
+                case 20: if (plane == 1) return false; break;
+                case 21: if (plane == 2) return false; break;
+            }
+        }
+
+        // Early exit if mod is out of all target ranges
+        if (!((mod >= 0  && mod <= 3)  ||
+            (mod >= 5  && mod <= 8)  ||
+            (mod >= 11 && mod <= 14) ||
+            (mod >= 15 && mod <= 18) ||
+            (mod >= 20 && mod <= 26))) {
+            return false;
+        }
+
+        if (mode == 0) {
+            ROOT::Math::XYZTVector Vtx = universe->GetTrueVertex();
+            vtx_x = Vtx.X(); vtx_y = Vtx.Y();
+        } else if (mode == 1) {
+            ROOT::Math::XYZVector Vtx = universe->GetANNVertex();
+            vtx_x = Vtx.X(); vtx_y = Vtx.Y();
+        } else {
+            ROOT::Math::XYZTVector Vtx = universe->GetVertex();
+            vtx_x = Vtx.X(); vtx_y = Vtx.Y();
+        }
+
+        static const double zTgt1 = tgtUtil.GetTarget1CenterZMC();
+        static const double zTgt2 = tgtUtil.GetTarget2CenterZMC();
+        static const double zTgt3 = tgtUtil.GetTarget3CenterZMC();
+        static const double zTgt4 = tgtUtil.GetTarget4CenterZMC();
+        static const double zTgt5 = tgtUtil.GetTarget5CenterZMC();
+        static const double zWater = (PlotUtils::TargetProp::WaterTarget::Face + 
+                                    PlotUtils::TargetProp::WaterTarget::Back) / 2;
+
+        if (mod >= 0 && mod <= 3) {
+            if (USorDS) {
+                if (targetCode == 2026) return tgtUtil.InIron2VolMC(vtx_x, vtx_y, zTgt2, 850., true);
+                if (targetCode == 2082) return tgtUtil.InLead2VolMC(vtx_x, vtx_y, zTgt2, 850., true);
+            } else {
+                if (targetCode == 1026) return tgtUtil.InIron1VolMC(vtx_x, vtx_y, zTgt1, 850., true);
+                if (targetCode == 1082) return tgtUtil.InLead1VolMC(vtx_x, vtx_y, zTgt1, 850., true);
+            }
+            return false;
+        }
+        if (mod >= 5 && mod <= 8) {
+            if (USorDS) {
+                if (targetCode == 3006) return tgtUtil.InCarbon3VolMC(vtx_x, vtx_y, zTgt3, 850., true);
+                if (targetCode == 3026) return tgtUtil.InIron3VolMC(vtx_x, vtx_y, zTgt3, 850., true);
+                if (targetCode == 3082) return tgtUtil.InLead3VolMC(vtx_x, vtx_y, zTgt3, 850., true);
+            } else {
+                if (targetCode == 2026) return tgtUtil.InIron2VolMC(vtx_x, vtx_y, zTgt2, 850., true);
+                if (targetCode == 2082) return tgtUtil.InLead2VolMC(vtx_x, vtx_y, zTgt2, 850., true);
+            }
+            return false;
+        }
+        if (mod >= 11 && mod <= 14) {
+            if (USorDS) {
+                if (targetCode == 6000) return tgtUtil.InWaterTargetVolMC(vtx_x, vtx_y, zWater, 850.);
+            } else {
+                if (targetCode == 3006) return tgtUtil.InCarbon3VolMC(vtx_x, vtx_y, zTgt3, 850., true);
+                if (targetCode == 3026) return tgtUtil.InIron3VolMC(vtx_x, vtx_y, zTgt3, 850., true);
+                if (targetCode == 3082) return tgtUtil.InLead3VolMC(vtx_x, vtx_y, zTgt3, 850., true);
+            }
+            return false;
+        }
+        if (mod >= 15 && mod <= 18) {
+            if (USorDS) {
+                if (targetCode == 4082) return tgtUtil.InLead4VolMC(vtx_x, vtx_y, zTgt4, 850.);
+            } else {
+                if (targetCode == 6000) return tgtUtil.InWaterTargetVolMC(vtx_x, vtx_y, zWater, 850.);
+            }
+            return false;
+        }
+        if (mod >= 20 && mod <= 21) {
+            if (USorDS) {
+                if (targetCode == 5026) return tgtUtil.InIron5VolMC(vtx_x, vtx_y, zTgt5, 850., true);
+                if (targetCode == 5082) return tgtUtil.InLead5VolMC(vtx_x, vtx_y, zTgt5, 850., true);
+            } else {
+                if (targetCode == 4082) return tgtUtil.InLead4VolMC(vtx_x, vtx_y, zTgt4, 850.);
+            }
+            return false;
+        }
+        if (mod >= 23 && mod <= 26) {
+            if (!USorDS) {
+                if (targetCode == 5026) return tgtUtil.InIron5VolMC(vtx_x, vtx_y, zTgt5, 850., true);
+                if (targetCode == 5082) return tgtUtil.InLead5VolMC(vtx_x, vtx_y, zTgt5, 850., true);
+            }
+            return false;
+        }
+
+        return false;
+    }
+
+/*     {
         PlotUtils::TargetUtils tgtUtil;
         double vtx_x, vtx_y, vtx_z;
         int mod, plane;
@@ -1053,7 +1194,28 @@ namespace util
             }
         }
         return false;
+    } */
+
+
+    SMSCalibrator loadCalibrator(bool nuMode /* True = FHC, False = RHC */, bool filled /* True = Filled, False = Empty */)
+    {
+        std::string calibratorEnv = std::string(std::getenv("SMSCALIBRATORFILES"));
+        std::string nuModeStr = nuMode ? "FHC" : "RHC";
+        std::string filledStr = filled ? "Filled" :  "Empty";
+        std::string calibPath = std::string(calibratorEnv)+"/"+nuModeStr+"/"+filledStr+"/sms_calibrator.json";
+        SMSCalibrator calibrator(calibPath);
+        if (calibrator.num_classes == -1) 
+        {
+            std::string errStr = "Failed to load calibrator from file " + calibPath;
+            throw std::runtime_error(errStr);
+        }
+            else
+        {
+            std::cout<<"Successfully loaded calibrator "<< calibPath <<"\n";
+            return calibrator;
+        }
     }
+
 };
 
 namespace reco
@@ -1139,8 +1301,7 @@ namespace reco
         bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
         {   
             int tgt = util::getTgtCode(&univ, false, fUseExtendedTarget);
-            //std::cout<< "Target code: " << fTargetCode << std::endl;
-            //std::cout<< "Target code1: " << tgt << std::endl;
+            //std::cout<< "Target code: " << fTargetCode << " Reco target code: " << tgt << " universe: " << univ.ShortName() << std::endl;
             return tgt == fTargetCode;
         }
         int fTargetCode;
@@ -1198,6 +1359,7 @@ namespace util
     if (pdg>0)  cuts.emplace_back(new reco::IsNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
     else if (pdg<0)  cuts.emplace_back(new reco::IsAntiNeutrino<CVUniverse, MichelEvent>()); //Used minos curvature
     cuts.emplace_back(new reco::MuonCurveSignificance<CVUniverse, MichelEvent>(5));
+    cuts.emplace_back(new reco::HasMLPredCut<CVUniverse, MichelEvent>());
     cuts.emplace_back(new reco::ANNMuonEnergyMinGeV<CVUniverse, MichelEvent>(2, "EMu Min"));
     cuts.emplace_back(new reco::ANNMuonEnergyMaxGeV<CVUniverse, MichelEvent>(20, "EMu Max"));
     cuts.emplace_back(new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40)); //Reccomended at 0.4 for P6 ML vertexing and 0.2 for P4 vertexing
