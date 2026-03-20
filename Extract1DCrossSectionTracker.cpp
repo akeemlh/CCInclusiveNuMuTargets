@@ -225,7 +225,7 @@ int main(const int argc, const char **argv)
 
   bool doDaisy = true;
 
-  std::vector<std::string> dirs = util::findContainingDirectories(indir, "Tracker", true);
+  std::vector<std::string> dirs = util::findContainingDirectories(indir, "Tracker", true, false);
 
   if (dirs.size()==0) dirs = {"./"};
   

@@ -1,0 +1,1 @@
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/FullDetector/Playlist1A/MasterAnaDev_mc_AnaTuple_run00110000_Playlist.root

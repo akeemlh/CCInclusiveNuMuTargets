@@ -1,6 +1,6 @@
 {
     "metadata": {
-        "n_classes": 216,
+        "n_classes": 215,
         "description": "Fused SMS Calibrator (Weights * Alpha | Bias)",
         "fit_hyperparams": {
             "rho": 1.0,

@@ -143,6 +143,11 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
     return GetElepTrue()/1000.;
   }
 
+  double GetEnuTrueGeV() const //GeV
+  {
+    return GetEnuTrue()/1000.;
+  }
+
   int GetInteractionType() const {
     return GetInt("mc_intType");
   }
@@ -275,9 +280,6 @@ class CVUniverse : public PlotUtils::MinervaUniverse {
   virtual double GetANNEnuGeV() const { //GeV
     return GetANNRecoilEGeV() + GetANNEmuGeV();
   }
-
-
-
 
 ROOT::Math::XYZVector adjustDNNVertex( double zPos ) const
 {
@@ -2088,6 +2090,38 @@ double GetDiffractiveUncWeight() const {
     {
         return GetANNRecoilE()/GetANNEnu();
     }
+
+    virtual double GetTrueLowestTpiEvent() const {
+        double tpi = 999999.;
+        int pdgsize = GetInt("mc_nFSPart");
+        for (int i = 0; i< pdgsize; i++)
+            {
+                int pdg = GetVecElem("mc_FSPartPDG", i);
+                if (pdg != 211) continue;
+            double energy = GetVecElem("mc_FSPartE", i);
+            double momentumx = GetVecElem("mc_FSPartPx", i);
+            double momentumy = GetVecElem("mc_FSPartPy", i);
+            double momentumz = GetVecElem("mc_FSPartPz", i);
+                double pionmomentum = TMath::Sqrt(pow(momentumx, 2) + pow(momentumy,2)+pow(momentumz,2));
+            double pionmass = TMath::Sqrt(pow(energy, 2) - pow(pionmomentum, 2));  
+            double KE = energy - pionmass;
+            if (tpi > KE) tpi = KE;     
+            }
+        ///if(tpi < 99999.) std::cout << "Lowest Energy Primary Pion KE is " << tpi << std::endl;
+        return tpi;
+    } 
+
+    virtual int GetTrueNPionsinEvent() const {
+        int npion = 0;
+        int pdgsize = GetInt("mc_nFSPart");
+        for (int i = 0; i< pdgsize; i++)
+        {
+            int pdg = GetVecElem("mc_FSPartPDG", i);
+            if (pdg == 211) npion++;
+        }
+        return npion;
+
+    } 
 
   bool hasMLPred() const {return (GetInt("hasMLPrediction")==1);}
 

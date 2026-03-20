@@ -25,10 +25,10 @@ def load_calibration_db(calib_root_path):
             id_df = tree.arrays(id_branches, library="pd")
             
             id_df = id_df.rename(columns={
-                "run": "ev_run",
-                "subrun": "ev_subrun",
-                "gate": "ev_gate",
-                "physEvt": "physEvtNum"
+                "ev_run" : "run",
+                "ev_subrun" : "subrun",
+                "ev_gate" : "gate",
+                "physEvtNum" : "physEvt"
             })
             
             
@@ -36,11 +36,9 @@ def load_calibration_db(calib_root_path):
                 id_df[col] = id_df[col].astype(np.int64) # Ensure types are consistent (int64) to avoid merge mismatches
 
             id_df["db_idx"] = np.arange(len(id_df))
-            
             payload = tree.arrays(["planes", "probs"], library="np")
             plane_array = payload["planes"]
             prob_array = payload["probs"]
-            
             print(f"Database loaded. Total calibrated events: {len(id_df)}")
             return id_df, plane_array, prob_array
 
@@ -66,17 +64,35 @@ def process_file(original_path, output_dir, calib_id_df, calib_planes, calib_pro
 
             tree = f["MasterAnaDev"]
             n_entries = tree.num_entries
-            
             if n_entries == 0:
                 print(f"Skipping {filename}: Empty tree.")
                 return
 
-            target_ids = tree.arrays(["ev_run", "ev_subrun", "ev_gate", "physEvtNum"], library="pd")
-            
+            if "mc_run" in tree: #use found_truth
+                print("Case2")
+                target_ids = tree.arrays(["mc_run", "mc_subrun", "mc_nthEvtInFile", "slice_numbers"], library="pd")
+                target_ids = target_ids.rename(columns={
+                    "mc_run" : "run",
+                    "mc_subrun" : "subrun",
+                    "mc_nthEvtInFile" : "gate",
+                    "slice_numbers" : "physEvt"
+                })
+            elif "ev_run" in tree:
+                print("Case1")
+                target_ids = tree.arrays(["ev_run", "ev_subrun", "ev_gate", "physEvtNum"], library="pd")
+                target_ids = target_ids.rename(columns={
+                    "ev_run" : "run",
+                    "ev_subrun" : "subrun",
+                    "ev_gate" : "gate",
+                    "physEvtNum" : "physEvt"
+                })
+
+            print(target_ids)
+            print(calib_id_df)
             for col in target_ids.columns:
                 target_ids[col] = target_ids[col].astype(np.int64)
 
-            merged = pd.merge(target_ids, calib_id_df, on=["ev_run", "ev_subrun", "ev_gate", "physEvtNum"], how="left") #merging the Original IDs (Left) with the Calib DB IDs (Right) preserving the order and length of the Original IDs.
+            merged = pd.merge(target_ids, calib_id_df, on=["run", "subrun", "gate", "physEvt"], how="left") #merging the Original IDs (Left) with the Calib DB IDs (Right) preserving the order and length of the Original IDs.
             
             out_planes = np.full((n_entries, 5), -1, dtype=np.int32)
             out_probs = np.full((n_entries, 5), -1.0, dtype=np.float32)

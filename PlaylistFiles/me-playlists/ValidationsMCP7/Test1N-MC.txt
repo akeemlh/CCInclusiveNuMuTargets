@@ -1,0 +1,1 @@
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/ValidationPass_GeoNotFixed/MC/1N/MasterAnaDev_mc_AnaTuple_run00113270_Playlist.root

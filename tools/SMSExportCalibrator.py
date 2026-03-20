@@ -62,7 +62,10 @@ def plot_sms_calibration_matrix(matrix, outpath, ax=None, cmap='viridis' ):
     ax.figure.savefig(outpath, bbox_inches='tight', dpi=300)
     return fig, ax
 
-
+def softmax(x):
+    """Numerically stable softmax."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=0)
 
 parser = argparse.ArgumentParser(description="SMSSaveToBinary - This script takes a SMS .pkl file and saves the model parameters to a binary format, interpretable by C++ analysis code")
 parser.add_argument("-i", "--input", required=True, type=str, help="Path to .pkl file")
@@ -77,6 +80,33 @@ outbase = args.output
 with open(input, 'rb') as f:
     calibrator = joblib.load(f)
 
+#testX = [88, 87, 89]
+#testX_Probs= [0.934575, 0.0634049, 0.00182167]
+
+#testProbs = [0.906584, 0.0906537, 0.00170366]
+testProbs = [0.934575, 0.0634049, 0.00182167]
+testSum = np.sum(testProbs)
+testProbToDistribute = (1-testSum)/212
+print("testProbToDistribute: ", testProbToDistribute)
+testArr = np.full(215, testProbToDistribute)
+#testArr[199] = 0.906584
+#testArr[200] = 0.0906537
+#testArr[198] = 0.00170366
+testArr[88] = 0.934575
+testArr[87] = 0.0634049
+testArr[89] = 0.00182167
+
+testArr_np = []
+#testArr_np.append(testArr)
+testArr_np.append(testArr)
+testArr_np2 = np.array(testArr_np)
+
+print("Logits: ", calibrator._get_logits(testArr_np2))
+test_calib = calibrator.predict_proba(testArr_np2)
+print("test_calib ", test_calib)
+print(np.max(test_calib), np.argmax(test_calib))
+
+
 # 2. Extract weights and biases
 # Note: Inspect your 'calibrator' object with dir() if you aren't sure of the attribute names.
 # Commonly they are stored as .weights, .W, .coef_, or similar.
@@ -86,8 +116,8 @@ W_full = calibrator.W
 print(f"W_full.shape: {W_full.shape}")
 weights = W_full[:, :-1]
 bias = W_full[:, -1]
-plot_sms_calibration_matrix(W_full, f"{outbase}/sms_matrix_full_without_temp.png")
-plot_sms_calibration_matrix(W_full, f"{outbase}/sms_matrix_full_without_temp.pdf")
+##plot_sms_calibration_matrix(W_full, f"{outbase}/sms_matrix_full_without_temp.png")
+##plot_sms_calibration_matrix(W_full, f"{outbase}/sms_matrix_full_without_temp.pdf")
 
 classes = calibrator.classes_
 if hasattr(calibrator.ts.cal_, 'invtemp_'):
@@ -95,13 +125,13 @@ if hasattr(calibrator.ts.cal_, 'invtemp_'):
     alpha = calibrator.ts.cal_.invtemp_ 
     weights = weights * alpha
 print("Here0")
-plot_sms_calibration_matrix(weights, f"{outbase}/sms_matrix_without_bias.png")
-plot_sms_calibration_matrix(weights, f"{outbase}/sms_matrix_without_bias.pdf")
+#plot_sms_calibration_matrix(weights, f"{outbase}/sms_matrix_without_bias.png")
+#plot_sms_calibration_matrix(weights, f"{outbase}/sms_matrix_without_bias.pdf")
 W_fused = np.hstack([weights, bias.reshape(-1, 1)])
 W_fused = W_fused.astype(np.float64)
 print("Here1")
-plot_sms_calibration_matrix(W_fused, f"{outbase}/sms_matrix_with_bias.png")
-plot_sms_calibration_matrix(W_fused, f"{outbase}/sms_matrix_with_bias.pdf")
+#plot_sms_calibration_matrix(W_fused, f"{outbase}/sms_matrix_with_bias.png")
+#plot_sms_calibration_matrix(W_fused, f"{outbase}/sms_matrix_with_bias.pdf")
 print("Here2")
 
 
@@ -139,7 +169,7 @@ if os.path.isfile(results_path):
         ECE_3 = row[2]
 
 # 3. Save to raw binary
-W_fused.tofile(f"{outbase}/sms_calibrator.bin")
+#W_fused.tofile(f"{outbase}/sms_calibrator.bin")
 print(f"Saved to binary file {outbase}/sms_calibrator.bin")
 import json
 # 3. Create a dictionary for export
@@ -165,11 +195,47 @@ export_data = {
 }
 
 # 4. Save to JSON
-output_path = f"{outbase}/sms_calibrator.json"
-with open(output_path, 'w') as f:
-    json.dump(export_data, f, indent=4) # indent=4 makes it pretty/readable
+#output_path = f"{outbase}/sms_calibrator.json"
+#with open(output_path, 'w') as f:
+#    json.dump(export_data, f, indent=4) # indent=4 makes it pretty/readable
 print(f"Saved to json file {outbase}/sms_calibrator.bin")
 print("Export complete.")
 
-import shutil
-shutil.copyfile(input, f"{outbase}/sms_calibrator.pkl")
+#import shutil
+#shutil.copyfile(input, f"{outbase}/sms_calibrator.pkl")
+
+
+
+
+
+#inarray = [-12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -6.37498, -0.0980716, -2.40071, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121, -12.2121]
+#log_probs = np.asarray(inarray)
+
+print(f"Input to log: {testArr_np2}")
+
+log_probs = np.log(testArr_np2)
+
+print(f"Log probs: {log_probs}")
+
+
+
+# .shape[-1] safely gets the number of classes (e.g., 215) whether 1D or 2D
+n = log_probs.shape[-1]
+print(n)
+
+weights = W_fused[:, :n]
+bias = W_fused[:, -1]
+
+if log_probs.ndim == 1:
+    # Standard W * x + b for a single 1D sample
+    calibrated_logits = (weights @ log_probs) + bias
+else:
+    # Batched x * W.T + b for 2D arrays
+    calibrated_logits = (log_probs @ weights.T)
+    print(f"calibrated_logits pre-biasing: {calibrated_logits}")
+    calibrated_logits = calibrated_logits + bias
+    print(f"calibrated_logits post-biasing: {calibrated_logits}")
+
+print(f"calibrated_logits: {calibrated_logits}")
+
+print("softmax: ", softmax(calibrated_logits))

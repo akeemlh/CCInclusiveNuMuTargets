@@ -98,6 +98,7 @@ enum ErrorCodes
 #include "util/COHPionReweighter.h"
 #include "util/DiffractiveReweighter.h"
 #include "PlotUtils/BodekRitchieReweighter.h"
+#include "PlotUtils/PionReweighter.h"
 
 #pragma GCC diagnostic pop
 
@@ -111,6 +112,7 @@ enum ErrorCodes
 // c++ includes
 #include <iostream>
 #include <cstdlib> //getenv()
+#include <deque>
 
 #include "utilities/SMSCalibrator.h"
 
@@ -328,8 +330,9 @@ void LoopAndFillEventSelection(
     SMSCalibrator& calibrator)
 {
   //calibrator.cacheEvt = -1;
-  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-  assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
+  const int WINDOW_SIZE = 10; // number of samples to average over
+  std::deque<std::pair<int, std::chrono::steady_clock::time_point>> timeWindow;
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();  assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
   auto &cvUniv = error_bands["cv"].front();
 
   std::cout << "Starting MC reco loop...\n";
@@ -337,7 +340,7 @@ void LoopAndFillEventSelection(
   //const int nEntries = 10000;
   for (int i = 0; i < nEntries; ++i)
   {
-    if (i % 1000 == 0)
+    /* if (i % 1000 == 0)
     { 
       std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
       double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
@@ -345,6 +348,53 @@ void LoopAndFillEventSelection(
       int sleft = (nEntries-i)*msperevent/1000;
       double selapsed = ((int)mselapsed)/1000;
       std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+    } */
+    // Replace your sampling block with:
+    if (i % 1000 == 0 && i > 0)
+    {
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+        // Add current sample to the sliding window
+        timeWindow.push_back({i, now});
+        if (timeWindow.size() > WINDOW_SIZE)
+            timeWindow.pop_front();
+
+        // Overall elapsed time
+        double msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+        double sElapsed   = msElapsed / 1000.0;
+
+        // Dynamic rate: events/sec over the sliding window
+        double eventsPerSec = 0.0;
+        double msRemaining  = 0.0;
+        if (timeWindow.size() >= 2)
+        {
+            auto& oldest = timeWindow.front();
+            double msWindow  = std::chrono::duration_cast<std::chrono::milliseconds>(now - oldest.second).count();
+            int    evWindow  = i - oldest.first;
+            eventsPerSec = (msWindow > 0) ? (eventsPerSec = evWindow / (msWindow / 1000.0)) : 0.0;
+            msRemaining  = (eventsPerSec > 0) ? ((nEntries - i) / eventsPerSec * 1000.0) : 0.0;
+        }
+        else
+        {
+            // Fallback to overall average until window is populated
+            double msPerEvent = msElapsed / i;
+            msRemaining = (nEntries - i) * msPerEvent;
+        }
+
+        int sRemaining = static_cast<int>(msRemaining / 1000.0);
+
+        // Rate indicator: pick a sensible unit
+        std::string rateStr;
+        if (eventsPerSec >= 1000.0)
+            rateStr = std::to_string(static_cast<int>(eventsPerSec / 1000.0)) + "k ev/s";
+        else
+            rateStr = std::to_string(static_cast<int>(eventsPerSec)) + " ev/s";
+
+        std::cout << i << " / " << nEntries
+                  << "  Elapsed: "   << std::fixed << std::setprecision(1) << sElapsed  << "s"
+                  << "  Remaining: " << sRemaining << "s"
+                  << "  Rate: "      << rateStr
+                  << "          \r"  << std::flush;
     }
     // std::cout<<"Here2\n";
     MichelEvent cvEvent;
@@ -392,8 +442,8 @@ void LoopAndFillEventSelection(
         if (util::isTargetSideband(universe, 1, targetCode, 1, true)) // Get true origins of the events reconstructed in the upstream region of tgt x
         {
           int USbandcode = -1; //US, DS, Signal
-          if (util::isTargetSideband(universe, 0, targetCode, 1, false)) USbandcode = 0; // If the event truly occurred in the US region of tgt x
-          else if (util::isTargetSideband(universe, 0, targetCode, 0, false)) USbandcode = 1; // If the event truly occurred in the DS region of tgt x
+          if (util::isTargetSideband(universe, 0, targetCode, 1, true)) USbandcode = 0; // If the event truly occurred in the US region of tgt x
+          else if (util::isTargetSideband(universe, 0, targetCode, 0, true)) USbandcode = 1; // If the event truly occurred in the DS region of tgt x
           else if (truthcode == targetCode) USbandcode = 2; // If the event truly occurred in the signal region (inside) of tgt x
           for (auto &var : vars)
             (*var->m_sidebandHistSetUSMC)[USbandcode].FillUniverse(universe, var->GetRecoValue(*universe), weight);
@@ -404,8 +454,8 @@ void LoopAndFillEventSelection(
         {
           int DSbandcode = -1; //US, DS, Signal
 
-          if (util::isTargetSideband(universe, 0, targetCode, 1, false)) DSbandcode = 0; // If the event truly occurred in the US region of tgt x
-          else if (util::isTargetSideband(universe, 0, targetCode, 0, false)) DSbandcode = 1; // If the event truly occurred in the DS region of tgt x
+          if (util::isTargetSideband(universe, 0, targetCode, 1, true)) DSbandcode = 0; // If the event truly occurred in the US region of tgt x
+          else if (util::isTargetSideband(universe, 0, targetCode, 0, true)) DSbandcode = 1; // If the event truly occurred in the DS region of tgt x
           else if (truthcode == targetCode) DSbandcode = 2; // If the event truly occurred in the signal region (inside) of tgt x
           for (auto &var : vars)
             (*var->m_sidebandHistSetDSMC)[DSbandcode].FillUniverse(universe, var->GetRecoValue(*universe), weight);
@@ -522,7 +572,11 @@ void LoopAndFillData(PlotUtils::ChainWrapper *data,
                      SMSCalibrator& calibrator)
 {
   //calibrator.cacheEvt = -1;
+
+  const int WINDOW_SIZE = 10; // number of samples to average over
+  std::deque<std::pair<int, std::chrono::steady_clock::time_point>> timeWindow;
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+
   std::cout << "Starting data loop...\n";
   //const int nEntries = 10000;
   const int nEntries = data->GetEntries();
@@ -532,7 +586,7 @@ void LoopAndFillData(PlotUtils::ChainWrapper *data,
     {
       universe->SetEntry(i);
       universe->SetCalibrator(&calibrator);
-      if (i % 1000 == 0)
+      /* if (i % 1000 == 0)
       { 
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
@@ -540,7 +594,56 @@ void LoopAndFillData(PlotUtils::ChainWrapper *data,
         int sleft = (nEntries-i)*msperevent/1000;
         double selapsed = ((int)mselapsed)/1000;
         std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+      } */
+
+      // Replace your sampling block with:
+      if (i % 1000 == 0 && i > 0)
+      {
+          std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+          // Add current sample to the sliding window
+          timeWindow.push_back({i, now});
+          if (timeWindow.size() > WINDOW_SIZE)
+              timeWindow.pop_front();
+
+          // Overall elapsed time
+          double msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+          double sElapsed   = msElapsed / 1000.0;
+
+          // Dynamic rate: events/sec over the sliding window
+          double eventsPerSec = 0.0;
+          double msRemaining  = 0.0;
+          if (timeWindow.size() >= 2)
+          {
+              auto& oldest = timeWindow.front();
+              double msWindow  = std::chrono::duration_cast<std::chrono::milliseconds>(now - oldest.second).count();
+              int    evWindow  = i - oldest.first;
+              eventsPerSec = (msWindow > 0) ? (eventsPerSec = evWindow / (msWindow / 1000.0)) : 0.0;
+              msRemaining  = (eventsPerSec > 0) ? ((nEntries - i) / eventsPerSec * 1000.0) : 0.0;
+          }
+          else
+          {
+              // Fallback to overall average until window is populated
+              double msPerEvent = msElapsed / i;
+              msRemaining = (nEntries - i) * msPerEvent;
+          }
+
+          int sRemaining = static_cast<int>(msRemaining / 1000.0);
+
+          // Rate indicator: pick a sensible unit
+          std::string rateStr;
+          if (eventsPerSec >= 1000.0)
+              rateStr = std::to_string(static_cast<int>(eventsPerSec / 1000.0)) + "k ev/s";
+          else
+              rateStr = std::to_string(static_cast<int>(eventsPerSec)) + " ev/s";
+
+          std::cout << i << " / " << nEntries
+                    << "  Elapsed: "   << std::fixed << std::setprecision(1) << sElapsed  << "s"
+                    << "  Remaining: " << sRemaining << "s"
+                    << "  Rate: "      << rateStr
+                    << "          \r"  << std::flush;
       }
+
       MichelEvent myevent;
       for (auto &study : studies) study->Selected(*universe, myevent, 1);
 
@@ -585,6 +688,8 @@ void LoopAndFillEffDenom(PlotUtils::ChainWrapper *truth,
                          PlotUtils::Model<CVUniverse, MichelEvent> &model,
                          int targetCode)
 {
+  const int WINDOW_SIZE = 10; // number of samples to average over
+  std::deque<std::pair<int, std::chrono::steady_clock::time_point>> timeWindow;
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
   assert(!truth_bands["cv"].empty() && "\"cv\" error band is empty!  Could not set Model entry.");
   auto &cvUniv = truth_bands["cv"].front();
@@ -594,7 +699,7 @@ void LoopAndFillEffDenom(PlotUtils::ChainWrapper *truth,
   //const int nEntries = 10000;
   for (int i = 0; i < nEntries; ++i)
   {
-    if (i % 1000 == 0)
+    /* if (i % 1000 == 0)
     { 
       std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
       double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
@@ -602,6 +707,52 @@ void LoopAndFillEffDenom(PlotUtils::ChainWrapper *truth,
       int sleft = (nEntries-i)*msperevent/1000;
       double selapsed = ((int)mselapsed)/1000;
       std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+    } */
+    if (i % 1000 == 0 && i > 0)
+    {
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+        // Add current sample to the sliding window
+        timeWindow.push_back({i, now});
+        if (timeWindow.size() > WINDOW_SIZE)
+            timeWindow.pop_front();
+
+        // Overall elapsed time
+        double msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+        double sElapsed   = msElapsed / 1000.0;
+
+        // Dynamic rate: events/sec over the sliding window
+        double eventsPerSec = 0.0;
+        double msRemaining  = 0.0;
+        if (timeWindow.size() >= 2)
+        {
+            auto& oldest = timeWindow.front();
+            double msWindow  = std::chrono::duration_cast<std::chrono::milliseconds>(now - oldest.second).count();
+            int    evWindow  = i - oldest.first;
+            eventsPerSec = (msWindow > 0) ? (eventsPerSec = evWindow / (msWindow / 1000.0)) : 0.0;
+            msRemaining  = (eventsPerSec > 0) ? ((nEntries - i) / eventsPerSec * 1000.0) : 0.0;
+        }
+        else
+        {
+            // Fallback to overall average until window is populated
+            double msPerEvent = msElapsed / i;
+            msRemaining = (nEntries - i) * msPerEvent;
+        }
+
+        int sRemaining = static_cast<int>(msRemaining / 1000.0);
+
+        // Rate indicator: pick a sensible unit
+        std::string rateStr;
+        if (eventsPerSec >= 1000.0)
+            rateStr = std::to_string(static_cast<int>(eventsPerSec / 1000.0)) + "k ev/s";
+        else
+            rateStr = std::to_string(static_cast<int>(eventsPerSec)) + " ev/s";
+
+        std::cout << i << " / " << nEntries
+                  << "  Elapsed: "   << std::fixed << std::setprecision(1) << sElapsed  << "s"
+                  << "  Remaining: " << sRemaining << "s"
+                  << "  Rate: "      << rateStr
+                  << "          \r"  << std::flush;
     }
 
     MichelEvent cvEvent;
@@ -827,8 +978,9 @@ int main(const int argc, const char **argv)
   }
 
   PlotUtils::MacroUtil options(reco_tree_name, mc_file_list, data_file_list, playlistname, true);
+  std::cout<<"HereEvLp0.1\n";
   options.m_plist_string = util::GetPlaylist(*options.m_mc, true); // TODO: Put GetPlaylist into PlotUtils::MacroUtil
-
+  std::cout<<"HereEvLp0.2\n";
   // You're required to make some decisions
   PlotUtils::MinervaUniverse::SetNuEConstraint(true);
   PlotUtils::MinervaUniverse::SetPlaylist(options.m_plist_string); // TODO: Infer this from the files somehow?
@@ -850,11 +1002,12 @@ int main(const int argc, const char **argv)
   PlotUtils::MinervaUniverse::SetAnalysisNuPDG(nupdg);
   PlotUtils::MinervaUniverse::SetNFluxUniverses(100);
   PlotUtils::MinervaUniverse::SetZExpansionFaReweight(false);
-
+  std::cout<<"Here01234\n";
   PlotUtils::MinervaUniverse::RPAMaterials(true);
   int filledOrEmpty = util::filledOrEmptyMEPlaylist(options.m_plist_string); //filled = 1, empty = 2
+  std::cout<<"Here01234.0\n";
   SMSCalibrator calibrator = util::loadCalibrator((nupdg == 14), (filledOrEmpty==1));
-
+  std::cout<<"Here01234.1\n";
   const bool NO_2P2H_WARP = (getenv("NO_2P2H_WARP") != nullptr);
   if (NO_2P2H_WARP)
   {
@@ -865,6 +1018,7 @@ int main(const int argc, const char **argv)
   {
     std::cout << "Turning on AMUDISReweighter because environment variable AMU_DIS_WARP is set.\n";
   }
+  std::cout<<"Here01234.2\n";
   const bool LOW_Q2_PION_WARP = (getenv("LOW_Q2_PION_WARP") != nullptr);
   if (LOW_Q2_PION_WARP)
   {
@@ -875,6 +1029,7 @@ int main(const int argc, const char **argv)
   {
     std::cout << "Replace LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter because environment variable SUSA_2P2H_WARP is set.\n";
   }
+  std::cout<<"Here012345\n";
 
   //Tune version vA.B.C
   int tuneA = 4;
@@ -941,6 +1096,13 @@ int main(const int argc, const char **argv)
     MnvTune.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("MENU1PI"));
     MnvTune.emplace_back(new PlotUtils::DiffractiveReweighter<CVUniverse, MichelEvent>());
     MnvTune.emplace_back(new PlotUtils::COHPionReweighter<CVUniverse, MichelEvent>());
+  }
+  if (tuneB == 6)
+  {
+    MnvTune.emplace_back(new PlotUtils::LowQ2PiReweighter<CVUniverse, MichelEvent>("MENU1PI"));
+    MnvTune.emplace_back(new PlotUtils::DiffractiveReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::COHPionReweighter<CVUniverse, MichelEvent>());
+    MnvTune.emplace_back(new PlotUtils::PionReweighter<CVUniverse, MichelEvent>());
   }
   //Setting the C component of mnvtune vA.B.C
   if (tuneC == 1)
@@ -1024,6 +1186,10 @@ int main(const int argc, const char **argv)
   error_bands["cv"] = {new CVUniverse(options.m_mc)};
   std::map<std::string, std::vector<CVUniverse *>> truth_bands;
   if (doSystematics)  truth_bands = GetStandardSystematics(options.m_truth);
+  else{
+    std::map<std::string, std::vector<CVUniverse*> > band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_truth, CVUniverse::GetNFluxUniverses());
+    truth_bands.insert(band_flux.begin(), band_flux.end()); //Necessary to get cross-section later.
+  }
   truth_bands["cv"] = {new CVUniverse(options.m_truth)};
 
   std::vector<Variable1DNuke *> nukeVars;
@@ -1054,24 +1220,25 @@ int main(const int argc, const char **argv)
   nukeVars.push_back(new Variable1DNuke("pTmu", "p_{T, #mu} [GeV/c]", util::PTBins, &CVUniverse::GetANNMuonPTGeV, &CVUniverse::GetMuonPTTrue));
   nukeVars.push_back(new Variable1DNuke("pZmu", "p_{||, #mu} [GeV/c]", util::PzBins, &CVUniverse::GetANNMuonPzGeV, &CVUniverse::GetMuonPzTrue));
   nukeVars.push_back(new Variable1DNuke("Emu", "E_{#mu} [GeV]", util::EmuBins, &CVUniverse::GetANNEmuGeV, &CVUniverse::GetElepTrueGeV));
+  nukeVars.push_back(new Variable1DNuke("Enu", "E_{#nu} [GeV]", util::EnuBins, &CVUniverse::GetANNEnuGeV, &CVUniverse::GetEnuTrueGeV));
   nukeVars.push_back(new Variable1DNuke("Erecoil", "E_{recoil} [GeV]", util::Erecoilbins, &CVUniverse::GetANNRecoilEGeV, q0TrueGeV)); // TODO: q0 is not the same as recoil energy without a spline correction
   nukeVars.push_back(new Variable1DNuke("BjorkenX", "X", util::bjorkenXbins, &CVUniverse::GetBjorkenX, &CVUniverse::GetBjorkenXTrue));
   //nukeVars.push_back(new Variable1DNuke("BjorkenY", "Y", util::bjorkenYbins, &CVUniverse::GetBjorkenY, &CVUniverse::GetBjorkenYTrue));
   nukeVars.push_back(new Variable1DNuke("segment", "segmentNum", segmentBins, GetANNSegment, &CVUniverse::GetTruthSegment)); // Just used for plotting events by detector position tbh - not for any actual physics
-  //nukeVars.push_back(new Variable1DNuke("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
+  nukeVars.push_back(new Variable1DNuke("beamAngle", "Angle", angleBins, muonAngleDegrees, muonAngleDegreesTruth));              // Neutrino angle 
   nukeVars2D.push_back(new Variable2DNuke("pTmu_pZmu", *nukeVars[0], *nukeVars[1]));
   nukeVars2D.push_back(new Variable2DNuke("Emu_Erecoil", *nukeVars[2], *nukeVars[3]));
   //nukeVars2D.push_back(new Variable2DNuke("BjorkenX_BjorkenY", *nukeVars[4], *nukeVars[5])); 
   //Probe some more variables?????
 
   //Testing ANN probability distribution
-  //std::vector<double> probBins;
-  //const double nProbBins = 200;
-  //for (double whichBin = 0; whichBin < nProbBins+1; whichBin++)
-  //{
-  //  probBins.push_back((1/nProbBins)*whichBin);
-  //}
-  //nukeVars.push_back(new Variable1DNuke("ANNConfidence", "Probs", probBins, GetANNProb, nullFunc));
+  std::vector<double> probBins;
+  const double nProbBins = 20;
+  for (double whichBin = 0; whichBin < nProbBins+1; whichBin++)
+  {
+    probBins.push_back((1/nProbBins)*whichBin);
+  }
+  nukeVars.push_back(new Variable1DNuke("ANNConfidence", "Probs", probBins, GetANNProb, nullFunc));
 
   std::vector<Study *> studies;
   std::function<double(const CVUniverse &, const MichelEvent &)> ptmu = [](const CVUniverse &univ, const MichelEvent & /* evt */)
@@ -1271,6 +1438,7 @@ int main(const int argc, const char **argv)
       }
       migrationOutDir->Close();
 
+      options.m_mc->tree->PrintCacheStats();
       std::cout << "Success" << std::endl;
     /* }
     catch (const ROOT::exception &e)

@@ -1,0 +1,10 @@
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6I/MasterAnaDev_data_AnaTuple_run00026254_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6I/MasterAnaDev_data_AnaTuple_run00026262_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6I/MasterAnaDev_data_AnaTuple_run00026265_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6I/MasterAnaDev_data_AnaTuple_run00026273_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6J/MasterAnaDev_data_AnaTuple_run00026294_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6J/MasterAnaDev_data_AnaTuple_run00026319_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6J/MasterAnaDev_data_AnaTuple_run00026336_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6J/MasterAnaDev_data_AnaTuple_run00026337_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6J/MasterAnaDev_data_AnaTuple_run00026339_Playlist.root
+root://fndcadoor.fnal.gov:1094/pnfs/fnal.gov/usr/minerva/persistent/DataPreservation/p7/Data/Playlist6J/MasterAnaDev_data_AnaTuple_run00026349_Playlist.root

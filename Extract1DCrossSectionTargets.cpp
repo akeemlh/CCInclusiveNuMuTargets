@@ -256,8 +256,11 @@ int main(const int argc, const char **argv)
   std::string indir = std::string(argv[2]);
   std::string intgt = std::string(argv[3]);
   int pdg = std::stoi(argv[4]);
+
+  //Set sideband subtraction type
+  int sidebandSubtraction = 2; //0 = No subtraction, 1 = scalar subraction, 2 = bin-by-bin subtraction
   
-  std::vector<std::string> dirs = util::findContainingDirectories(indir, "Targets", true);
+  std::vector<std::string> dirs = util::findContainingDirectories(indir, "Targets", true, false);
 
   if (dirs.size()==0) dirs = {"./"};
 
@@ -406,8 +409,6 @@ int main(const int argc, const char **argv)
         double mcPOT = 0;
         double dataPOT = 0;
         std::cout<<"Investigating directory2\n";
-        //Only needed for water subtractive analysis
-        double scaleFactor = 1e18;
 
         double totalMCPOTFull = 0; //Only needed for water subtractive analysis
         double totalDataPOTFull = 0;
@@ -481,18 +482,38 @@ int main(const int argc, const char **argv)
             util::AddHist(*effDenomRES,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_RES")), prefix).get(), mcscale);
             util::AddHist(*effDenomQE,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_QE")), prefix).get(), mcscale);
             util::AddHist(*effDenomOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_denominator_intChannels_Other")), prefix).get(), mcscale);
+            
+            //If doing scalar sideband tuning
+            if (sidebandSubtraction == 1)
+            {
+              util::AddHist(*USSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Signal"))).get(), mcscale);
+              util::AddHist(*USSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_DS"))).get(), mcscale);
+              util::AddHist(*USSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_US"))).get(), mcscale);
+              util::AddHist(*USSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Other"))).get(), mcscale);
+              util::AddHist(*DSSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Signal"))).get(), mcscale);
+              util::AddHist(*DSSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_DS"))).get(), mcscale);
+              util::AddHist(*DSSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_US"))).get(), mcscale);
+              util::AddHist(*DSSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Other"))).get(), mcscale);
+              util::AddHist(*DataUSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_US_Sideband"))).get(), datascale);
+              util::AddHist(*DataDSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_DS_Sideband"))).get(), datascale);
+              util::AddHist(*DataSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_data"))).get(), datascale);
+            }
+            //If doing bin-by-bin sideband tuning
+            if (sidebandSubtraction == 2)
+            {
+              util::AddHist(*USSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("US_sideband_Signal")), prefix).get(), mcscale);
+              util::AddHist(*USSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("US_sideband_DS")), prefix).get(), mcscale);
+              util::AddHist(*USSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("US_sideband_US")), prefix).get(), mcscale);
+              util::AddHist(*USSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("US_sideband_Other")), prefix).get(), mcscale);
+              util::AddHist(*DSSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("DS_sideband_Signal")), prefix).get(), mcscale);
+              util::AddHist(*DSSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("DS_sideband_DS")), prefix).get(), mcscale);
+              util::AddHist(*DSSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("DS_sideband_US")), prefix).get(), mcscale);
+              util::AddHist(*DSSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("DS_sideband_Other")), prefix).get(), mcscale);
+              util::AddHist(*DataUSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("US_Sideband")), prefix).get(), datascale);
+              util::AddHist(*DataDSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("DS_Sideband")), prefix).get(), datascale);
+              util::AddHist(*DataSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("data")), prefix).get(), datascale);
+            }
 
-            util::AddHist(*USSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Signal"))).get(), mcscale);
-            util::AddHist(*USSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_DS"))).get(), mcscale);
-            util::AddHist(*USSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_US"))).get(), mcscale);
-            util::AddHist(*USSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_US_sideband_Other"))).get(), mcscale);
-            util::AddHist(*DSSidebandSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Signal"))).get(), mcscale);
-            util::AddHist(*DSSidebandDS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_DS"))).get(), mcscale);
-            util::AddHist(*DSSidebandUS,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_US"))).get(), mcscale);
-            util::AddHist(*DSSidebandOther,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("segment_DS_sideband_Other"))).get(), mcscale);
-            util::AddHist(*DataUSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_US_Sideband"))).get(), datascale);
-            util::AddHist(*DataDSSideband,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_DS_Sideband"))).get(), datascale);
-            util::AddHist(*DataSignal,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("segment_data"))).get(), datascale);
 
             util::AddHist(*SelectedSignalReco,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("selected_signal_reco")), prefix).get(), mcscale);
             util::AddHist(*BackgroundWrongSign,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("background_Wrong_Sign_Bkg")), prefix).get(), mcscale);
@@ -540,143 +561,142 @@ int main(const int argc, const char **argv)
         //Sideband chisq minimisation - single scale factor across a given sideband region
         //************************************************
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(8), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(8), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(8), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(8), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(8), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(8), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(8), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(8), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(8), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(8), -1);
+        /* USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(8), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(8), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(8), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(8), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(8), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(8), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(8), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(8), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(8), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(8), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(10), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(10), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(10), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(10), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(10), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(10), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(10), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(10), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(10), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(10), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(10), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(10), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(10), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(10), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(10), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(10), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(10), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(10), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(10), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(10), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(17), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(17), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(17), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(17), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(17), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(17), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(17), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(17), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(17), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(17), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(17), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(17), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(17), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(17), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(17), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(17), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(17), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(17), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(17), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(17), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(19), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(19), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(19), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(19), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(19), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(19), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(19), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(19), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(19), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(19), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(19), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(19), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(19), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(19), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(19), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(19), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(19), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(19), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(19), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(19), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(26), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(26), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(26), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(26), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(26), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(26), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(26), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(26), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(26), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(26), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(26), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(26), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(26), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(26), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(26), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(26), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(26), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(26), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(26), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(26), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(28), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(28), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(28), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(28), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(28), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(28), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(28), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(28), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(28), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(28), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(28), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(28), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(28), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(28), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(28), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(28), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(28), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(28), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(28), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(28), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(35), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(35), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(35), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(35), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(35), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(35), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(35), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(35), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(35), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(35), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(35), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(35), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(35), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(35), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(35), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(35), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(35), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(35), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(35), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(35), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(37), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(37), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(37), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(37), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(37), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(37), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(37), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(37), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(37), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(37), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(37), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(37), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(37), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(37), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(37), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(37), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(37), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(37), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(37), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(37), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(44), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(44), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(44), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(44), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(44), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(44), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(44), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(44), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(44), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(44), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(44), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(44), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(44), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(44), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(44), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(44), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(44), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(44), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(44), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(44), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(46), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(46), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(46), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(46), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(46), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(46), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(46), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(46), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(46), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(46), -1);
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(46), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(46), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(46), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(46), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(46), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(46), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(46), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(46), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(46), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(46), 0);
 
-        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(49), -1);
-        USSidebandDS->SetBinContent(USSidebandDS->FindBin(49), -1);
-        USSidebandUS->SetBinContent(USSidebandUS->FindBin(49), -1);
-        USSidebandOther->SetBinContent(USSidebandOther->FindBin(49), -1);
-        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(49), -1);
-        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(49), -1);
-        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(49), -1);
-        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(49), -1);
-        DataUSSideband->SetBinContent(DataUSSideband->FindBin(49), -1);
-        DataDSSideband->SetBinContent(DataDSSideband->FindBin(49), -1);
-
-        bool doMinimiser = true;
+        USSidebandSignal->SetBinContent(USSidebandSignal->FindBin(49), 0);
+        USSidebandDS->SetBinContent(USSidebandDS->FindBin(49), 0);
+        USSidebandUS->SetBinContent(USSidebandUS->FindBin(49), 0);
+        USSidebandOther->SetBinContent(USSidebandOther->FindBin(49), 0);
+        DSSidebandSignal->SetBinContent(DSSidebandSignal->FindBin(49), 0);
+        DSSidebandDS->SetBinContent(DSSidebandDS->FindBin(49), 0);
+        DSSidebandUS->SetBinContent(DSSidebandUS->FindBin(49), 0);
+        DSSidebandOther->SetBinContent(DSSidebandOther->FindBin(49), 0);
+        DataUSSideband->SetBinContent(DataUSSideband->FindBin(49), 0);
+        DataDSSideband->SetBinContent(DataDSSideband->FindBin(49), 0); */
 
 
         if (isNumber(tgtname))
         {
           int tgtCode = std::stoi(tgtname);
-          if (tgtCode>=7 && tgtCode <= 19) doMinimiser = false; // No plastic sideband tuning possible for the pseudotargets
+          if (tgtCode>=7 && tgtCode <= 19) sidebandSubtraction = 0; // No plastic sideband tuning possible for the pseudotargets
         } 
         double USScaleFactor = 1;
         double DSScaleFactor = 1;
-        if (doMinimiser)
+        if (sidebandSubtraction==1)
         {
           PlotUtils::MnvH1D* combinedUS = USSidebandSignal->Clone("CombinedUSMC");
           combinedUS->Add(USSidebandUS);
           combinedUS->Add(USSidebandDS);
           combinedUS->Add(USSidebandOther);
+          //GetCVHistoWithStatError();
           combinedUS->Scale(dataPOT/mcPOT);
 
           PlotUtils::MnvH1D* combinedDS = DSSidebandSignal->Clone("CombinedUSMC");
@@ -724,11 +744,39 @@ int main(const int argc, const char **argv)
             DSScaleFactor = bestfit[0];
             std::cout<<"Minised chisq for DSSideband. Scale factor: " << DSScaleFactor << " best chisq: " << bestChiSq << std::endl;
           }
-
+          BackgroundUSPlastic->Scale(USScaleFactor);
+          BackgroundDSPlastic->Scale(DSScaleFactor);
         }
         //************************************************
         //End - Sideband chisq minimisation - single scale factor across a given sideband region
         //************************************************
+        else if (sidebandSubtraction==2)
+        {
+          PlotUtils::MnvH1D* combinedUS = USSidebandSignal->Clone("CombinedUSMC");
+          combinedUS->Add(USSidebandUS);
+          combinedUS->Add(USSidebandDS);
+          combinedUS->Add(USSidebandOther);
+          //GetCVHistoWithStatError();
+          combinedUS->Scale(dataPOT/mcPOT);
+
+          PlotUtils::MnvH1D* combinedDS = DSSidebandSignal->Clone("CombinedUSMC");
+          combinedDS->Add(DSSidebandUS);
+          combinedDS->Add(DSSidebandDS);
+          combinedDS->Add(DSSidebandOther);
+          combinedDS->Scale(dataPOT/mcPOT);
+
+          g_combinedMCHist = combinedUS;
+          g_dataHist = DataUSSideband;
+
+          PlotUtils::MnvH1D* USScale = DataUSSideband->Clone("UpstreamScaling");
+          PlotUtils::MnvH1D* DSScale = DataDSSideband->Clone("DownstreamScaling");
+
+          USScale->Divide(USScale, combinedUS);
+          DSScale->Divide(DSScale, combinedDS);
+
+          BackgroundUSPlastic->Multiply(BackgroundUSPlastic, USScale);
+          BackgroundDSPlastic->Multiply(BackgroundDSPlastic, DSScale);
+        }
 
         auto simEventRate = effDenom->Clone(); // Make a copy for later
         auto simEventRate2P2H = effDenom2P2H->Clone(); // Make a copy for later
@@ -747,8 +795,7 @@ int main(const int argc, const char **argv)
         //USScaleFactor = 1.05;
         //DSScaleFactor = 1.05;
 
-        BackgroundUSPlastic->Scale(USScaleFactor);
-        BackgroundDSPlastic->Scale(DSScaleFactor);
+
         std::vector<PlotUtils::MnvH1D*> sidebandScaled = {BackgroundUSPlastic, BackgroundDSPlastic};
         std::vector<PlotUtils::MnvH1D*> backgrounds = { BackgroundWrongSign, BackgroundNC, BackgroundOther, BackgroundWaterTank, BackgroundOtherTarget, BackgroundVtxElsewhere};
         auto toSubtract = std::accumulate(std::next(backgrounds.begin()), backgrounds.end(), (*backgrounds.begin())->Clone(),

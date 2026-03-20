@@ -18,6 +18,7 @@
 #include "PlotUtils/CoherentPiSystematics.h"
 #include "PlotUtils/DiffractiveUncSystematics.h"
 #include "universes/ResponseSystematics.h"
+#include "PlotUtils/MLClassificationSystematics.h"
 
 typedef std::map<std::string, std::vector<CVUniverse*>> UniverseMap;
 

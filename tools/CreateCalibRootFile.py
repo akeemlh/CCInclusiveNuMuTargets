@@ -38,7 +38,7 @@ if __name__ == "__main__":
     print(f"Using premade {calibratorstr} calibrator")
     print("==============================================")
 
-    file = ROOT.TFile(output, "RECREATE")
+    file = ROOT.TFile(output, "NEW")
     tree = ROOT.TTree("calibrated", "calibrated")
 
     probs_out = array('f', [0.0] * 5)  # 'f' corresponds to float (32-bit)

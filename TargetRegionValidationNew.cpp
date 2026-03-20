@@ -515,7 +515,7 @@ void LoopAndFillMC(
       double msperevent = mselapsed/i;
       int sleft = (nEntries-i)*msperevent/1000;
       double selapsed = ((int)mselapsed)/1000;
-      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"\r" <<std::flush;
+      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
     }
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -621,7 +621,7 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data,
         double msperevent = mselapsed/i;
         int sleft = (nEntries-i)*msperevent/1000;
         double selapsed = ((int)mselapsed)/1000;
-        std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"\r" <<std::flush;
+        std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
       }
       MichelEvent myevent; 
       std::vector<double> ANNVtx = universe->GetANNVertexVector();

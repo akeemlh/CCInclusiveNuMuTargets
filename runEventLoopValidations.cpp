@@ -1826,6 +1826,10 @@ int main(const int argc, char** argv)
   error_bands["cv"] = {new CVUniverse(options.m_mc)};
   std::map<std::string, std::vector<CVUniverse *>> truth_bands;
   //if (doSystematics) truth_bands = GetStandardSystematics(options.m_truth);
+  //else{
+  //  std::map<std::string, std::vector<CVUniverse*> > band_flux = PlotUtils::GetFluxSystematicsMap<CVUniverse>(options.m_truth, CVUniverse::GetNFluxUniverses());
+  //  truth_bands.insert(band_flux.begin(), band_flux.end()); //Necessary to get cross-section later.
+  //}
   truth_bands["cv"] = {new CVUniverse(options.m_truth)};
 
   CVUniverse *data_universe = new CVUniverse(options.m_data);

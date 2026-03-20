@@ -90,17 +90,18 @@ if __name__ == '__main__':
     parser.add_argument('--amudiswarp', action='store_true', help="Turning on AMUDISReweighter")
     parser.add_argument('--lowq2warp', action='store_true', help="Turning on LowQ2PiReweighter")
     parser.add_argument('--susa2p2hwarp', action='store_true', help="Replacing LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter")
-    parser.add_argument('-N', '--NumSubruns', help="Break down this run into N smaller runs - Runs will then need to be merged (using hadd for example) afterwards. Used to speed up long jobs.") 
+    parser.add_argument('-N', '--NumSubruns', type=int, help="Break down this run into N smaller runs - Runs will then need to be merged (using hadd for example) afterwards. Used to speed up long jobs.") 
     parser.add_argument('-sN', '--specifySubrun', help="Specify which number of subrun to run, used when rerunning failed submissions, in conjuction with the option -N above. This will submit a job broken down by N, as above, but only run the subjob denoted by this value")
     parser.add_argument("-a", "--tarfile", help="Specify the tar archive - can save submission time. Tar using \"tar -cvzf {tarball output path}.tar.gz -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ .\". Otherwise it will tar the current state of my analysis opt folder")
     parser.add_argument('-m', '--mnvTune', help="Specify the tune to apply formatted as 3 digit integer. Eg -m 431 is mnvTune v4.3.1")
+    parser.add_argument('--rerun', help="Specify the tune to apply formatted as 3 digit integer. Eg -m 431 is mnvTune v4.3.1")
     args = parser.parse_args()
 
     tarpath =args.tarfile
     print("tarpath: ", tarpath)
     if tarpath is None:
         #Tarring opts folder
-        tarballfolder = "/pnfs/minerva/persistent/users/alhart/NuMuNukeIncl/TarredMATFramework/"+str(epoch_time)
+        tarballfolder = "/pnfs/minerva/scratch/users/alhart/NuMuNukeIncl/TarredMATFramework/"+str(epoch_time)
         os.mkdir(tarballfolder)
         tarballpath = tarballfolder+"/opt.tar.gz"
         print("tarring into ", tarballpath)
@@ -184,10 +185,13 @@ if __name__ == '__main__':
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
+            my_wrapper.write("XRD_LOGLEVEL=Info\n")
             my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
+            my_wrapper.write("In directory: $CONDOR_DIR_INPUT\n")
             my_wrapper.write("date\n")
-            my_wrapper.write("echo Setting up environment\n")
+            my_wrapper.write("echo Setting up environment on $HOSTNAME\n")
             my_wrapper.write("export MINERVA_PREFIX=${INPUT_TAR_DIR_LOCAL}\n")
+            my_wrapper.write("echo MINERvA directory: $MINERVA_PREFIX\n")
             if skipSys:
                 my_wrapper.write("export MNV101_SKIP_SYST=True\n")
                 memory=2000
@@ -210,6 +214,9 @@ if __name__ == '__main__':
                 subrunstr = "export PROCESS="+str(specifySubrun)+"n"
                 my_wrapper.write(subrunstr)
             my_wrapper.write("export XRD_NETWORKSTACK=IPv4\n")
+            my_wrapper.write("export XRD_STREAMTIMEOUT=600\n")
+            my_wrapper.write("export XRD_CONNECTIONRETRY=5\n")
+            my_wrapper.write("export XRD_CONNECTIONWINDOW=600\n")
             my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-v0.22.0-fermi/setup-env.sh\n")
             #my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh\n")
             my_wrapper.write("spack load root@6.28.12 arch=linux-almalinux9-x86_64_v3\n")
@@ -227,7 +234,9 @@ if __name__ == '__main__':
             my_wrapper.write("echo Setting up environment - DONE\n")
             my_wrapper.write("echo Running event loop\n")
 
-            my_wrapper.write("MAX_RETRIES=3\n")
+            #Auto-retry up-to 3 times if job fails/exits with non-zero exit code
+            #my_wrapper.write("MAX_RETRIES=3\n")
+            my_wrapper.write("MAX_RETRIES=1\n")
             my_wrapper.write("SLEEP=10\n")
             my_wrapper.write("attempt=1\n")
 
@@ -254,7 +263,10 @@ if __name__ == '__main__':
             my_wrapper.write("echo Copying files back to persistent - DONE\n")
             my_wrapper.write("echo SUCCESS\n")
             my_wrapper.close()
-            logpath = outdirplaylist+"/LogPetal"+petal+".log"
+            logpath = outdirplaylist+"/LogPetal"+petal
+            if numOfSubRuns>0:
+                logpath+="_"+str(numOfSubRuns)
+            logpath+=".log"
             cmd = "jobsub_submit --group=minerva"
             cmd+= " --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True"
             cmd+= " --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest"
