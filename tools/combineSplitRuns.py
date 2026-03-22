@@ -3,6 +3,113 @@
 import ROOT
 import os
 import sys, argparse, math
+import PlotUtils 
+
+VERBOSITY = False
+def merge_rootfile(target_dir, source_files, current_path=""):
+    """
+    Recursively merges directories, trees, and PlotUtils histograms 
+    from a list of source files into a target directory.
+    """
+    first_source = source_files[0]
+    first_source.cd(current_path)
+
+    # Prevent ROOT from globally tracking histograms in memory
+    status = ROOT.TH1.AddDirectoryStatus()
+    ROOT.TH1.AddDirectory(False)
+
+    current_sourcedir = ROOT.gDirectory
+    keys = current_sourcedir.GetListOfKeys()
+
+    # Loop over all keys in this directory
+    for key in keys:
+        first_source.cd(current_path)
+        obj = key.ReadObj()
+        
+        if not obj:
+            continue
+
+        obj_name = key.GetName()
+        obj_class = obj.ClassName()
+
+        # Merge Histograms (including MnvH1D and MnvH2D)
+        if "MnvH1D" in obj_class or "MnvH2D" in obj_class or obj.InheritsFrom("TH1"):
+            if VERBOSITY:
+                print(f"Merging {obj_class}: {obj_name}")
+            
+            for next_source in source_files[1:]:
+                next_source.cd(current_path)
+                key2 = ROOT.gDirectory.GetListOfKeys().FindObject(obj_name)
+                if key2:
+                    h2 = key2.ReadObj()
+                    if h2:
+                        obj.Add(h2)
+                        # FIX 1: Explicitly delete the temporary histogram from C++ memory
+                        h2.Delete()
+            
+            target_dir.cd()
+            obj.Write(obj_name)
+            # FIX 2: Delete the main accumulated object after writing to disk
+            obj.Delete()
+
+        # Merge TParameter objects
+        elif obj_class.startswith("TParameter<"):
+            if VERBOSITY:
+                print(f"Merging {obj_class}: {obj_name}")
+            
+            # Extract the initial value
+            total_val = obj.GetVal()
+            
+            for next_source in source_files[1:]:
+                next_source.cd(current_path)
+                key2 = ROOT.gDirectory.GetListOfKeys().FindObject(obj_name)
+                if key2:
+                    param2 = key2.ReadObj()
+                    if param2:
+                        # Add the value from the current file
+                        total_val += param2.GetVal()
+                        param2.Delete()
+            
+            # Set the accumulated value and save
+            obj.SetVal(total_val)
+            target_dir.cd()
+            obj.Write(obj_name)
+            obj.Delete()
+
+        # Merge TTrees
+        elif obj.InheritsFrom("TTree"):
+            if VERBOSITY:
+                print(f"Merging TTree: {obj_name}")
+            glob_chain = ROOT.TChain(obj_name)
+            
+            for source in source_files:
+                tree_path = f"{source.GetName()}/{current_path}/{obj_name}" if current_path else f"{source.GetName()}/{obj_name}"
+                glob_chain.Add(tree_path)
+
+            target_dir.cd()
+            glob_chain.Merge(target_dir.GetFile(), 0, "keep")
+            # FIX 3: Free the TChain
+            glob_chain.Delete()
+
+        # Merge Subdirectories (Recursion)
+        elif obj.InheritsFrom("TDirectory"):
+            print(f"Found subdirectory: {obj_name}")
+            target_dir.cd()
+            newdir = target_dir.mkdir(obj_name, obj.GetTitle())
+
+            new_path = f"{current_path}/{obj_name}" if current_path else obj_name
+            merge_rootfile(newdir, source_files, new_path)
+
+        # Unhandled object types
+        else:
+            if VERBOSITY:
+                print(f"Unhandled object type written directly, name: {obj_name}, class: {obj_class}")
+            target_dir.cd()
+            obj.Write(obj_name)
+            obj.Delete()
+
+    target_dir.SaveSelf(True)
+    ROOT.TH1.AddDirectory(status)
 
 parser = argparse.ArgumentParser( prog='combineSplitRuns',
                 description='automates the submission of runEventLoopTargetsNew to fermigrid')
@@ -10,6 +117,7 @@ parser.add_argument('indir', nargs=1, help="the data input directory")
 parser.add_argument('-n', "--num", nargs=1, help="Number of subruns expected")
 parser.add_argument('-o', "--outdir", help="Output parent directory")
 parser.add_argument('-f', "--force", action='store_true', help="Overwrite existing files at output directory")
+parser.add_argument('-v', "--verbose", action='store_true', help="Verbose output")
 args = parser.parse_args()
 
 indir = args.indir[0]
@@ -18,7 +126,8 @@ outdir = args.outdir
 if outdir is not None and outdir[:-1]=="/":
     outdir = outdir[:-1]
 bases = []
-force = (args.force!=None)
+force = args.force
+VERBOSITY = args.verbose
 
 for (root, dirs, file) in os.walk(indir):
     for f in file:
@@ -77,7 +186,11 @@ for base in vettedBases:
             continue
     print("Saving to %s" % outfile)
     # Create the merger
-    merger = ROOT.TFileMerger()
+    filesToMerge = []
+    for i in range(numSplits):
+        path = base + "_n"+str(i)+".root"
+        filesToMerge.append(path)
+    """ merger = ROOT.TFileMerger()
     merger.OutputFile(outfile)
     if numSplits > 20:
         divs = math.ceil(numSplits / 20)
@@ -91,13 +204,32 @@ for base in vettedBases:
         for i in range(numSplits):
             path = base + "_n"+str(i)+".root"
             merger.AddFile(path)
+            filesToMerge.append(path)
     # Loop over all ROOT files in the directory
 
     success = merger.Merge()
     if success:
         print(f"Successfully merged files into {outfile}")
     else:
-        print("Merging failed")
+        print("Merging failed") """
+
+    target_file = ROOT.TFile.Open(outfile, "RECREATE")
+    if not target_file or target_file.IsZombie():
+        print(f"Fatal: Could not open target file {outfile}")
+        sys.exit(1)
+
+    source_files = []
+    for sf in filesToMerge:
+        f = ROOT.TFile.Open(sf, "READ")
+        if not f or f.IsZombie():
+            print(f"Fatal: Could not open source file {sf}")
+            sys.exit(1)
+        source_files.append(f)
+    merge_rootfile(target_file, source_files,)
+    # Cleanup
+    target_file.Close()
+    for f in source_files:
+        f.Close()
 
     print(f"Fixing POTs")
     """ f = ROOT.TFile(outfile, "UPDATE")

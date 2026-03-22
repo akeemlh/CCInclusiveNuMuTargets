@@ -472,7 +472,7 @@ int main(const int argc, const char **argv)
             }
 
 
-            util::AddHist(*flux,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("reweightedflux_integrated")), prefix).get(), mcscale);
+            //util::AddHist(*flux,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("reweightedflux_integrated")), prefix).get(), mcscale);
             util::AddHist(*folded,util::GetIngredientSmart<PlotUtils::MnvH1D>(*dataFile, (std::string("data")), prefix).get(), datascale);
             util::AddHist(*migration,util::GetIngredientSmart<PlotUtils::MnvH2D>(*mcFile, (std::string("migration")), prefix).get(), mcscale);
             util::AddHist(*effNum,util::GetIngredientSmart<PlotUtils::MnvH1D>(*mcFile, (std::string("efficiency_numerator")), prefix).get(), mcscale);

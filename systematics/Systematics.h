@@ -20,6 +20,8 @@
 #include "universes/ResponseSystematics.h"
 #include "PlotUtils/MLClassificationSystematics.h"
 
+#include "weighters/Reweighter.h"
+
 typedef std::map<std::string, std::vector<CVUniverse*>> UniverseMap;
 
 UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
@@ -46,17 +48,6 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   error_bands.insert(bands_genie.begin(), bands_genie.end());
 
   //========================================================================
-  // MnvTunes
-  //========================================================================
-  // RPA
-  UniverseMap bands_rpa = PlotUtils::GetRPASystematicsMap<CVUniverse>(chain);
-  error_bands.insert(bands_rpa.begin(), bands_rpa.end());
-
-  // 2P2H
-  UniverseMap bands_2p2h = PlotUtils::Get2p2hSystematicsMap<CVUniverse>(chain);
-  error_bands.insert(bands_2p2h.begin(), bands_2p2h.end());
-
-  //========================================================================
   // Muons
   //========================================================================
   // Muon reco in MINERvA -- Catchall systematic for pmu reco in minerva.
@@ -73,11 +64,6 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   UniverseMap bands_muon_minos =
      PlotUtils::GetMinosMuonSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_muon_minos.begin(), bands_muon_minos.end());
-
-  // Vertical only
-  UniverseMap bands_minoseff =
-      PlotUtils::GetMinosEfficiencySystematicsMap<CVUniverse>(chain);
-  error_bands.insert(bands_minoseff.begin(), bands_minoseff.end());
 
   UniverseMap bands_muon_resolution = PlotUtils::GetMuonResolutionSystematicsMap<CVUniverse>(chain);
   error_bands.insert(bands_muon_resolution.begin(), bands_muon_resolution.end());
@@ -132,22 +118,65 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   UniverseMap ml_vertex_classification_systematics = PlotUtils::GetMLVertexClassificationSystematicsMap<CVUniverse>(chain);
   error_bands.insert(ml_vertex_classification_systematics.begin(), ml_vertex_classification_systematics.end());
 
-  //========================================================================
-  // Model uncertainties
-  //========================================================================
- 
-  //Bercellie's low Q2 suppression uncertainty - since we're using tune x.3.z which uses the A. Bercellie low Q2 pion production suppression
-  UniverseMap lowq2_systematics = PlotUtils::GetLowQ2PiSystematicsMap<CVUniverse>(chain);
-  error_bands.insert(lowq2_systematics.begin(), lowq2_systematics.end());
+  return error_bands;
+}
 
-  // Diffractive uncertainty
-  UniverseMap diff_systematics = PlotUtils::GetDiffractiveUncSystematicsMap<CVUniverse>(chain);
-  error_bands.insert(diff_systematics.begin(), diff_systematics.end());
+using Tune = std::unique_ptr<PlotUtils::Reweighter<CVUniverse, MichelEvent>>;
 
-  // Coherent uncertainty
-  UniverseMap coh_systematics = PlotUtils::GetCoherentPiSystematicsMap<CVUniverse>(chain);
-  error_bands.insert(coh_systematics.begin(), coh_systematics.end());
-
+UniverseMap GetModelSystematics(PlotUtils::ChainWrapper* chain, std::vector<Tune>& model)
+{
+  // return map
+  UniverseMap error_bands;
+  for (Tune& t : model)
+  {
+    if (t->GetName() == "RPA")
+    {
+        // RPA
+        UniverseMap bands_rpa = PlotUtils::GetRPASystematicsMap<CVUniverse>(chain);
+        error_bands.insert(bands_rpa.begin(), bands_rpa.end());
+        std::cout<<"Applying RPA reweighter systematics\n";
+    }
+    else if (t->GetName() == "LowRecoil2p2hTune")
+    {
+        // 2P2H
+        UniverseMap bands_2p2h = PlotUtils::Get2p2hSystematicsMap<CVUniverse>(chain);
+        error_bands.insert(bands_2p2h.begin(), bands_2p2h.end());
+        std::cout<<"Applying 2P2H reweighter systematics\n";
+    }
+    else if (t->GetName() == "LowQ2Pi_MENU1PI") //If using tune x.3.z which uses the A. Bercellie low Q2 pion production suppression
+    {
+        UniverseMap lowq2_systematics = PlotUtils::GetLowQ2PiSystematicsMap<CVUniverse>(chain);
+        error_bands.insert(lowq2_systematics.begin(), lowq2_systematics.end());
+        std::cout<<"Applying A. Bercellie low Q2 pion production suppression reweighter systematics\n";
+    }
+    else if (t->GetName() == "DiffractiveReweighter") //If using tune x.3.z which uses the A. Bercellie low Q2 pion production suppression
+    {
+        // Diffractive uncertainty
+        UniverseMap diff_systematics = PlotUtils::GetDiffractiveUncSystematicsMap<CVUniverse>(chain);
+        error_bands.insert(diff_systematics.begin(), diff_systematics.end());
+        std::cout<<"Applying diffractive reweighter systematics\n";
+    }
+    else if (t->GetName() == "COHPionReweighter") //If using tune x.3.z which uses the A. Bercellie low Q2 pion production suppression
+    {
+        // Coherent uncertainty
+        UniverseMap coh_systematics = PlotUtils::GetCoherentPiSystematicsMap<CVUniverse>(chain);
+        error_bands.insert(coh_systematics.begin(), coh_systematics.end());
+        std::cout<<"Applying coherent reweighter systematics\n";
+    }
+    else if (t->GetName() == "MINOSEfficiency")
+    {
+        // MINOS Efficiency
+        UniverseMap bands_minoseff = PlotUtils::GetMinosEfficiencySystematicsMap<CVUniverse>(chain);
+        error_bands.insert(bands_minoseff.begin(), bands_minoseff.end());
+        std::cout<<"Applying MINOS Efficiency reweighter systematics\n";
+    }
+    //Other model reweighters/tunes not handled here:
+    //      FSIReweighter - Used in mnvTune vX.Y.1 - Already handled by GetGenieSystematicsMap
+    //      GENIEReweighter - Used in all minerva tunes to date - already handled by GetGenieSystematicsMap
+    //      FluxAndCVReweighter - Used in all minerva tunes to date - already handled by GetFluxSystematicsMap
+    //      BodekRitchieReweighter - Used in mnvTune vX.3.Z - I dont think is actually handled anywhere? Will ignore anyway since it has no bearing on my analysis
+    //      SuSAFromValencia2p2hReweighter - Used in mnvTune vX.3.Z - I dont think is actually handled anywhere? Will ignore anyway since it has no bearing on my analysis
+  }
   return error_bands;
 }
 

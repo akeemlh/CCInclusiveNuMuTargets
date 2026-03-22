@@ -1309,6 +1309,24 @@ namespace reco
     };
 
     template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+    class IsInPetal: public PlotUtils::Cut<UNIVERSE, EVENT>
+    {
+        public:
+        IsInPetal(int petal): PlotUtils::Cut<UNIVERSE, EVENT>("Is In Petal " + std::to_string(petal)), fPetal(petal)
+        {
+        }
+
+        private:
+        bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+        {   
+            PlotUtils::TargetUtils tgtUtil;
+            int petal = tgtUtil.GetDaisyPetal(univ.GetANNVertex().X(), univ.GetANNVertex().Y() );
+            return petal==fPetal;
+        }
+        int fPetal;
+    };
+
+    template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
     using ANNMuonEnergyMinGeV = PlotUtils::Minimum<UNIVERSE, double, &UNIVERSE::GetANNEmuGeV, EVENT>;
     template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
     using ANNMuonEnergyMaxGeV = PlotUtils::Maximum<UNIVERSE, double, &UNIVERSE::GetANNEmuGeV, EVENT>;

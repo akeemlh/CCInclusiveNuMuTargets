@@ -1,5 +1,5 @@
 import os, sys, argparse, time, subprocess, re
-memory = 4000
+memory = 15000
 lifetime = 36 #hours
 
 epoch_time = int(time.time())
@@ -84,7 +84,8 @@ if __name__ == '__main__':
     parser.add_argument('mc', nargs=1, help="the data input directory")
     parser.add_argument('out', nargs=1, help="the output directory")
     parser.add_argument('-p', '--playlists', nargs='*', help="the playlists to run")
-    parser.add_argument('-t', '--targets', nargs='*', help="the target materials to run")
+    parser.add_argument('--targets', nargs='*', help="the target materials to run")
+    parser.add_argument('--petals', nargs='*', help="the petals to run")
     parser.add_argument('-s', '--skipsys', action='store_true', help="skip systematics? Used in warping studies")
     parser.add_argument('--no2p2hwarp', action='store_true', help="Turning off LowRecoil2p2hReweighter")
     parser.add_argument('--amudiswarp', action='store_true', help="Turning on AMUDISReweighter")
@@ -124,9 +125,9 @@ if __name__ == '__main__':
         tune = args.mnvTune
     print("Using mnvTune", tune)
     if args.NumSubruns is not None and args.specifySubrun is None:
-        numOfSubRuns = args.NumSubruns
+        numOfSubRunsIn = args.NumSubruns
     else:
-        numOfSubRuns = 0
+        numOfSubRunsIn = 0
     if args.specifySubrun is not None:
         specifySubrun = args.specifySubrun
         specifySubrunTotal = args.NumSubruns
@@ -165,22 +166,40 @@ if __name__ == '__main__':
 
     print("Submitting playlists: ", vettedPlaylists)
     targets = args.targets
-    if not targets:
-        targets = [""]
-        print("No target specified")
-    print("Submitting targets: ", " ".join(targets))
+    petals = args.petals
+    if not targets and not petals:
+        print("Must supply either list of targets (--targets) , a list of petals (--petals), or both")
+        exit(1)
+    runTypes = [] #0 for target, 1 for petals
+    if targets:
+        print("Running targets: ", " ".join(targets))
+        runTypes.append(0)
+    if petals:
+        print("Running petals: ", " ".join(petals))
+        runTypes.append(1)
     #exit()
     failingPlaylist = []
     failingTarget = []
-    for target in targets:
-        for playlist in vettedPlaylists:
-            outdirplaylist = outDir+"/"+playlist
-            #Checking if the target output directory exists and if not attempting to create it
-            if not (os.path.isdir(outdirplaylist)):
-                print("Cannot access target output directory at %s\nAttempting to create it" % outdirplaylist)
-                os.mkdir(outdirplaylist)
+    for playlist in vettedPlaylists:
+        if playlist == "1L" and numOfSubRunsIn>6:
+            numOfSubRuns = 6 # 1L is a special case, we can only subdivide down to 6 before we break the logic (since it only has 6 MC files)
+        else:
+            numOfSubRuns = numOfSubRunsIn
+        outdirplaylist = outDir+"/"+playlist
+        #Checking if the playlist output directory exists and if not attempting to create it
+        if not (os.path.isdir(outdirplaylist)):
+            print("Cannot access playlist output directory at %s\nAttempting to create it" % outdirplaylist)
+            os.mkdir(outdirplaylist)
+        for runType in runTypes:
+            if runType == 0:
+                print("Submitting target job")
+            elif runType == 1:
+                print("Submitting petal job")
             # Create wrapper
-            wrapper_name = "wrapper-EvLoopTargets"+playlist+target+str(epoch_time)+".sh"
+            if runType == 0:
+                wrapper_name = "wrapper-EvLoopTargets-"+playlist+"-"+str(epoch_time)+".sh"
+            elif runType == 1:
+                wrapper_name = "wrapper-EvLoopTracker-"+playlist+"-"+str(epoch_time)+".sh"
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
@@ -236,14 +255,18 @@ if __name__ == '__main__':
             my_wrapper.write("echo Running event loop\n")
 
             #Auto-retry up-to 3 times if job fails/exits with non-zero exit code
-            #my_wrapper.write("MAX_RETRIES=3\n")
-            my_wrapper.write("MAX_RETRIES=1\n")
+            my_wrapper.write("MAX_RETRIES=3\n")
+            #my_wrapper.write("MAX_RETRIES=1\n")
             my_wrapper.write("SLEEP=10\n")
             my_wrapper.write("attempt=1\n")
-
             my_wrapper.write("while true; do\n")
             my_wrapper.write("    echo \"Attempt ${attempt} of ${MAX_RETRIES}\"\n")
-            my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopTargets ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+target+" \n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
+            if runType == 0:
+                tgtString = " ".join(targets)
+                my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopTargets ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+tgtString+" \n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
+            elif runType == 1:
+                petalString = " ".join(petals)
+                my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopTracker ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+petalString+" \n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
             my_wrapper.write("    status=$?\n")
             my_wrapper.write("    if [ $status -eq 0 ]; then\n")
             my_wrapper.write("        echo \"Success on attempt $attempt\"\n")
@@ -260,13 +283,19 @@ if __name__ == '__main__':
 
             my_wrapper.write("echo Running event loop - DONE\n")
             my_wrapper.write("echo Copying files back to persistent\n")
-            my_wrapper.write("ifdh cp ./runEventLoopTargets* "+outdirplaylist+"\n")
+            my_wrapper.write("ifdh cp ./runEventLoop* "+outdirplaylist+"\n")
             my_wrapper.write("echo Copying files back to persistent - DONE\n")
             my_wrapper.write("echo SUCCESS\n")
             my_wrapper.close()
-            logpath = outdirplaylist+"/LogTgt"+target
+            logpath = outdirplaylist+"/Log"
+            tgtStr = ""
+            if runType == 0:
+                tgtStr = "_".join(targets)
+            elif runType == 1:
+                tgtStr = "_".join(petals)
+            logpath+=tgtStr
             if numOfSubRuns>0:
-                logpath+="_"+str(numOfSubRuns)
+                logpath+="_'$PROCESS'"
             logpath+=".log"
             #cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines=+FERMIHTC_AutoRelease=True --lines=+FERMIHTC_GraceMemory=1024 --lines=+FERMIHTC_GraceLifetime=1800 -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt --tar_file_name dropbox://%s" % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist, tarballpath )    
             cmd = "jobsub_submit --group=minerva"
@@ -301,13 +330,11 @@ if __name__ == '__main__':
             print("Done")
             if not success:
                 failingPlaylist.append(playlist)
-                failingTarget.append(target)
 
     if len(failingTarget)>0:
         print("Failed to submit jobs:")
         for i in range(len(failingPlaylist)):
             print("Playlist: ", failingPlaylist[i])
-            print("Target: ", failingTarget[i])
     else:
         print("All jobs submitted successfully")
 
