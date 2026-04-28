@@ -2,8 +2,9 @@ import os, sys, argparse, time, subprocess, re
 #memory = 50000
 
 #memory = 100000
-memory = 30000
+#memory = 30000
 #memory = 8000
+memory = 5000
 
 #memory = 85000
 #memory = 500000
@@ -89,6 +90,7 @@ if __name__ == '__main__':
                     description='automates the submission of SMSCalibrator to fermigrid')
 
     parser.add_argument('-i', '--input', nargs=1, help="the mc input file")
+    parser.add_argument('-t', '--test', nargs=1, help="the data test input file")
     parser.add_argument('-o', '--outdir', nargs=1, help="the output directory")
     parser.add_argument('-s', '--sampling', default=50000, help="The subsampling rate")
     parser.add_argument('-c', '--calibrator', default="sms", help="The calibrator type")
@@ -105,6 +107,7 @@ if __name__ == '__main__':
     samplerate = args.sampling
     calibrator = args.calibrator
     cpus = args.cpu
+    testfile = args.test[0]
     lambdas = []
     if not args.lambdas or len(args.lambdas)==0:
         lambdas = [0.01, 0.1, 1, 10, 100]
@@ -139,66 +142,69 @@ if __name__ == '__main__':
     for lambda_int in lambdas:
         for lambda_diag in lambdas:
             for lambda_offdiag in lambdas:
-                #for rho in rhos:
-                #for tau in taus:
-                # Create wrapper
-                wrapper_name = f"wrapper-TrainOptimiser{lambda_int}_{lambda_diag}_{lambda_offdiag}.sh"
-                #wrapper_name = f"wrapper-TrainOptimiser{rho}_{tau}.sh"
-                wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
-                my_wrapper = open(wrapper_path,"w")
-                my_wrapper.write("#!/bin/bash\n")
-                my_wrapper.write("date\n")
-                my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
-                my_wrapper.write("echo Setting up environment\n")
-                my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-v0.22.0-fermi/setup-env.sh\n")
-                my_wrapper.write("spack load root@6.28.12 arch=linux-almalinux9-x86_64_v3\n")
-                my_wrapper.write("spack load python@3.9.15\n")
-                my_wrapper.write("spack load ifdhc@2.8.0%gcc@12.2.0 arch=linux-almalinux9-x86_64_v3\n")
-                my_wrapper.write("spack load ifdhc-config@2.6.20%gcc@11.4.1 arch=linux-almalinux9-x86_64_v2\n")
-                my_wrapper.write("python -m venv venv\n")
-                my_wrapper.write("source venv/bin/activate\n")
-                my_wrapper.write("pip install -r requirements.txt\n")
-                my_wrapper.write("date\n")
-                fname = os.path.basename(inputfile)
-                if ".gz" in fname:
-                    my_wrapper.write(f"gunzip {fname}\n")
-                    fname = fname[:-3]
-                my_wrapper.write("date\n")
-                #my_wrapper.write(f"python SMSOptimiser.py -i {fname} -s {samplerate} -c {calibrator} --lambda_int {lambda_str} --lambda_diag {lambda_str} --lambda_offd {lambda_str} --rho {rho} --tau {tau} -o {outDir} -t {cpus}")
-                my_wrapper.write(f"python SMSOptimiser.py -i {fname} -s {samplerate} -c {calibrator} --lambda_int {lambda_int} --lambda_diag {lambda_diag} --lambda_offd {lambda_offdiag} --rho {rho_str} --tau {tau_str} -o {outDir} -t {cpus}")
-                if args.rhc:
-                    my_wrapper.write(" --rhc")
-                my_wrapper.write("\n")
-                my_wrapper.write("echo Copying files back\n")
-                my_wrapper.write("ifdh cp ./calibration_results/* "+outDir+"\n")
-                my_wrapper.write("echo Copying files back - DONE\n")
-                my_wrapper.write("echo SUCCESS\n")
-                my_wrapper.close()
-                logpath = outDir+"/LogTraining.log"
-                cmd = "jobsub_submit --group=minerva"
-                cmd+= " --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True"
-                cmd += " --append_condor_requirements='(regexp(\".*fnpc7.*\",Machine)==FALSE)'"
-                cmd+= " --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest"
-                #cmd+= f" -L {logpath}"
-                cmd+= f" --expected-lifetime {lifetime}h"
-                cmd+= " --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always"
-                cmd+= f" --memory {memory}MB"
-                cmd+= f" --disk 60GB"
-                cmd+= f" --cpu {cpus}"
-                cmd+= " --lines=+FERMIHTC_AutoRelease=True"
-                cmd+= " --lines=+FERMIHTC_GraceMemory=1024"
-                cmd+= " --lines=+FERMIHTC_GraceLifetime=1800"
-                cmd+= " --lines=+max_retries=3" #Retry if job fails
-                cmd+= " --use-pnfs-dropbox"
-                cmd+= f" -f dropbox:///exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/tools/SMSOptimiser.py"
-                cmd+= f" -f dropbox:///exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/tools/requirements.txt"
-                cmd+= f" -f dropbox://{inputfile}"
-                cmd+=(" file://" + wrapper_path)
-                print(cmd)
-                success = submit_with_retries(cmd, 5, 10)
-                #os.system(cmd)
-                #if os.path.exists(wrapper_path):
-                    #os.remove(wrapper_path)
-                #else:
-                #    print("Wrapper file not created successfully")
-                print("Done")
+                for rho in rhos:
+                    for tau in taus:
+                        # Create wrapper
+                        #wrapper_name = f"wrapper-TrainOptimiser{lambda_int}_{lambda_diag}_{lambda_offdiag}.sh"
+                        wrapper_name = f"wrapper-TrainOptimiser{lambda_int}_{lambda_diag}_{lambda_offdiag}_{rho}_{tau}.sh"
+                        #wrapper_name = f"wrapper-TrainOptimiser{rho}_{tau}.sh"
+                        wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
+                        my_wrapper = open(wrapper_path,"w")
+                        my_wrapper.write("#!/bin/bash\n")
+                        my_wrapper.write("date\n")
+                        my_wrapper.write("cd $CONDOR_DIR_INPUT\n")
+                        my_wrapper.write("echo Setting up environment\n")
+                        my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-v0.22.0-fermi/setup-env.sh\n")
+                        my_wrapper.write("spack load root@6.28.12 arch=linux-almalinux9-x86_64_v3\n")
+                        my_wrapper.write("spack load python@3.9.15\n")
+                        my_wrapper.write("spack load ifdhc@2.8.0%gcc@12.2.0 arch=linux-almalinux9-x86_64_v3\n")
+                        my_wrapper.write("spack load ifdhc-config@2.6.20%gcc@11.4.1 arch=linux-almalinux9-x86_64_v2\n")
+                        my_wrapper.write("python -m venv venv\n")
+                        my_wrapper.write("source venv/bin/activate\n")
+                        my_wrapper.write("pip install -r requirements.txt\n")
+                        my_wrapper.write("date\n")
+                        fname = os.path.basename(inputfile)
+                        if ".gz" in fname:
+                            my_wrapper.write(f"gunzip {fname}\n")
+                            fname = fname[:-3]
+                        tname = os.path.basename(testfile)
+                        my_wrapper.write("date\n")
+                        #my_wrapper.write(f"python SMSCalibrator.py -i {fname} -d {tname} -s {samplerate} -c {calibrator} --lambda_int {lambda_int} --lambda_diag {lambda_diag} --lambda_offd {lambda_offdiag} --rho {rho_str} --tau {tau_str} -o {outDir} -t {cpus}")
+                        my_wrapper.write(f"python SMSCalibrator.py -i {fname} -d {tname} -s {samplerate} -c {calibrator} --lambda_int {lambda_int} --lambda_diag {lambda_diag} --lambda_offd {lambda_offdiag} --rho {rho} --tau {tau} -o {outDir} -t {cpus}")
+                        if args.rhc:
+                            my_wrapper.write(" --rhc")
+                        my_wrapper.write("\n")
+                        my_wrapper.write("echo Copying files back\n")
+                        my_wrapper.write("ifdh cp ./calibration_results/* "+outDir+"\n")
+                        my_wrapper.write("echo Copying files back - DONE\n")
+                        my_wrapper.write("echo SUCCESS\n")
+                        my_wrapper.close()
+                        logpath = outDir+"/LogTraining.log"
+                        cmd = "jobsub_submit --group=minerva"
+                        cmd+= " --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True"
+                        cmd += " --append_condor_requirements='(regexp(\".*fnpc7.*\",Machine)==FALSE)'"
+                        cmd+= " --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest"
+                        #cmd+= f" -L {logpath}"
+                        cmd+= f" --expected-lifetime {lifetime}h"
+                        cmd+= " --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always"
+                        cmd+= f" --memory {memory}MB"
+                        cmd+= f" --disk 60GB"
+                        cmd+= f" --cpu {cpus}"
+                        cmd+= " --lines=+FERMIHTC_AutoRelease=True"
+                        cmd+= " --lines=+FERMIHTC_GraceMemory=1024"
+                        cmd+= " --lines=+FERMIHTC_GraceLifetime=1800"
+                        cmd+= " --lines=+max_retries=3" #Retry if job fails
+                        cmd+= " --use-pnfs-dropbox"
+                        cmd+= f" -f dropbox:///exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/tools/SMSCalibrator.py"
+                        cmd+= f" -f dropbox:///exp/minerva/app/users/alhart/MAT_AL9/MINERvA-101-Cross-Section/tools/requirements.txt"
+                        cmd+= f" -f dropbox://{inputfile}"
+                        cmd+= f" -f dropbox://{testfile}"
+                        cmd+=(" file://" + wrapper_path)
+                        print(cmd)
+                        success = submit_with_retries(cmd, 5, 10)
+                        #os.system(cmd)
+                        #if os.path.exists(wrapper_path):
+                            #os.remove(wrapper_path)
+                        #else:
+                        #    print("Wrapper file not created successfully")
+                        print("Done")

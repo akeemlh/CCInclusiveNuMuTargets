@@ -27,7 +27,7 @@ namespace PlotUtils
       virtual ~DiffractiveReweighter() = default;
 
       virtual double GetWeight(const UNIVERSE& univ, const EVENT& myevent /*event*/) const override{
-	return univ.GetDiffractiveWeight();
+	      return univ.GetDiffractiveWeight();
       };
       virtual std::string GetName() const {return "DiffractiveReweighter"; }
 

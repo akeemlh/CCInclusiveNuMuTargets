@@ -54,5 +54,51 @@ namespace reco
       }
       const double fDistCut;
   };
+
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class Helicity: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      Helicity(const int pdg): PlotUtils::Cut<UNIVERSE, EVENT>(getCutName(pdg)), fPDG(pdg) {}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        if (fPDG == 14)
+        { 
+          return univ.GetHelicity() == 1;
+        }
+        else if (fPDG == -14)
+        {
+          return univ.GetHelicity() == 2;
+        }
+      }
+      std::string getCutName(int pdg)
+      {
+        if (fPDG == 14)
+        { 
+          return std::string("Is Neutrino");
+        }
+        else if (fPDG == -14)
+        {
+          return std::string("Is Antineutrino");
+        }
+      }
+      const double fPDG;
+  };
+  template <class UNIVERSE, class EVENT = PlotUtils::detail::empty>
+  class MinMuonAngle: public PlotUtils::Cut<UNIVERSE, EVENT>
+  {
+    public:
+      MinMuonAngle(const double max): PlotUtils::Cut<UNIVERSE, EVENT>(std::string("Muon Theta > ") + std::to_string(max)), fMax(max*M_PI/180.) {}
+
+    private:
+      bool checkCut(const UNIVERSE& univ, EVENT& /*evt*/) const override
+      {
+        return univ.GetThetamu() >= fMax;
+      }
+
+      const double fMax; //radians
+  };
 }
 #endif //CCINCLCUTS_H

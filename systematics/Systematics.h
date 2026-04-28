@@ -115,8 +115,8 @@ UniverseMap GetStandardSystematics(PlotUtils::ChainWrapper* chain)
   error_bands.insert(ml_vertex_systematics.begin(), ml_vertex_systematics.end());
  
   //Classification
-  UniverseMap ml_vertex_classification_systematics = PlotUtils::GetMLVertexClassificationSystematicsMap<CVUniverse>(chain);
-  error_bands.insert(ml_vertex_classification_systematics.begin(), ml_vertex_classification_systematics.end());
+  //UniverseMap ml_vertex_classification_systematics = PlotUtils::GetMLVertexClassificationSystematicsMap<CVUniverse>(chain);
+  //error_bands.insert(ml_vertex_classification_systematics.begin(), ml_vertex_classification_systematics.end());
 
   return error_bands;
 }
@@ -169,6 +169,20 @@ UniverseMap GetModelSystematics(PlotUtils::ChainWrapper* chain, std::vector<Tune
         UniverseMap bands_minoseff = PlotUtils::GetMinosEfficiencySystematicsMap<CVUniverse>(chain);
         error_bands.insert(bands_minoseff.begin(), bands_minoseff.end());
         std::cout<<"Applying MINOS Efficiency reweighter systematics\n";
+    }
+    else if (t->GetName() == "LowRecPionReweight")
+    {
+        // Q2Tpi Efficiency
+        UniverseMap bands_UntrackedPion = PlotUtils::GetUntrackedPionSystematicsMap<CVUniverse>(chain);
+        error_bands.insert(bands_UntrackedPion.begin(), bands_UntrackedPion.end());
+        std::cout<<"Applying Untracked Pion reweighter systematics\n";
+    }
+    else if (t->GetName() == "Q2TpiReweighterReweighter")
+    {
+        // Q2Tpi Efficiency
+        UniverseMap bands_Q2Tpi = PlotUtils::GetChargedPionTuneSystematicMap<CVUniverse>(chain);
+        error_bands.insert(bands_Q2Tpi.begin(), bands_Q2Tpi.end());
+        std::cout<<"Applying Q2-Tpi reweighter systematics\n";
     }
     //Other model reweighters/tunes not handled here:
     //      FSIReweighter - Used in mnvTune vX.Y.1 - Already handled by GetGenieSystematicsMap

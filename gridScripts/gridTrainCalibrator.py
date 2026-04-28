@@ -1,6 +1,6 @@
 import os, sys, argparse, time, subprocess, re
 #memory = 50000
-memory = 30000
+memory = 2000
 #memory = 85000
 #memory = 500000
 lifetime = 36 #hours

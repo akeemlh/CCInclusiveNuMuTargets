@@ -18,7 +18,12 @@ to determine how our vertexing fares with different cuts or models in different
 detector regions and between different vertexing approaches (ML vs Track Based). Now
 also includes an ERecoil segmentation into 4 quartiles and 
 
-Consequently, because this event loop is where I just throw *everything* that isn't
+Currently this macro does not handle systematics - since for most of the validations I'm
+interested in we don't need them/only need the CV event rates. However, I've  kept the 
+same basic event loop structure (including looping through supplied universes) to enable
+one to easily add systematics and MnvH1Ds back in should their studies require it.
+
+Consequently, because this is where I just throw just about *everything* that isn't
 fed into the cross section pipeline, it's possible that it may in the future become
 bloated and require fragmentation. Note to future readers as of 9 March 2026 -  It 
 looks like that previous note has come to pass and this macro has become huge and
@@ -133,6 +138,7 @@ enum ErrorCodes
 #include <iostream>
 #include <cstdlib> //getenv()
 #include <fstream>
+#include <deque>
 
 #include "utilities/SMSCalibrator.h"
 
@@ -142,17 +148,20 @@ enum ErrorCodes
 int nSubruns = 0;
 int nProcess = 0;
 bool verbose = false;
+bool useCalibrator = true;
 
 //std::vector<double> vertexBins = {4293.04, 4337.25, 4381.47, 4425.68, 4514.11, 4558.33, 4602.54, 4646.76, 4735.19, 4779.4, 4823.62, 4867.83, 5000.48, 5044.69, 5088.91, 5133.12, 5456.74, 5500.95, 5545.17, 5589.38, 5677.81, 5722.03, 5810.45, 5855.68, 5900.91, 5946.14, 5991.37, 6036.6, 6081.83, 6127.06, 6172.29, 6217.52, 6262.74, 6307.97, 6353.2, 6398.43, 6443.66, 6488.89, 6534.12, 6579.35, 6624.58, 6669.81, 6715.03, 6760.26, 6805.49, 6850.72, 6895.95, 6941.18, 6986.41, 7031.64, 7076.87, 7122.1, 7167.32, 7212.55, 7257.78, 7303.01, 7348.24, 7393.47, 7438.7, 7483.93, 7529.16, 7574.39, 7619.61, 7664.84, 7710.07, 7755.3, 7800.53, 7845.76, 7890.99, 7936.22, 7981.45, 8026.68, 8071.9, 8117.13, 8162.36, 8207.59, 8252.82, 8298.05, 8343.28, 8388.51, 8433.74, 8478.97, 8524.19, 8569.42, 8614.65};
 
 // /std::vector<double> vertexBins = {4293.04, 4313.68, 4337.25, 4357.9, 4381.47, 4402.11, 4425.68, 4446.33, 4514.11, 4534.76, 4558.33, 4578.97, 4602.54, 4623.19, 4646.76, 4667.4, 4735.19, 4755.83, 4779.4, 4800.05, 4823.62, 4844.26, 4867.83, 4888.48, 5000.48, 5021.12, 5044.69, 5065.34, 5088.91, 5109.55, 5133.12, 5153.77, 5456.74, 5477.38, 5500.95, 5521.6, 5545.17, 5565.81, 5589.38, 5610.02, 5677.81, 5698.45, 5722.03, 5742.67, 5810.45, 5831.1, 5855.68, 5876.33, 5900.91, 5921.56, 5946.14, 5966.79, 5991.37, 6012.01, 6036.6, 6057.24, 6081.83, 6102.47, 6127.06, 6147.7, 6172.29, 6192.93, 6217.52, 6238.16, 6262.74, 6283.39, 6307.97, 6328.62, 6353.2, 6373.85, 6398.43, 6419.08, 6443.66, 6464.3, 6488.89, 6509.53, 6534.12, 6554.76, 6579.35, 6599.99, 6624.58, 6645.22, 6669.81, 6690.45, 6715.03, 6735.68, 6760.26, 6780.91, 6805.49, 6826.14, 6850.72, 6871.37, 6895.95, 6916.59, 6941.18, 6961.82, 6986.41, 7007.05, 7031.64, 7052.28, 7076.87, 7097.51, 7122.1, 7142.74, 7167.32, 7187.97, 7212.55, 7233.2, 7257.78, 7278.43, 7303.01, 7323.66, 7348.24, 7368.88, 7393.47, 7414.11, 7438.7, 7459.34, 7483.93, 7504.57, 7529.16, 7549.8, 7574.39, 7595.03, 7619.61, 7640.26, 7664.84, 7685.49, 7710.07, 7730.72, 7755.3, 7775.95, 7800.53, 7821.17, 7845.76, 7866.4, 7890.99, 7911.63, 7936.22, 7956.86, 7981.45, 8002.09, 8026.68, 8047.32, 8071.9, 8092.55, 8117.13, 8137.78, 8162.36, 8183.01, 8207.59, 8228.24, 8252.82, 8273.46, 8298.05, 8318.69, 8343.28, 8363.92, 8388.51, 8409.15, 8433.74, 8454.38, 8478.97, 8499.61, 8524.19, 8544.84, 8569.42, 8590.07, 8614.65, 8635.3, 8659.46, 8680.1, 8704.26, 8724.9, 8749.06, 8769.71, 8793.86, 8814.51, 8838.67, 8859.31, 8883.47, 8904.11, 8928.27, 8948.92, 8973.08, 8993.72, 9017.88, 9038.52, 9088.08, 9135.41, 9182.75, 9230.08, 9277.41, 9324.74, 9372.08, 9419.41, 9466.74, 9514.07, 9561.41, 9608.74, 9656.07, 9703.4, 9750.74, 9798.07, 9845.4, 9892.73, 9940.07, 9987.4};
 
-std::vector<double> vertexBins = {4282.72, 4303.36, 4325.47, 4347.57, 4369.68, 4391.79, 4413.9, 4436.01, 4456.655, 4503.79, 4524.43, 4546.55, 4568.65, 4590.76, 4612.86, 4634.98, 4657.08, 4677.72, 4724.87, 4745.51, 4767.61, 4789.73, 4811.84, 4833.94, 4856.05, 4878.15, 4898.8, 4990.16, 5010.8, 5032.9, 5055.01, 5077.12, 5099.23, 5121.34, 5143.44, 5200, 5420, 5467.06, 5489.16, 5511.27, 5533.39, 5555.49, 5577.6, 5599.7, 5620.34, 5667.49, 5688.13, 5710.24, 5732.35, 5752.99, 5800.13, 5820.77, 5843.39, 5866.01, 5888.62, 5911.24, 5933.85, 5956.47, 5979.08, 6001.69, 6024.31, 6046.92, 6069.53, 6092.15, 6114.77, 6137.38, 6159.99, 6182.61, 6205.23, 6227.84, 6250.45, 6273.07, 6295.68, 6318.3, 6340.91, 6363.52, 6386.14, 6408.76, 6431.37, 6453.98, 6476.6, 6499.21, 6521.82, 6544.44, 6567.06, 6589.67, 6612.28, 6634.9, 6657.52, 6680.13, 6702.74, 6725.35, 6747.97, 6770.59, 6793.2, 6815.82, 6838.43, 6861.05, 6883.66, 6906.27, 6928.89, 6951.5, 6974.11, 6996.73, 7019.35, 7041.96, 7064.57, 7087.19, 7109.81, 7132.42, 7155.03, 7177.65, 7200.26, 7222.88, 7245.49, 7268.1, 7290.72, 7313.34, 7335.95, 7358.56, 7381.18, 7403.79, 7426.4, 7449.02, 7471.64, 7494.25, 7516.86, 7539.48, 7562.1, 7584.71, 7607.32, 7629.93, 7652.55, 7675.16, 7697.78, 7720.4, 7743.01, 7765.62, 7788.24, 7810.85, 7833.47, 7856.08, 7878.69, 7901.31, 7923.93, 7946.54, 7969.15, 7991.77, 8014.39, 8037.0, 8059.61, 8082.23, 8104.84, 8127.45, 8150.07, 8172.68, 8195.3, 8217.92, 8240.53, 8263.14, 8285.75, 8308.37, 8330.99, 8353.6, 8376.22, 8398.83, 8421.44, 8444.06, 8466.67, 8489.29, 8511.9, 8534.51, 8557.13, 8579.74, 8602.36, 8624.97, 8647.38, 8669.78, 8692.18, 8714.58, 8736.98, 8759.38, 8781.78, 8804.19, 8826.59, 8848.99, 8871.39, 8893.79, 8916.19, 8938.6, 8961.0, 8983.4, 9005.8, 9028.2, 9063.3, 9111.74, 9159.08, 9206.42, 9253.74, 9301.08, 9348.41, 9395.74, 9443.08, 9490.4, 9537.74, 9585.08, 9632.4, 9679.74, 9727.07, 9774.4, 9821.74, 9869.06, 9916.4, 9963.74, 10034.73};
+std::vector<double> vertexBins = {4282.72, 4303.36, 4325.47, 4347.57, 4369.68, 4391.79, 4413.9, 4436.01, 4456.655, 4503.79, 4524.43, 4546.55, 4568.65, 4590.76, 4612.86, 4634.98, 4657.08, 4677.72, 4724.87, 4745.51, 4767.61, 4789.73, 4811.84, 4833.94, 4856.05, 4878.15, 4898.8, 4990.16, 5010.8, 5032.9, 5055.01, 5077.12, 5099.23, 5121.34, 5143.44, 5163, /* Water */ 5447, 5467.06, 5489.16, 5511.27, 5533.39, 5555.49, 5577.6, 5599.7, 5620.34, 5667.49, 5688.13, 5710.24, 5732.35, 5752.99, 5800.13, 5820.77, 5843.39, 5866.01, 5888.62, 5911.24, 5933.85, 5956.47, 5979.08, 6001.69, 6024.31, 6046.92, 6069.53, 6092.15, 6114.77, 6137.38, 6159.99, 6182.61, 6205.23, 6227.84, 6250.45, 6273.07, 6295.68, 6318.3, 6340.91, 6363.52, 6386.14, 6408.76, 6431.37, 6453.98, 6476.6, 6499.21, 6521.82, 6544.44, 6567.06, 6589.67, 6612.28, 6634.9, 6657.52, 6680.13, 6702.74, 6725.35, 6747.97, 6770.59, 6793.2, 6815.82, 6838.43, 6861.05, 6883.66, 6906.27, 6928.89, 6951.5, 6974.11, 6996.73, 7019.35, 7041.96, 7064.57, 7087.19, 7109.81, 7132.42, 7155.03, 7177.65, 7200.26, 7222.88, 7245.49, 7268.1, 7290.72, 7313.34, 7335.95, 7358.56, 7381.18, 7403.79, 7426.4, 7449.02, 7471.64, 7494.25, 7516.86, 7539.48, 7562.1, 7584.71, 7607.32, 7629.93, 7652.55, 7675.16, 7697.78, 7720.4, 7743.01, 7765.62, 7788.24, 7810.85, 7833.47, 7856.08, 7878.69, 7901.31, 7923.93, 7946.54, 7969.15, 7991.77, 8014.39, 8037.0, 8059.61, 8082.23, 8104.84, 8127.45, 8150.07, 8172.68, 8195.3, 8217.92, 8240.53, 8263.14, 8285.75, 8308.37, 8330.99, 8353.6, 8376.22, 8398.83, 8421.44, 8444.06, 8466.67, 8489.29, 8511.9, 8534.51, 8557.13, 8579.74, 8602.36, 8624.97, 8647.38, 8669.78, 8692.18, 8714.58, 8736.98, 8759.38, 8781.78, 8804.19, 8826.59, 8848.99, 8871.39, 8893.79, 8916.19, 8938.6, 8961.0, 8983.4, 9005.8, 9028.2, 9063.3, 9111.74, 9159.08, 9206.42, 9253.74, 9301.08, 9348.41, 9395.74, 9443.08, 9490.4, 9537.74, 9585.08, 9632.4, 9679.74, 9727.07, 9774.4, 9821.74, 9869.06, 9916.4, 9963.74, 10034.73};
 std::vector<double> ErecoilBins = {0.0, 0.2, 0.4, 0.60, 0.8, 1.0, 1.20, 1.40, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0, 3.2, 3.4, 3.6, 3.8, 4.0, 4.2, 4.4, 4.6, 4.8, 5.0, 5.2, 5.4, 5.6, 5.8, 6.0, 6.2, 6.4, 6.6, 6.8, 7.0, 7.2, 7.4, 7.6, 7.8, 8.0, 8.2, 8.4, 8.6, 8.8, 9.0, 9.2, 9.4, 9.6, 9.8, 10.0, 10.2, 10.4, 10.6, 10.8, 11.0, 11.2, 11.4, 11.6, 11.8, 12.0, 12.2, 12.4, 12.6, 12.8, 13.0, 13.2, 13.4, 13.6, 13.8, 14.0, 14.2, 14.4, 14.6, 14.8, 15.0, 15.2, 15.4, 15.6, 15.8, 16.0, 16.2, 16.4, 16.6, 16.8, 17.0, 17.2, 17.4, 17.6, 17.8, 18.0, 18.2, 18.4, 18.6, 18.8, 19.0, 19.2, 19.4, 19.6, 19.8, 20};
 std::vector<double> ConfBins = {0.0, 0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1};
-std::vector<double> ConfBins2= {0.0, 0.05,0.1,0.15,0.2,0.25,0.3, 0.35,0.4,0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.};
+//std::vector<double> ConfBins2= {0.0, 0.05,0.1,0.15,0.2,0.25,0.3, 0.35,0.4,0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.};
+std::vector<double> ConfBins2= {0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36, 0.37, 0.38, 0.39, 0.4, 0.41, 0.42, 0.43, 0.44, 0.45, 0.46, 0.47, 0.48, 0.49, 0.5, 0.51, 0.52, 0.53, 0.54, 0.55, 0.56, 0.57, 0.58, 0.59, 0.6, 0.61, 0.62, 0.63, 0.64, 0.65, 0.66, 0.67, 0.68, 0.69, 0.7, 0.71, 0.72, 0.73, 0.74, 0.75, 0.76, 0.77, 0.78, 0.79, 0.8, 0.81, 0.82, 0.83, 0.84, 0.85, 0.86, 0.87, 0.88, 0.89, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1};
 std::vector<double> ResidualBins = {-400.0, -399.0, -398.0, -397.0, -396.0, -395.0, -394.0, -393.0, -392.0, -391.0, -390.0, -389.0, -388.0, -387.0, -386.0, -385.0, -384.0, -383.0, -382.0, -381.0, -380.0, -379.0, -378.0, -377.0, -376.0, -375.0, -374.0, -373.0, -372.0, -371.0, -370.0, -369.0, -368.0, -367.0, -366.0, -365.0, -364.0, -363.0, -362.0, -361.0, -360.0, -359.0, -358.0, -357.0, -356.0, -355.0, -354.0, -353.0, -352.0, -351.0, -350.0, -349.0, -348.0, -347.0, -346.0, -345.0, -344.0, -343.0, -342.0, -341.0, -340.0, -339.0, -338.0, -337.0, -336.0, -335.0, -334.0, -333.0, -332.0, -331.0, -330.0, -329.0, -328.0, -327.0, -326.0, -325.0, -324.0, -323.0, -322.0, -321.0, -320.0, -319.0, -318.0, -317.0, -316.0, -315.0, -314.0, -313.0, -312.0, -311.0, -310.0, -309.0, -308.0, -307.0, -306.0, -305.0, -304.0, -303.0, -302.0, -301.0, -300.0, -299.0, -298.0, -297.0, -296.0, -295.0, -294.0, -293.0, -292.0, -291.0, -290.0, -289.0, -288.0, -287.0, -286.0, -285.0, -284.0, -283.0, -282.0, -281.0, -280.0, -279.0, -278.0, -277.0, -276.0, -275.0, -274.0, -273.0, -272.0, -271.0, -270.0, -269.0, -268.0, -267.0, -266.0, -265.0, -264.0, -263.0, -262.0, -261.0, -260.0, -259.0, -258.0, -257.0, -256.0, -255.0, -254.0, -253.0, -252.0, -251.0, -250.0, -249.0, -248.0, -247.0, -246.0, -245.0, -244.0, -243.0, -242.0, -241.0, -240.0, -239.0, -238.0, -237.0, -236.0, -235.0, -234.0, -233.0, -232.0, -231.0, -230.0, -229.0, -228.0, -227.0, -226.0, -225.0, -224.0, -223.0, -222.0, -221.0, -220.0, -219.0, -218.0, -217.0, -216.0, -215.0, -214.0, -213.0, -212.0, -211.0, -210.0, -209.0, -208.0, -207.0, -206.0, -205.0, -204.0, -203.0, -202.0, -201.0, -200.0, -199.0, -198.0, -197.0, -196.0, -195.0, -194.0, -193.0, -192.0, -191.0, -190.0, -189.0, -188.0, -187.0, -186.0, -185.0, -184.0, -183.0, -182.0, -181.0, -180.0, -179.0, -178.0, -177.0, -176.0, -175.0, -174.0, -173.0, -172.0, -171.0, -170.0, -169.0, -168.0, -167.0, -166.0, -165.0, -164.0, -163.0, -162.0, -161.0, -160.0, -159.0, -158.0, -157.0, -156.0, -155.0, -154.0, -153.0, -152.0, -151.0, -150.0, -149.0, -148.0, -147.0, -146.0, -145.0, -144.0, -143.0, -142.0, -141.0, -140.0, -139.0, -138.0, -137.0, -136.0, -135.0, -134.0, -133.0, -132.0, -131.0, -130.0, -129.0, -128.0, -127.0, -126.0, -125.0, -124.0, -123.0, -122.0, -121.0, -120.0, -119.0, -118.0, -117.0, -116.0, -115.0, -114.0, -113.0, -112.0, -111.0, -110.0, -109.0, -108.0, -107.0, -106.0, -105.0, -104.0, -103.0, -102.0, -101.0, -100.0, -99.0, -98.0, -97.0, -96.0, -95.0, -94.0, -93.0, -92.0, -91.0, -90.0, -89.0, -88.0, -87.0, -86.0, -85.0, -84.0, -83.0, -82.0, -81.0, -80.0, -79.0, -78.0, -77.0, -76.0, -75.0, -74.0, -73.0, -72.0, -71.0, -70.0, -69.0, -68.0, -67.0, -66.0, -65.0, -64.0, -63.0, -62.0, -61.0, -60.0, -59.0, -58.0, -57.0, -56.0, -55.0, -54.0, -53.0, -52.0, -51.0, -50.0, -49.0, -48.0, -47.0, -46.0, -45.0, -44.0, -43.0, -42.0, -41.0, -40.0, -39.0, -38.0, -37.0, -36.0, -35.0, -34.0, -33.0, -32.0, -31.0, -30.0, -29.0, -28.0, -27.0, -26.0, -25.0, -24.0, -23.0, -22.0, -21.0, -20.0, -19.0, -18.0, -17.0, -16.0, -15.0, -14.0, -13.0, -12.0, -11.0, -10.0, -9.0, -8.0, -7.0, -6.0, -5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0, 31.0, 32.0, 33.0, 34.0, 35.0, 36.0, 37.0, 38.0, 39.0, 40.0, 41.0, 42.0, 43.0, 44.0, 45.0, 46.0, 47.0, 48.0, 49.0, 50.0, 51.0, 52.0, 53.0, 54.0, 55.0, 56.0, 57.0, 58.0, 59.0, 60.0, 61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0, 71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0, 91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0, 111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0, 121.0, 122.0, 123.0, 124.0, 125.0, 126.0, 127.0, 128.0, 129.0, 130.0, 131.0, 132.0, 133.0, 134.0, 135.0, 136.0, 137.0, 138.0, 139.0, 140.0, 141.0, 142.0, 143.0, 144.0, 145.0, 146.0, 147.0, 148.0, 149.0, 150.0, 151.0, 152.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0, 161.0, 162.0, 163.0, 164.0, 165.0, 166.0, 167.0, 168.0, 169.0, 170.0, 171.0, 172.0, 173.0, 174.0, 175.0, 176.0, 177.0, 178.0, 179.0, 180.0, 181.0, 182.0, 183.0, 184.0, 185.0, 186.0, 187.0, 188.0, 189.0, 190.0, 191.0, 192.0, 193.0, 194.0, 195.0, 196.0, 197.0, 198.0, 199.0, 200.0, 201.0, 202.0, 203.0, 204.0, 205.0, 206.0, 207.0, 208.0, 209.0, 210.0, 211.0, 212.0, 213.0, 214.0, 215.0, 216.0, 217.0, 218.0, 219.0, 220.0, 221.0, 222.0, 223.0, 224.0, 225.0, 226.0, 227.0, 228.0, 229.0, 230.0, 231.0, 232.0, 233.0, 234.0, 235.0, 236.0, 237.0, 238.0, 239.0, 240.0, 241.0, 242.0, 243.0, 244.0, 245.0, 246.0, 247.0, 248.0, 249.0, 250.0, 251.0, 252.0, 253.0, 254.0, 255.0, 256.0, 257.0, 258.0, 259.0, 260.0, 261.0, 262.0, 263.0, 264.0, 265.0, 266.0, 267.0, 268.0, 269.0, 270.0, 271.0, 272.0, 273.0, 274.0, 275.0, 276.0, 277.0, 278.0, 279.0, 280.0, 281.0, 282.0, 283.0, 284.0, 285.0, 286.0, 287.0, 288.0, 289.0, 290.0, 291.0, 292.0, 293.0, 294.0, 295.0, 296.0, 297.0, 298.0, 299.0, 300.0, 301.0, 302.0, 303.0, 304.0, 305.0, 306.0, 307.0, 308.0, 309.0, 310.0, 311.0, 312.0, 313.0, 314.0, 315.0, 316.0, 317.0, 318.0, 319.0, 320.0, 321.0, 322.0, 323.0, 324.0, 325.0, 326.0, 327.0, 328.0, 329.0, 330.0, 331.0, 332.0, 333.0, 334.0, 335.0, 336.0, 337.0, 338.0, 339.0, 340.0, 341.0, 342.0, 343.0, 344.0, 345.0, 346.0, 347.0, 348.0, 349.0, 350.0, 351.0, 352.0, 353.0, 354.0, 355.0, 356.0, 357.0, 358.0, 359.0, 360.0, 361.0, 362.0, 363.0, 364.0, 365.0, 366.0, 367.0, 368.0, 369.0, 370.0, 371.0, 372.0, 373.0, 374.0, 375.0, 376.0, 377.0, 378.0, 379.0, 380.0, 381.0, 382.0, 383.0, 384.0, 385.0, 386.0, 387.0, 388.0, 389.0, 390.0, 391.0, 392.0, 393.0, 394.0, 395.0, 396.0, 397.0, 398.0, 399.0, 400.0};
 std::vector<double> multiplicityBins = {0,1,2,3,4,5,6,7,8,9,10};
+std::vector<double> nHitsBins = {0,50,100,150,200,250,300,350,400,450,500,550,600,650,700,750,800,850,900,950,1000,1050,1100,1150,1200,1250,1300,1350,1400,1450,1500};
 //std::vector<double> trackHitsBins = {0,1,2,3,4,5,6,7,8,9,10};
 
 double rebinNum = 10;
@@ -169,31 +178,92 @@ auto ANNConfCut = new reco::ANNConfidenceCut<CVUniverse, MichelEvent>(0.40);
 // Global - Declaring histograms
 //==============================================================================
 TH2D *TruthZVertex_vs_Erecoil_MC = new TH2D ("TruthZVertex_vs_Erecoil_MC", "TruthZVertex_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//With calibration
 TH3D *ANNZ_vs_Conf_vs_Erecoil_Data = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_Data", "ANNZ_vs_Conf_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZ_vs_Conf_vs_Erecoil_MC = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_MC", "ANNZ_vs_Conf_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZ_vs_Conf_vs_Erecoil_Data = new TH3D ("ANNWeightedZ_vs_Conf_vs_Erecoil_Data", "ANNWeightedZ_vs_Conf_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZ_vs_Conf_vs_Erecoil_MC = new TH3D ("ANNWeightedZ_vs_Conf_vs_Erecoil_MC", "ANNWeightedZ_vs_Conf_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZ_vs_Conf_vs_Erecoil_NoProbCut_Data = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_NoProbCut_Data", "ANNZ_vs_Conf_vs_Erecoil_NoProbCut_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNZ_vs_Conf_vs_Erecoil_NoProbCut_MC = new TH3D ("ANNZ_vs_Conf_vs_Erecoil_NoProbCut_MC", "ANNZ_vs_Conf_vs_Erecoil_NoProbCut_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data = new TH3D ("ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", "ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC = new TH3D ("ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", "ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH1D *ANNWeightedZCalibratedMinusANNZ_Data = new TH1D ("ANNWeightedZCalibratedMinusANNZ_Data", "ANNWeightedZCalibratedMinusANNZ_Data", 101, -100, 100);
+//TH1D *ANNWeightedZCalibratedMinusANNZ_MC = new TH1D ("ANNWeightedZCalibratedMinusANNZ_MC", "ANNWeightedZCalibratedMinusANNZ_MC", 101, -100, 100);
+TH1D *ANNZMinusANNZUncalibrated_Data = new TH1D ("ANNZMinusANNZUncalibrated_Data", "ANNZMinusANNZUncalibrated_Data", 101, -100, 100);
+TH1D *ANNZMinusANNZUncalibrated_MC = new TH1D ("ANNZMinusANNZUncalibrated_MC", "ANNZMinusANNZUncalibrated_MC", 101, -100, 100);
 
-//With calibration
-TH3D *ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data = new TH3D ("ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", "ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC = new TH3D ("ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", "ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data = new TH3D ("ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", "ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC = new TH3D ("ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", "ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC", vertexBins.size()-1, &vertexBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH1D *ANNWeightedZCalibratedMinusANNZ_Data = new TH1D ("ANNWeightedZCalibratedMinusANNZ_Data", "ANNWeightedZCalibratedMinusANNZ_Data", 101, -100, 100);
-TH1D *ANNWeightedZCalibratedMinusANNZ_MC = new TH1D ("ANNWeightedZCalibratedMinusANNZ_MC", "ANNWeightedZCalibratedMinusANNZ_MC", 101, -100, 100);
-TH1D *ANNZCalibratedMinusANNZ_Data = new TH1D ("ANNZCalibratedMinusANNZ_Data", "ANNZCalibratedMinusANNZ_Data", 101, -100, 100);
-TH1D *ANNZCalibratedMinusANNZ_MC = new TH1D ("ANNZCalibratedMinusANNZ_MC", "ANNZCalibratedMinusANNZ_MC", 101, -100, 100);
-
-TH1D *ANNZCalibrated_Data = new TH1D ("ANNZCalibrated_Data", "ANNZCalibrated_Data", vertexBins.size()-1, &vertexBins[0]);
-TH1D *ANNZCalibrated_MC = new TH1D ("ANNZCalibrated_MC", "ANNZCalibrated_MC", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZUncalibrated_Data = new TH1D ("ANNZUncalibrated_Data", "ANNZUncalibrated_Data", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZUncalibrated_MC = new TH1D ("ANNZUncalibrated_MC", "ANNZUncalibrated_MC", vertexBins.size()-1, &vertexBins[0]);
 TH1D *ANNZCalibratedWeighted_Data = new TH1D ("ANNZCalibratedWeighted_Data", "ANNZCalibratedWeighted_Data", vertexBins.size()-1, &vertexBins[0]);
 TH1D *ANNZCalibratedWeighted_MC = new TH1D ("ANNZCalibratedWeighted_MC", "ANNZCalibratedWeighted_MC", vertexBins.size()-1, &vertexBins[0]);
+
+//Variable, Material/Tracker/Target region/ Erecoil
+TH3D *pTmu_vs_Erecoil_vs_RecoVtxZ_Data = new TH3D ("pTmu_vs_Erecoil_vs_RecoVtxZ_Data", "pTmu_vs_Erecoil_vs_RecoVtxZ_Data", util::PTBins.size()-1, &util::PTBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *pZmu_vs_Erecoil_vs_RecoVtxZ_Data = new TH3D ("pZmu_vs_Erecoil_vs_RecoVtxZ_Data", "pZmu_vs_Erecoil_vs_RecoVtxZ_Data", util::PzBins.size()-1, &util::PzBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *BjorkenX_vs_Erecoil_vs_RecoVtxZ_Data = new TH3D ("BjorkenX_vs_Erecoil_vs_RecoVtxZ_Data", "BjorkenX_vs_Erecoil_vs_RecoVtxZ_Data", util::bjorkenXbins.size()-1, &util::bjorkenXbins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *pTmu_vs_Erecoil_vs_RecoVtxZ_MC = new TH3D ("pTmu_vs_Erecoil_vs_RecoVtxZ_MC", "pTmu_vs_Erecoil_vs_RecoVtxZ_MC", util::PTBins.size()-1, &util::PTBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *pZmu_vs_Erecoil_vs_RecoVtxZ_MC = new TH3D ("pZmu_vs_Erecoil_vs_RecoVtxZ_MC", "pZmu_vs_Erecoil_vs_RecoVtxZ_MC", util::PzBins.size()-1, &util::PzBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *BjorkenX_vs_Erecoil_vs_RecoVtxZ_MC = new TH3D ("BjorkenX_vs_Erecoil_vs_RecoVtxZ_MC", "BjorkenX_vs_Erecoil_vs_RecoVtxZ_MC", util::bjorkenXbins.size()-1, &util::bjorkenXbins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+
+TH3D *pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data = new TH3D ("pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data", "pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data", util::PTBins.size()-1, &util::PTBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data = new TH3D ("pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data", "pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data", util::PzBins.size()-1, &util::PzBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data = new TH3D ("BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data", "BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data", util::bjorkenXbins.size()-1, &util::bjorkenXbins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC = new TH3D ("pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC", "pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC", util::PTBins.size()-1, &util::PTBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC = new TH3D ("pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC", "pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC", util::PzBins.size()-1, &util::PzBins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC = new TH3D ("BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC", "BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC", util::bjorkenXbins.size()-1, &util::bjorkenXbins[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+
+
 TH1D *ANNZ_Data = new TH1D ("ANNZ_Data", "ANNZ_Data", vertexBins.size()-1, &vertexBins[0]);
 TH1D *ANNZ_MC = new TH1D ("ANNZ_MC", "ANNZ_MC", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZ_NoProbCut_MC = new TH1D ("ANNZ_NoProbCut_MC", "ANNZ_NoProbCut_MC", vertexBins.size()-1, &vertexBins[0]);
+TH1D *ANNZ_NoProbCut_Data = new TH1D ("ANNZ_NoProbCut_Data", "ANNZ_NoProbCut_Data", vertexBins.size()-1, &vertexBins[0]);
 
+TH1D *EmuResidualWithCorrection = new TH1D ("EmuResidualWithCorrection", "EmuResidualWithCorrection", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection = new TH1D ("EmuResidualWithoutCorrection", "EmuResidualWithoutCorrection", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tracker = new TH1D ("EmuResidualWithCorrection_Tracker", "EmuResidualWithCorrection_Tracker", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tracker = new TH1D ("EmuResidualWithoutCorrection_Tracker", "EmuResidualWithoutCorrection_Tracker", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt2Iron = new TH1D ("EmuResidualWithCorrection_Tgt2Iron", "EmuResidualWithCorrection_Tgt2Iron", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt2Iron = new TH1D ("EmuResidualWithoutCorrection_Tgt2Iron", "EmuResidualWithoutCorrection_Tgt2Iron", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt2Lead = new TH1D ("EmuResidualWithCorrection_Tgt2Lead", "EmuResidualWithCorrection_Tgt2Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt2Lead = new TH1D ("EmuResidualWithoutCorrection_Tgt2Lead", "EmuResidualWithoutCorrection_Tgt2Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt3Iron = new TH1D ("EmuResidualWithCorrection_Tgt3Iron", "EmuResidualWithCorrection_Tgt3Iron", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt3Iron = new TH1D ("EmuResidualWithoutCorrection_Tgt3Iron", "EmuResidualWithoutCorrection_Tgt3Iron", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt3Carbon = new TH1D ("EmuResidualWithCorrection_Tgt3Carbon", "EmuResidualWithCorrection_Tgt3Carbon", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt3Carbon = new TH1D ("EmuResidualWithoutCorrection_Tgt3Carbon", "EmuResidualWithoutCorrection_Tgt3Carbon", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt3Lead = new TH1D ("EmuResidualWithCorrection_Tgt3Lead", "EmuResidualWithCorrection_Tgt3Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt3Lead = new TH1D ("EmuResidualWithoutCorrection_Tgt3Lead", "EmuResidualWithoutCorrection_Tgt3Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt4Lead = new TH1D ("EmuResidualWithCorrection_Tgt4Lead", "EmuResidualWithCorrection_Tgt4Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt4Lead = new TH1D ("EmuResidualWithoutCorrection_Tgt4Lead", "EmuResidualWithoutCorrection_Tgt4Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt5Iron = new TH1D ("EmuResidualWithCorrection_Tgt5Iron", "EmuResidualWithCorrection_Tgt5Iron", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt5Iron = new TH1D ("EmuResidualWithoutCorrection_Tgt5Iron", "EmuResidualWithoutCorrection_Tgt5Iron", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Tgt5Lead = new TH1D ("EmuResidualWithCorrection_Tgt5Lead", "EmuResidualWithCorrection_Tgt5Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Tgt5Lead = new TH1D ("EmuResidualWithoutCorrection_Tgt5Lead", "EmuResidualWithoutCorrection_Tgt5Lead", 1000, -2500, 2500);
+TH1D *EmuResidualWithCorrection_Water = new TH1D ("EmuResidualWithCorrection_Water", "EmuResidualWithCorrection_Water", 1000, -2500, 2500);
+TH1D *EmuResidualWithoutCorrection_Water = new TH1D ("EmuResidualWithoutCorrection_Water", "EmuResidualWithoutCorrection_Water", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection = new TH1D ("PmuResidualWithCorrection", "PmuResidualWithCorrection", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection = new TH1D ("PmuResidualWithoutCorrection", "PmuResidualWithoutCorrection", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tracker = new TH1D ("PmuResidualWithCorrection_Tracker", "PmuResidualWithCorrection_Tracker", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tracker = new TH1D ("PmuResidualWithoutCorrection_Tracker", "PmuResidualWithoutCorrection_Tracker", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt2Iron = new TH1D ("PmuResidualWithCorrection_Tgt2Iron", "PmuResidualWithCorrection_Tgt2Iron", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt2Iron = new TH1D ("PmuResidualWithoutCorrection_Tgt2Iron", "PmuResidualWithoutCorrection_Tgt2Iron", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt2Lead = new TH1D ("PmuResidualWithCorrection_Tgt2Lead", "PmuResidualWithCorrection_Tgt2Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt2Lead = new TH1D ("PmuResidualWithoutCorrection_Tgt2Lead", "PmuResidualWithoutCorrection_Tgt2Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt3Iron = new TH1D ("PmuResidualWithCorrection_Tgt3Iron", "PmuResidualWithCorrection_Tgt3Iron", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt3Iron = new TH1D ("PmuResidualWithoutCorrection_Tgt3Iron", "PmuResidualWithoutCorrection_Tgt3Iron", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt3Carbon = new TH1D ("PmuResidualWithCorrection_Tgt3Carbon", "PmuResidualWithCorrection_Tgt3Carbon", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt3Carbon = new TH1D ("PmuResidualWithoutCorrection_Tgt3Carbon", "PmuResidualWithoutCorrection_Tgt3Carbon", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt3Lead = new TH1D ("PmuResidualWithCorrection_Tgt3Lead", "PmuResidualWithCorrection_Tgt3Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt3Lead = new TH1D ("PmuResidualWithoutCorrection_Tgt3Lead", "PmuResidualWithoutCorrection_Tgt3Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt4Lead = new TH1D ("PmuResidualWithCorrection_Tgt4Lead", "PmuResidualWithCorrection_Tgt4Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt4Lead = new TH1D ("PmuResidualWithoutCorrection_Tgt4Lead", "PmuResidualWithoutCorrection_Tgt4Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt5Iron = new TH1D ("PmuResidualWithCorrection_Tgt5Iron", "PmuResidualWithCorrection_Tgt5Iron", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt5Iron = new TH1D ("PmuResidualWithoutCorrection_Tgt5Iron", "PmuResidualWithoutCorrection_Tgt5Iron", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Tgt5Lead = new TH1D ("PmuResidualWithCorrection_Tgt5Lead", "PmuResidualWithCorrection_Tgt5Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Tgt5Lead = new TH1D ("PmuResidualWithoutCorrection_Tgt5Lead", "PmuResidualWithoutCorrection_Tgt5Lead", 1000, -2500, 2500);
+TH1D *PmuResidualWithCorrection_Water = new TH1D ("PmuResidualWithCorrection_Water", "PmuResidualWithCorrection_Water", 1000, -2500, 2500);
+TH1D *PmuResidualWithoutCorrection_Water = new TH1D ("PmuResidualWithoutCorrection_Water", "PmuResidualWithoutCorrection_Water", 1000, -2500, 2500);
 
+TH2D *EmuCorrectionVsUncorrEmu = new TH2D("EmuCorrectionVsUncorrEmu", "EmuCorrectionVsUncorrEmu", ResidualBins.size()-1, &ResidualBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH2D *PmuCorrectionVsUncorrPmu = new TH2D("PmuCorrectionVsUncorrPmu", "PmuCorrectionVsUncorrPmu", ResidualBins.size()-1, &ResidualBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-TH3D *ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil = new TH3D ("ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", "ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil", "ANNZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
@@ -206,42 +276,54 @@ TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNZResidual_vs_Conf
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 TH3D *ANNZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNZResidual_vs_Conf_vs_Erecoil_Water", "ANNZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-TH3D *ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil = new TH3D ("ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", "ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil", "ANNWeightedZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
-TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-TH1D *ANNWeightedZ_minus_UnweightedZMC = new TH1D ("ANNWeightedZ_minus_UnweightedZMC", "ANNWeightedZ_minus_UnweightedZMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTrackerMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTrackerMC", "ANNWeightedZ_minus_UnweightedZTrackerMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt2IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2IronMC", "ANNWeightedZ_minus_UnweightedZTgt2IronMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt2LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2LeadMC", "ANNWeightedZ_minus_UnweightedZTgt2LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt3IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3IronMC", "ANNWeightedZ_minus_UnweightedZTgt3IronMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt3LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3LeadMC", "ANNWeightedZ_minus_UnweightedZTgt3LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt3CarbonMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3CarbonMC", "ANNWeightedZ_minus_UnweightedZTgt3CarbonMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt4LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt4LeadMC", "ANNWeightedZ_minus_UnweightedZTgt4LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt5IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5IronMC", "ANNWeightedZ_minus_UnweightedZTgt5IronMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt5LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5LeadMC", "ANNWeightedZ_minus_UnweightedZTgt5LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZWaterMC = new TH1D ("ANNWeightedZ_minus_UnweightedZWaterMC", "ANNWeightedZ_minus_UnweightedZWaterMC", ResidualBins.size()-1, &ResidualBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+TH3D *ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Water", "ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
 
-TH1D *ANNWeightedZ_minus_UnweightedZData = new TH1D ("ANNWeightedZ_minus_UnweightedZData", "ANNWeightedZ_minus_UnweightedZData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTrackerData = new TH1D ("ANNWeightedZ_minus_UnweightedZTrackerData", "ANNWeightedZ_minus_UnweightedZTrackerData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt2IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2IronData", "ANNWeightedZ_minus_UnweightedZTgt2IronData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt2LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2LeadData", "ANNWeightedZ_minus_UnweightedZTgt2LeadData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt3IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3IronData", "ANNWeightedZ_minus_UnweightedZTgt3IronData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt3LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3LeadData", "ANNWeightedZ_minus_UnweightedZTgt3LeadData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt3CarbonData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3CarbonData", "ANNWeightedZ_minus_UnweightedZTgt3CarbonData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt4LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt4LeadData", "ANNWeightedZ_minus_UnweightedZTgt4LeadData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt5IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5IronData", "ANNWeightedZ_minus_UnweightedZTgt5IronData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZTgt5LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5LeadData", "ANNWeightedZ_minus_UnweightedZTgt5LeadData", ResidualBins.size()-1, &ResidualBins[0]);
-TH1D *ANNWeightedZ_minus_UnweightedZWaterData = new TH1D ("ANNWeightedZ_minus_UnweightedZWaterData", "ANNWeightedZ_minus_UnweightedZWaterData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil", "ANNWeightedZResidual_vs_Conf_vs_Erecoil", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+//TH3D *ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water = new TH3D ("ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water", "ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water", ResidualBins.size()-1, &ResidualBins[0], ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
+
+//TH1D *ANNWeightedZ_minus_UnweightedZMC = new TH1D ("ANNWeightedZ_minus_UnweightedZMC", "ANNWeightedZ_minus_UnweightedZMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTrackerMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTrackerMC", "ANNWeightedZ_minus_UnweightedZTrackerMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt2IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2IronMC", "ANNWeightedZ_minus_UnweightedZTgt2IronMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt2LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2LeadMC", "ANNWeightedZ_minus_UnweightedZTgt2LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt3IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3IronMC", "ANNWeightedZ_minus_UnweightedZTgt3IronMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt3LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3LeadMC", "ANNWeightedZ_minus_UnweightedZTgt3LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt3CarbonMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3CarbonMC", "ANNWeightedZ_minus_UnweightedZTgt3CarbonMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt4LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt4LeadMC", "ANNWeightedZ_minus_UnweightedZTgt4LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt5IronMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5IronMC", "ANNWeightedZ_minus_UnweightedZTgt5IronMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt5LeadMC = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5LeadMC", "ANNWeightedZ_minus_UnweightedZTgt5LeadMC", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZWaterMC = new TH1D ("ANNWeightedZ_minus_UnweightedZWaterMC", "ANNWeightedZ_minus_UnweightedZWaterMC", ResidualBins.size()-1, &ResidualBins[0]);
+
+//TH1D *ANNWeightedZ_minus_UnweightedZData = new TH1D ("ANNWeightedZ_minus_UnweightedZData", "ANNWeightedZ_minus_UnweightedZData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTrackerData = new TH1D ("ANNWeightedZ_minus_UnweightedZTrackerData", "ANNWeightedZ_minus_UnweightedZTrackerData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt2IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2IronData", "ANNWeightedZ_minus_UnweightedZTgt2IronData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt2LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt2LeadData", "ANNWeightedZ_minus_UnweightedZTgt2LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt3IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3IronData", "ANNWeightedZ_minus_UnweightedZTgt3IronData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt3LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3LeadData", "ANNWeightedZ_minus_UnweightedZTgt3LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt3CarbonData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt3CarbonData", "ANNWeightedZ_minus_UnweightedZTgt3CarbonData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt4LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt4LeadData", "ANNWeightedZ_minus_UnweightedZTgt4LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt5IronData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5IronData", "ANNWeightedZ_minus_UnweightedZTgt5IronData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZTgt5LeadData = new TH1D ("ANNWeightedZ_minus_UnweightedZTgt5LeadData", "ANNWeightedZ_minus_UnweightedZTgt5LeadData", ResidualBins.size()-1, &ResidualBins[0]);
+//TH1D *ANNWeightedZ_minus_UnweightedZWaterData = new TH1D ("ANNWeightedZ_minus_UnweightedZWaterData", "ANNWeightedZ_minus_UnweightedZWaterData", ResidualBins.size()-1, &ResidualBins[0]);
 
 //TH2D *ANNConf_vs_Ehad_Data = new TH2D ("ANNConf_vs_Ehad_Data", "ANNConf_vs_Ehad_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]); //Redundant, the same data can be extracted by flattening ANNZ_vs_Conf_vs_Erecoil_Data
 TH2D *ANNConf_vs_Ehad_Tracker_Data = new TH2D ("ANNConf_vs_Ehad_Tracker_Data", "ANNConf_vs_Ehad_Tracker_Data", ConfBins.size()-1, &ConfBins[0], ErecoilBins.size()-1, &ErecoilBins[0]);
@@ -318,14 +400,40 @@ TH1D *ANNConfidenceNUEEL_MC = new TH1D ("ANNConfidenceNUEEL_MC", "ANNConfidenceN
 TH1D *ANNConfidenceMEC_MC = new TH1D ("ANNConfidenceMEC_MC", "ANNConfidenceMEC_MC", ConfBins2.size()-1, &ConfBins2[0]);
 TH1D *ANNConfidenceUnknownInt_MC = new TH1D ("ANNConfidenceUnknownInt_MC", "ANNConfidenceUnknownInt_MC", ConfBins2.size()-1, &ConfBins2[0]);
 // by multiplicity
-TH2D *ANNConfidence_vs_NTracks_MC = new TH2D ("ANNConfidence_vs_NTracks_MC", "ANNConfidence_vs_NTracks_MC", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0]);
-TH2D *ANNConfidence_vs_NTracks_Data = new TH2D ("ANNConfidence_vs_NTracks_Data", "ANNConfidence_vs_NTracks_Data", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+TH3D *ANNConfidence_vs_NTracks_vs_NHitsMC = new TH3D ("ANNConfidence_vs_NTracks_vs_NHitsMC", "ANNConfidence_vs_NTracks_vs_NHitsMC", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH3D *ANNConfidence_vs_NTracks_vs_NHitsData = new TH3D ("ANNConfidence_vs_NTracks_vs_NHitsData", "ANNConfidence_vs_NTracks_vs_NHitsData", ConfBins2.size()-1, &ConfBins2[0], multiplicityBins.size()-1, &multiplicityBins[0], nHitsBins.size()-1, &nHitsBins[0]);
+
+TH2D *ANNConfidence_vs_NHitsMC = new TH2D ("ANNConfidence_vs_NHitsMC", "ANNConfidence_vs_NHitsMC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsQE_MC = new TH2D ("ANNConfidence_vs_NHitsQE_MC", "ANNConfidence_vs_NHitsQE_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsRES_MC = new TH2D ("ANNConfidence_vs_NHitsRES_MC", "ANNConfidence_vs_NHitsRES_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsDIS_MC = new TH2D ("ANNConfidence_vs_NHitsDIS_MC", "ANNConfidence_vs_NHitsDIS_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsCOHPI_MC = new TH2D ("ANNConfidence_vs_NHitsCOHPI_MC", "ANNConfidence_vs_NHitsCOHPI_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsAMNUGAMMA_MC = new TH2D ("ANNConfidence_vs_NHitsAMNUGAMMA_MC", "ANNConfidence_vs_NHitsAMNUGAMMA_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsIMD_MC = new TH2D ("ANNConfidence_vs_NHitsIMD_MC", "ANNConfidence_vs_NHitsIMD_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsQENUEEL_MC = new TH2D ("ANNConfidence_vs_NHitsQENUEEL_MC", "ANNConfidence_vs_NHitsQENUEEL_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsQEMEC_MC = new TH2D ("ANNConfidence_vs_NHitsQEMEC_MC", "ANNConfidence_vs_NHitsQEMEC_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+TH2D *ANNConfidence_vs_NHitsQEUnknownInt_MC = new TH2D ("ANNConfidence_vs_NHitsQEUnknownInt_MC", "ANNConfidence_vs_NHitsQEUnknownInt_MC", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
+
+TH2D *ANNConfidence_vs_NHitsData = new TH2D ("ANNConfidence_vs_NHitsData", "ANNConfidence_vs_NHitsData", ConfBins2.size()-1, &ConfBins2[0], nHitsBins.size()-1, &nHitsBins[0]);
 
 TH1D *ANNConfidence_Data = new TH1D ("ANNConfidence_Data", "ANNConfidence_Data", 100, 0, 1);
 TH1D *ANNConfidence_MC = new TH1D ("ANNConfidence_MC", "ANNConfidence_MC", 100, 0, 1);
-TH1D *ANNCalibratedConfidence_Data = new TH1D ("ANNCalibratedConfidence_Data", "ANNCalibratedConfidence_Data", 100, 0, 1);
-TH1D *ANNCalibratedConfidence_MC = new TH1D ("ANNCalibratedConfidence_MC", "ANNCalibratedConfidence_MC", 100, 0, 1);
+TH1D *ANNUnalibratedConfidence_Data = new TH1D ("ANNUnalibratedConfidence_Data", "ANNUnalibratedConfidence_Data", 100, 0, 1);
+TH1D *ANNUnalibratedConfidence_MC = new TH1D ("ANNUnalibratedConfidence_MC", "ANNUnalibratedConfidence_MC", 100, 0, 1);
 
+
+//Aggregate
+TH1D *ANNCalibratedConfidence_Selected1 = new TH1D ("ANNCalibratedConfidence_Selected1", "ANNCalibratedConfidence_Selected1", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_SelectedSignal1 = new TH1D ("ANNCalibratedConfidence_SelectedSignal1", "ANNCalibratedConfidence_SelectedSignal1", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Signal1 = new TH1D ("ANNCalibratedConfidence_Signal1", "ANNCalibratedConfidence_Signal1", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence_Selected2 = new TH1D ("ANNCalibratedConfidence_Selected2", "ANNCalibratedConfidence_Selected2", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_SelectedSignal2 = new TH1D ("ANNCalibratedConfidence_SelectedSignal2", "ANNCalibratedConfidence_SelectedSignal2", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Signal2 = new TH1D ("ANNCalibratedConfidence_Signal2", "ANNCalibratedConfidence_Signal2", 100, 0, 1);
+
+TH1D *ANNCalibratedConfidence_Selected3 = new TH1D ("ANNCalibratedConfidence_Selected3", "ANNCalibratedConfidence_Selected3", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_SelectedSignal3 = new TH1D ("ANNCalibratedConfidence_SelectedSignal3", "ANNCalibratedConfidence_SelectedSignal3", 100, 0, 1);
+TH1D *ANNCalibratedConfidence_Signal3 = new TH1D ("ANNCalibratedConfidence_Signal3", "ANNCalibratedConfidence_Signal3", 100, 0, 1);
 
 //Iron
 TH1D *ANNCalibratedConfidence_Iron_Selected = new TH1D ("ANNCalibratedConfidence_Iron_Selected", "ANNCalibratedConfidence_Iron_Selected", 100, 0, 1);
@@ -429,6 +537,66 @@ TH1D *ANNCalibratedConfidenceRatio2_Water_Selected = new TH1D ("ANNCalibratedCon
 TH1D *ANNCalibratedConfidenceRatio3_Water_SelectedSignal = new TH1D ("ANNCalibratedConfidenceRatio3_Water_SelectedSignal", "ANNCalibratedConfidenceRatio3_Water_SelectedSignal", 100, 0, 1);
 TH1D *ANNCalibratedConfidenceRatio3_Water_Signal = new TH1D ("ANNCalibratedConfidenceRatio3_Water_Signal", "ANNCalibratedConfidenceRatio3_Water_Signal", 100, 0, 1);
 TH1D *ANNCalibratedConfidenceRatio3_Water_Selected = new TH1D ("ANNCalibratedConfidenceRatio3_Water_Selected", "ANNCalibratedConfidenceRatio3_Water_Selected", 100, 0, 1);
+
+//Used to get ECE and produce reliability diagrams
+//This one is the first component in calculating the binned accuracies
+TH3D *NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ = new TH3D ("NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ", "NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ", ConfBins2.size()-1, &ConfBins2[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ = new TH3D ("SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ", "SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ", ConfBins2.size()-1, &ConfBins2[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ = new TH3D ("TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ", "TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ", ConfBins2.size()-1, &ConfBins2[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator = new TH3D ("NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator", "NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator", ConfBins2.size()-1, &ConfBins2[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ_NoCalibrator = new TH3D ("SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ_NoCalibrator", "SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ_NoCalibrator", ConfBins2.size()-1, &ConfBins2[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+TH3D *TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator = new TH3D ("TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator", "TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator", ConfBins2.size()-1, &ConfBins2[0],  ErecoilBins.size()-1, &ErecoilBins[0], vertexBins.size()-1, &vertexBins[0]);
+
+
+////Track based breakdowns
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_MC", "TBZ_vs_TrueZ_vs_Multiplicity_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Water_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Water_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Water_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Iron_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Iron_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Iron_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Lead_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Lead_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Lead_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Carbon_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Carbon_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Carbon_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Iron_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Iron_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Iron_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Lead_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Lead_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Lead_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt4Lead_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt4Lead_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt4Lead_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Iron_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Iron_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Iron_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Lead_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Lead_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Lead_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH3D *TBZ_vs_TrueZ_vs_Multiplicity_Tracker_MC = new TH3D ("TBZ_vs_TrueZ_vs_Multiplicity_Tracker_MC", "TBZ_vs_TrueZ_vs_Multiplicity_Tracker_MC", vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+////Track based residuals
+//TH2D *TBZResiduals_vs_Multiplicity = new TH2D ("TBZResiduals_vs_Multiplicity", "TBZResiduals_vs_Multiplicity", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Water = new TH2D ("TBZResiduals_vs_Multiplicity_Water", "TBZResiduals_vs_Multiplicity_Water", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt2Iron = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt2Iron_MC", "TBZResiduals_vs_Multiplicity_Tgt2Iron_MC", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt2Lead = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt2Lead", "TBZResiduals_vs_Multiplicity_Tgt2Lead", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt3Carbon = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt3Carbon", "TBZResiduals_vs_Multiplicity_Tgt3Carbon", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt3Iron = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt3Iron", "TBZResiduals_vs_Multiplicity_Tgt3Iron", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt3Lead = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt3Lead", "TBZResiduals_vs_Multiplicity_Tgt3Lead", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt4Lead = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt4Lead", "TBZResiduals_vs_Multiplicity_Tgt4Lead", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt5Iron = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt5Iron", "TBZResiduals_vs_Multiplicity_Tgt5Iron", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tgt5Lead = new TH2D ("TBZResiduals_vs_Multiplicity_Tgt5Lead", "TBZResiduals_vs_Multiplicity_Tgt5Lead", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+//TH2D *TBZResiduals_vs_Multiplicity_Tracker = new TH2D ("TBZResiduals_vs_Multiplicity_Tracker", "TBZResiduals_vs_Multiplicity_Tracker", ResidualBins.size()-1, &ResidualBins[0], multiplicityBins.size()-1, &multiplicityBins[0]);
+
+
+//Using TB to validate data calibration
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_MC = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_MC", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_MC", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
+//TH3D *ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_Data = new TH3D ("ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_Data", "ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_Data", ConfBins2.size()-1, &ConfBins2[0], vertexBins.size()-1, &vertexBins[0], vertexBins.size()-1, &vertexBins[0]);
 
 //==============================================================================
 // End - Declaring histograms
@@ -902,40 +1070,61 @@ void LoopAndFillMC(
     )
 {
   //calibrator.cacheEvt = -1;
-  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-  assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
-  auto& cvUniv = error_bands["cv"].front();
-
+  const int WINDOW_SIZE = 10; // number of samples to average over
+  std::deque<std::pair<int, std::chrono::steady_clock::time_point>> timeWindow;
+  std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();  assert(!error_bands["cv"].empty() && "\"cv\" error band is empty!  Can't set Model weight.");
+  auto &cvUniv = error_bands["cv"].front();
+  PlotUtils::TargetUtils m_TargetUtils;
   std::cout << "Starting MC reco loop...\n";
+  const int nEntries = chain->GetEntries();
+  //const int nEntries = 0;
+  for (int i = 0; i < nEntries; ++i)
+  {
+    if (i % 1000 == 0 && i > 0)
+    {
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-  //const int nEntries = chain->GetEntries();
-  const int nEntries = 10000;
-  int  startNum = 0;
-  int endNum = nEntries;
-  if (nSubruns != 0 )
-  {
-    int chunkSize = std::floor(nEntries/nSubruns);
-    startNum = nProcess*chunkSize;
-    if (nProcess == (nSubruns-1)) //The last one, run to the end
-    {
-      endNum = nEntries; //probably redundant with the same line just above
-    }
-    else
-    {
-      endNum = (nProcess+1)*chunkSize;
-    }
-  }
-  // const int nEntries = 10000;
-  for (int i = startNum; i < endNum; ++i)
-  {
-    if(i%1000==0)
-    { 
-      std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-      double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
-      double msperevent = mselapsed/i;
-      int sleft = (nEntries-i)*msperevent/1000;
-      double selapsed = ((int)mselapsed)/1000;
-      std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+        // Add current sample to the sliding window
+        timeWindow.push_back({i, now});
+        if (timeWindow.size() > WINDOW_SIZE)
+            timeWindow.pop_front();
+
+        // Overall elapsed time
+        double msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+        double sElapsed   = msElapsed / 1000.0;
+
+        // Dynamic rate: events/sec over the sliding window
+        double eventsPerSec = 0.0;
+        double msRemaining  = 0.0;
+        if (timeWindow.size() >= 2)
+        {
+            auto& oldest = timeWindow.front();
+            double msWindow  = std::chrono::duration_cast<std::chrono::milliseconds>(now - oldest.second).count();
+            int    evWindow  = i - oldest.first;
+            eventsPerSec = (msWindow > 0) ? (eventsPerSec = evWindow / (msWindow / 1000.0)) : 0.0;
+            msRemaining  = (eventsPerSec > 0) ? ((nEntries - i) / eventsPerSec * 1000.0) : 0.0;
+        }
+        else
+        {
+            // Fallback to overall average until window is populated
+            double msPerEvent = msElapsed / i;
+            msRemaining = (nEntries - i) * msPerEvent;
+        }
+
+        int sRemaining = static_cast<int>(msRemaining / 1000.0);
+
+        // Rate indicator: pick a sensible unit
+        std::string rateStr;
+        if (eventsPerSec >= 1000.0)
+            rateStr = std::to_string(static_cast<int>(eventsPerSec / 1000.0)) + "k ev/s";
+        else
+            rateStr = std::to_string(static_cast<int>(eventsPerSec)) + " ev/s";
+
+        std::cout << i << " / " << nEntries
+                  << "  Elapsed: "   << std::fixed << std::setprecision(1) << sElapsed  << "s"
+                  << "  Remaining: " << sRemaining << "s"
+                  << "  Rate: "      << rateStr
+                  << "          \r"  << std::flush;
     }
     MichelEvent cvEvent;
     cvUniv->SetEntry(i);
@@ -957,44 +1146,88 @@ void LoopAndFillMC(
         // Tell the Event which entry in the TChain it's looking at
         universe->SetEntry(i);
         //std::cout<<"Here1\n";
-        universe->SetCalibrator(&calibrator);
+        if (useCalibrator) universe->SetCalibrator(&calibrator);
         //std::cout<<"Here2\n";
         bool hasMLPred=universe->hasMLPred();
-        ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
-        ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-        ROOT::Math::XYZTVector TrueVtx = universe->GetTrueVertex();
 
-        double WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
-        double ANNZResidual = ANNVtx.Z() - TrueVtx.Z();
-        double ANNWeightedZResidual = WeightedANNZ - TrueVtx.Z();
-        double ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
+        ROOT::Math::XYZVector ANNVtx = ROOT::Math::XYZVector(-999, -999, -999);
+        ROOT::Math::XYZVector ANNUncalibratedVtx = ROOT::Math::XYZVector(-999, -999, -999);
+        ROOT::Math::XYZTVector TrackBasedVtx = ROOT::Math::XYZTVector(-999, -999, -999, -999);
+        ROOT::Math::XYZTVector TrueVtx = ROOT::Math::XYZTVector(-999, -999, -999, -999);
 
-        PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
+        double WeightedANNZ = -999;
+        double ANNZResidual = -999;
+        double TBZResidual = TrackBasedVtx.Z() - TrueVtx.Z();
+        double ANNEmuResidualWithCorrection = -999;
+        double ANNPmuResidualWithCorrection = -999;
+        double ANNEmu_CorrectionMinusNoCorrection = -999;
+        double ANNPmu_CorrectionMinusNoCorrection = -999;
+        double ANNEmuResidualWithoutCorrection = -999;
+        double ANNPmuResidualWithoutCorrection = -999;
+        double ANNUncalibratedZResidual = -999;
+        double ANNWeightedZResidual = -999;
+        double ANNWeightedMinusUnweighted = -999;
+        double ANNProb = -999;
+        double ANNUncalibratedProb = -999;
+        double ANNProb1Calibrated = -999;
+        double ANNProb2Calibrated = -999;
+        double ANNProb3Calibrated = -999;
+
+        double ANNProbFromCalibratorRaw1 = -999;
+        double ANNProbFromCalibratorRaw2 = -999;
+        double ANNProbFromCalibratorRaw3 = -999;
+        
+        if (hasMLPred)
+        {
+          ANNVtx = universe->GetANNVertex();
+          ANNUncalibratedVtx = universe->GetANNVertex(false);
+          TrackBasedVtx = universe->GetVertex();
+          TrueVtx = universe->GetTrueVertex();
+
+          WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
+          ANNZResidual = ANNVtx.Z() - TrueVtx.Z();
+          double trueEmu = universe->GetElepTrue();
+          double truePmu = universe->GetPlepTrue();
+          ANNEmuResidualWithCorrection = (universe->GetANNEmu(true))-trueEmu;
+          ANNPmuResidualWithCorrection = (universe->GetANNPmu(true))-truePmu;
+          ANNEmuResidualWithoutCorrection = (universe->GetANNEmu(false))-trueEmu;
+          ANNPmuResidualWithoutCorrection = (universe->GetANNPmu(false))-truePmu;
+
+          ANNUncalibratedZResidual = ANNUncalibratedVtx.Z() - TrueVtx.Z();
+          ANNWeightedZResidual = WeightedANNZ - TrueVtx.Z();
+          ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
+          ANNUncalibratedProb = universe->GetANNProb(false);
+          ANNProb = universe->GetANNProb();
+          ANNProb1Calibrated = universe->GetCalibratedANNProbAdjusted(0);
+          ANNProb2Calibrated = universe->GetCalibratedANNProbAdjusted(1);
+          ANNProb3Calibrated = universe->GetCalibratedANNProbAdjusted(2);
+
+          ANNProbFromCalibratorRaw1 = universe->GetCalibratedANNProb(0);
+          ANNProbFromCalibratorRaw2 = universe->GetCalibratedANNProb(1);
+          ANNProbFromCalibratorRaw3 = universe->GetCalibratedANNProb(2);
+        }
+
         const double weight = model.GetWeight(*universe, myevent); //Only calculate the per-universe weight for events that will actually use it.
-        double ANNProb = universe->GetANNProb(false);
+        
         double erecoil = universe->GetRecoilE()/pow(10,3);
         double curvsig = 1/universe->GetMuonQPErr();
         double pmu = universe->GetPmu()/1000;
         int multiplicity = universe->GetMultiplicity();
-        double ANNTopProbCalibrated = universe->GetANNProb();
-        double ANNProb1Calibrated = universe->GetCalibratedANNProbAdjusted(0);
-        double ANNProb2Calibrated = universe->GetCalibratedANNProbAdjusted(1);
-        double ANNProb3Calibrated = universe->GetCalibratedANNProbAdjusted(2);
+        int nhits = universe->GetInt("slice_n_hits");
 
-        double ANNProbFromCalibratorRaw1 = universe->GetCalibratedANNProb(0);
-        double ANNProbFromCalibratorRaw2 = universe->GetCalibratedANNProb(1);
-        double ANNProbFromCalibratorRaw3 = universe->GetCalibratedANNProb(2);
         const bool isSignal = michelcuts.isSignal(*universe, weight);
-
+        int tgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
         // This is where you would Access/create a Michel
 
         if (isSignal && hasMLPred)
         {
-          int tgtCode = util::getTgtCode(universe, true, true ); //The second bool (true) turns on the extended target
 
+          ANNCalibratedConfidence_Signal1->Fill(ANNProb1Calibrated, weight);
+          ANNCalibratedConfidence_Signal2->Fill(ANNProb2Calibrated, weight);
+          ANNCalibratedConfidence_Signal3->Fill(ANNProb3Calibrated, weight);
           if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
           {
-            ANNCalibratedConfidence_Iron_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Iron_Signal->Fill(ANNProb, weight);
             ANNCalibratedConfidence1_Iron_Signal->Fill(ANNProb1Calibrated, weight);
             ANNCalibratedConfidence2_Iron_Signal->Fill(ANNProb2Calibrated, weight);
             ANNCalibratedConfidence3_Iron_Signal->Fill(ANNProb3Calibrated, weight);
@@ -1005,7 +1238,7 @@ void LoopAndFillMC(
           }
           if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
           {
-            ANNCalibratedConfidence_Lead_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Lead_Signal->Fill(ANNProb, weight);
             ANNCalibratedConfidence1_Lead_Signal->Fill(ANNProb1Calibrated, weight);
             ANNCalibratedConfidence2_Lead_Signal->Fill(ANNProb2Calibrated, weight);
             ANNCalibratedConfidence3_Lead_Signal->Fill(ANNProb3Calibrated, weight);
@@ -1015,7 +1248,7 @@ void LoopAndFillMC(
           }
           if ((tgtCode == 3006))
           {
-            ANNCalibratedConfidence_Carbon_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Carbon_Signal->Fill(ANNProb, weight);
             ANNCalibratedConfidence1_Carbon_Signal->Fill(ANNProb1Calibrated, weight);
             ANNCalibratedConfidence2_Carbon_Signal->Fill(ANNProb2Calibrated, weight);
             ANNCalibratedConfidence3_Carbon_Signal->Fill(ANNProb3Calibrated, weight);
@@ -1025,7 +1258,7 @@ void LoopAndFillMC(
           }
           if ((tgtCode == 6000))
           {
-            ANNCalibratedConfidence_Water_Signal->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Water_Signal->Fill(ANNProb, weight);
             ANNCalibratedConfidence1_Water_Signal->Fill(ANNProb1Calibrated, weight);
             ANNCalibratedConfidence2_Water_Signal->Fill(ANNProb2Calibrated, weight);
             ANNCalibratedConfidence3_Water_Signal->Fill(ANNProb3Calibrated, weight);
@@ -1040,115 +1273,289 @@ void LoopAndFillMC(
 
         if(hasMLPred)
         {
-          ANNZ_vs_Conf_vs_Erecoil_MC->Fill( ANNVtx.Z(), ANNProb, erecoil, weight);
-          ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Fill( WeightedANNZ, ANNProb, erecoil, weight);
-
           //Calibrated
-          //std::cout<<"Here3\n";
-          double calibratedZ = universe->GetANNZPos();
-          double calibratedWeightedZ = universe->GetANNZPosWeightedCalibrator();
-          //std::cout<<"calibratedWeightedZ: " << calibratedWeightedZ <<std::endl;
-          //std::cout<<"Here3a\n";
-          ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Fill( calibratedZ, ANNTopProbCalibrated, erecoil, weight);
-          //std::cout<<"Here3b\n";
-          ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Fill( calibratedWeightedZ, ANNTopProbCalibrated, erecoil, weight);
-          //std::cout<<"Here4\n";
-          ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Fill( (calibratedZ - TrueVtx.Z()), ANNTopProbCalibrated, weight);
-          ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Fill( (calibratedWeightedZ - TrueVtx.Z()), ANNTopProbCalibrated, weight);
-          ANNWeightedZCalibratedMinusANNZ_MC->Fill( (universe->GetANNZPosWeightedCalibrator()-ANNVtx.Z()), weight);
-          ANNZCalibratedMinusANNZ_MC->Fill( (calibratedZ-ANNVtx.Z()), weight);
-          ANNZCalibrated_MC->Fill( calibratedZ, weight);
-          ANNZCalibratedWeighted_MC->Fill( (universe->GetANNZPosWeightedCalibrator()), weight);
-          ANNZ_MC->Fill( (ANNVtx.Z()), weight);
 
 
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_MC->Fill( ANNProb, erecoil, weight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_MC->Fill( ANNProb, erecoil, weight);
+          if (m_TargetUtils.InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_MC->Fill( ANNProb, erecoil, weight);
           
           //For events misreconstructed in each target, what's the probability distribution
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Iron->Fill( ANNProb);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Lead->Fill( ANNProb);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Iron->Fill( ANNProb);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Lead->Fill( ANNProb);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Carbon->Fill( ANNProb);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInTgt4Lead->Fill( ANNProb);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt5Iron->Fill( ANNProb);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils->InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt5Lead->Fill( ANNProb);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils->InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInWater->Fill( ANNProb);
+          if (m_TargetUtils.InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Iron->Fill( ANNProb);
+          if (m_TargetUtils.InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt2Lead->Fill( ANNProb);
+          if (m_TargetUtils.InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Iron->Fill( ANNProb);
+          if (m_TargetUtils.InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Lead->Fill( ANNProb);
+          if (m_TargetUtils.InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt3Carbon->Fill( ANNProb);
+          if (m_TargetUtils.InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils.InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInTgt4Lead->Fill( ANNProb);
+          if (m_TargetUtils.InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt5Iron->Fill( ANNProb);
+          if (m_TargetUtils.InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true) && !m_TargetUtils.InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true)) ANNConf_MisrecoInTgt5Lead->Fill( ANNProb);
+          if (m_TargetUtils.InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()) && !m_TargetUtils.InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z())) ANNConf_MisrecoInWater->Fill( ANNProb);
 
 
-          ANNZResidual_vs_Conf_vs_Erecoil->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Water->Fill( ANNZResidual, ANNProb, weight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( ANNZResidual, ANNProb, weight);
+          EmuResidualWithCorrection->Fill(ANNEmuResidualWithCorrection, weight);
+          EmuResidualWithoutCorrection->Fill(ANNEmuResidualWithoutCorrection, weight);
+          if (m_TargetUtils.InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt2Iron->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt2Iron->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt2Lead->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt2Lead->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt3Iron->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt3Iron->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt3Lead->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt3Lead->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt3Carbon->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt3Carbon->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            EmuResidualWithCorrection_Tgt4Lead->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt4Lead->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt5Iron->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt5Iron->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            EmuResidualWithCorrection_Tgt5Lead->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tgt5Lead->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            EmuResidualWithCorrection_Water->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Water->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            EmuResidualWithCorrection_Tracker->Fill(ANNEmuResidualWithCorrection, weight);
+            EmuResidualWithoutCorrection_Tracker->Fill(ANNEmuResidualWithoutCorrection, weight);
+          }
+          EmuCorrectionVsUncorrEmu->Fill((universe->GetANNEmu(true)-universe->GetANNEmu(false)), universe->GetANNEmu(false)/1000, weight);
+          PmuCorrectionVsUncorrPmu->Fill((universe->GetANNPmu(true)-universe->GetANNPmu(false)), universe->GetANNPmu(false)/1000, weight);
 
-          ANNWeightedZResidual_vs_Conf_vs_Erecoil->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNWeightedZResidual), ANNProb, weight);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNWeightedZResidual), ANNProb, weight);
+
+          PmuResidualWithCorrection->Fill(ANNPmuResidualWithCorrection, weight);
+          PmuResidualWithoutCorrection->Fill(ANNPmuResidualWithoutCorrection, weight);
+          if (m_TargetUtils.InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt2Iron->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt2Iron->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt2Lead->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt2Lead->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt3Iron->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt3Iron->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt3Lead->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt3Lead->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt3Carbon->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt3Carbon->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            PmuResidualWithCorrection_Tgt4Lead->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt4Lead->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt5Iron->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt5Iron->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            PmuResidualWithCorrection_Tgt5Lead->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tgt5Lead->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            PmuResidualWithCorrection_Water->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Water->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+          if (m_TargetUtils.InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            PmuResidualWithCorrection_Tracker->Fill(ANNPmuResidualWithCorrection, weight);
+            PmuResidualWithoutCorrection_Tracker->Fill(ANNPmuResidualWithoutCorrection, weight);
+          }
+
+
+          ANNZResidual_vs_Conf_vs_Erecoil->Fill( ANNZResidual, ANNProb, erecoil, weight);
+          if (m_TargetUtils.InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt2Iron->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt2Lead->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt3Iron->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt3Lead->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt3Carbon->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt4Lead->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt5Iron->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tgt5Lead->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Water->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Water->Fill( TBZResidual, multiplicity, weight);
+          }
+          if (m_TargetUtils.InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))
+          {
+            ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( ANNZResidual, ANNProb, erecoil, weight);
+            //TBZResiduals_vs_Multiplicity_Tracker->Fill( TBZResidual, multiplicity, weight);
+          }
+
+          ANNUncalibratedZResidual_vs_Conf_vs_Erecoil->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Water->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+          if (m_TargetUtils.InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( ANNUncalibratedZResidual, ANNUncalibratedProb, erecoil, weight);
+
+          //ANNWeightedZResidual_vs_Conf_vs_Erecoil->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InIron2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InLead2VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InIron3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InLead3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InCarbon3VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InLead4VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InIron5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InLead5VolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z(), 850, true))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InWaterTargetVolMC(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+          //if (m_TargetUtils.InTracker(TrueVtx.X(), TrueVtx.Y(), TrueVtx.Z()))  ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Fill( (ANNWeightedZResidual), ANNProb, erecoil, weight);
+
+          ANNZ_NoProbCut_MC->Fill( (ANNVtx.Z()), weight);
+
+          int truthTgtCode = util::getTgtCode(universe, true, false );
+          int tmpTgtCode = util::getTgtCode(universe, false, false );
+          int tmpTgtCodeNoCalib = util::getTgtCode(universe, false, false, false);
+
+          if (truthTgtCode == tmpTgtCode) NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ->Fill(ANNProb, erecoil, ANNVtx.Z(), weight);
+          SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ->Fill(ANNProb, erecoil, ANNVtx.Z(), weight*ANNProb);
+          TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ->Fill(ANNProb, erecoil, ANNVtx.Z(), weight);
+          if (truthTgtCode == tmpTgtCodeNoCalib) NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator->Fill(ANNUncalibratedProb, erecoil, ANNVtx.Z(), weight);
+          SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ_NoCalibrator->Fill(ANNUncalibratedProb, erecoil, ANNVtx.Z(), weight*ANNUncalibratedProb);
+          TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator->Fill(ANNUncalibratedProb, erecoil, ANNVtx.Z(), weight);
+
+          double ptmu = universe->GetANNMuonPTGeV();
+          double pzmu = universe->GetANNMuonPzGeV();
+          double bjorkenx = universe->GetBjorkenX();
+          pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC->Fill(ptmu, erecoil, ANNVtx.Z(), weight);
+          pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC->Fill(pzmu, erecoil, ANNVtx.Z(), weight);
+          BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC->Fill(bjorkenx, erecoil, ANNVtx.Z(), weight);
 
           if (ANNConfCut->passesCut(*universe, myevent, weight)) //ANN confidence cut
           {
-            ANNWeightedZ_minus_UnweightedZMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterMC->Fill( ANNWeightedMinusUnweighted, weight);
-            if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  ANNWeightedZ_minus_UnweightedZMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterMC->Fill( ANNWeightedMinusUnweighted, weight);
+          //  if (m_TargetUtils.InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerMC->Fill( ANNWeightedMinusUnweighted, weight);
+            ANNZ_vs_Conf_vs_Erecoil_MC->Fill( ANNVtx.Z(), ANNProb, erecoil, weight);
+            //ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Fill( calibratedWeightedZ, ANNProb, erecoil, weight);
+            //ANNWeightedZCalibratedMinusANNZ_MC->Fill( (universe->GetANNZPosWeightedCalibrator()-ANNVtx.Z()), weight);
+            ANNZMinusANNZUncalibrated_MC->Fill( (ANNVtx.Z()-ANNUncalibratedVtx.Z()), weight);
+            ANNZUncalibrated_MC->Fill( ANNUncalibratedVtx.Z(), weight);
+            ANNZCalibratedWeighted_MC->Fill( (universe->GetANNZPosWeightedCalibrator()), weight);
+            ANNZ_MC->Fill( (ANNVtx.Z()), weight);
+
+            pTmu_vs_Erecoil_vs_RecoVtxZ_MC->Fill(ptmu, erecoil, ANNVtx.Z(), weight);
+            pZmu_vs_Erecoil_vs_RecoVtxZ_MC->Fill(pzmu, erecoil, ANNVtx.Z(), weight);
+            BjorkenX_vs_Erecoil_vs_RecoVtxZ_MC->Fill(bjorkenx, erecoil, ANNVtx.Z(), weight);
           }
+          ANNZ_vs_Conf_vs_Erecoil_NoProbCut_MC->Fill( ANNVtx.Z(), ANNProb, erecoil, weight);
           ANNConfidence_MC->Fill(ANNProb, weight);
-          ANNCalibratedConfidence_MC->Fill(ANNTopProbCalibrated, weight);
+          ANNUnalibratedConfidence_MC->Fill(ANNUncalibratedProb, weight);
 
           int tgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
-
-          //Weighted Average
           int ANNtgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
           if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
           {
-            ANNCalibratedConfidence_Iron_Selected->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Iron_Selected->Fill(ANNProb, weight);
           }
           if ((ANNtgtCode == 2082) || (ANNtgtCode == 3082) || (ANNtgtCode == 4082) || (ANNtgtCode == 5082))
           {
-            ANNCalibratedConfidence_Lead_Selected->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Lead_Selected->Fill(ANNProb, weight);
           }
           if ((ANNtgtCode == 3006))
           {
-            ANNCalibratedConfidence_Carbon_Selected->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Carbon_Selected->Fill(ANNProb, weight);
           }
           if ((ANNtgtCode == 6000))
           {
-            ANNCalibratedConfidence_Water_Selected->Fill(ANNTopProbCalibrated, weight);
+            ANNCalibratedConfidence_Water_Selected->Fill(ANNProb, weight);
           }
           
           //Top plane
           ANNtgtCode =   getTgtCodeFromCalibrator(universe, 0, true ); //The bool (true) turns on the extended target
+          ANNCalibratedConfidence_Selected1->Fill(ANNProb1Calibrated, weight);
           //std::cout<<"Top plane target code: " << ANNtgtCode << std::endl;
           if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
           {
@@ -1168,6 +1575,7 @@ void LoopAndFillMC(
           }
           //2nd plane
           ANNtgtCode =   getTgtCodeFromCalibrator(universe, 1, true ); //The bool (true) turns on the extended target
+          ANNCalibratedConfidence_Selected2->Fill(ANNProb2Calibrated, weight);
           //std::cout<<"2nd plane target code: " << ANNtgtCode << std::endl;
           if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
           {
@@ -1191,6 +1599,7 @@ void LoopAndFillMC(
           }
           //3rd plane
           ANNtgtCode =   getTgtCodeFromCalibrator(universe, 2, true ); //The bool (true) turns on the extended target
+          ANNCalibratedConfidence_Selected3->Fill(ANNProb3Calibrated, weight);
           //std::cout<<"3rd plane target code: " << ANNtgtCode << std::endl;
           if ((ANNtgtCode == 2026) || (ANNtgtCode == 3026) || (ANNtgtCode == 5026))
           {
@@ -1238,103 +1647,202 @@ void LoopAndFillMC(
         {
           ConfusionMatrixQE->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceQE_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsQE_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 2)
         {
           ConfusionMatrixRES->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceRES_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsRES_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 3)
         {
           ConfusionMatrixDIS->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceDIS_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsDIS_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 4)
         {
           ConfusionMatrixCOHPI->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceCOHPI_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsCOHPI_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 5)
         {
           ConfusionMatrixAMNUGAMMA->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceAMNUGAMMA_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsAMNUGAMMA_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 6)
         {
           ConfusionMatrixIMD->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceIMD_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsIMD_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 7)
         {
           ConfusionMatrixNUEEL->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceNUEEL_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsQENUEEL_MC->Fill(ANNProb, nhits, weight);
         }
         else if (intType == 8)
         {
           ConfusionMatrixMEC->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceMEC_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsQEMEC_MC->Fill(ANNProb, nhits, weight);
         }
         else
         {
           ConfusionMatrixUnknownInt->Fill(TrueVtx.Z(), ANNVtx.Z(), weight);
           ANNConfidenceUnknownInt_MC->Fill(ANNProb, weight);
+          ANNConfidence_vs_NHitsQEUnknownInt_MC->Fill(ANNProb, nhits, weight);
         }
-        ANNConfidence_vs_NTracks_MC->Fill(ANNProb, multiplicity, weight);
+        ANNConfidence_vs_NTracks_vs_NHitsMC->Fill(ANNProb, multiplicity, nhits, weight);
+        ANNConfidence_vs_NHitsMC->Fill(ANNProb, nhits, weight);
 
         ConfusionMatrixMultiplicity->Fill(TrueVtx.Z(), ANNVtx.Z(), multiplicity, weight);
         ConfusionMatrixErecoil->Fill(TrueVtx.Z(), ANNVtx.Z(), erecoil, weight);
         ConfusionMatrixConf->Fill(TrueVtx.Z(), ANNVtx.Z(), ANNProb, weight);
         ConfusionMatrix->Fill(TrueVtx.Z(), ANNVtx.Z(),weight);
+
+        //TBZ_vs_TrueZ_vs_Multiplicity_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //if (m_TargetUtils.InIron2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Iron_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InLead2VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Lead_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InIron3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Iron_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InLead3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Lead_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InCarbon3VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Carbon_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InLead4VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt4Lead_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InIron5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Iron_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InLead5VolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z(), 850, true))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Lead_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InWaterTargetVolMC(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Water_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+        //else if (m_TargetUtils.InTracker(TrackBasedVtx.X(), TrackBasedVtx.Y(), TrackBasedVtx.Z()))
+        //{
+        //  TBZ_vs_TrueZ_vs_Multiplicity_Tracker_MC->Fill(TrackBasedVtx.Z(), TrueVtx.Z(), multiplicity, weight);
+        //}
+
+        //if (multiplicity == 2)
+        //{
+        //  ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  if (tgtCode == 2026)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 2082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 3026)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 3082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 3006)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 4082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 5026)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 5082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (tgtCode == 6000)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //  else if (m_TargetUtils.InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_MC->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z(), weight);
+        //  }
+        //}
+
+
         if (isSignal) // If it is signal
         {
           if (hasMLPred)
           {
-
-            int tgtCode = util::getTgtCode(universe, true, true ); //The second bool (true) turns on the extended target
             //Weighted Average
             int ANNtgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
             if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
             {
               if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
               {
-                ANNCalibratedConfidence_Iron_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence_Iron_SelectedSignal->Fill(ANNProb, weight);
               }
               if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
               {
-                ANNCalibratedConfidence_Lead_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence_Lead_SelectedSignal->Fill(ANNProb, weight);
               }
               if ((tgtCode == 3006))
               {
-                ANNCalibratedConfidence_Carbon_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence_Carbon_SelectedSignal->Fill(ANNProb, weight);
               }
               if ((tgtCode == 6000))
               {
-                ANNCalibratedConfidence_Water_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence_Water_SelectedSignal->Fill(ANNProb, weight);
               }
             }
             //Top plane
             ANNtgtCode =   getTgtCodeFromCalibrator(universe, 0, true ); //The bool (true) turns on the extended target
+            ANNCalibratedConfidence_SelectedSignal1->Fill(ANNProb1Calibrated, weight);
             if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
             {
               if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
               {
-                ANNCalibratedConfidence1_Iron_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence1_Iron_SelectedSignal->Fill(ANNProb, weight);
               }
               if ((tgtCode == 2082) || (tgtCode == 3082) || (tgtCode == 4082) || (tgtCode == 5082))
               {
-                ANNCalibratedConfidence1_Lead_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence1_Lead_SelectedSignal->Fill(ANNProb, weight);
               }
               if ((tgtCode == 3006))
               {
-                ANNCalibratedConfidence1_Carbon_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence1_Carbon_SelectedSignal->Fill(ANNProb, weight);
               }
               if ((tgtCode == 6000))
               {
-                ANNCalibratedConfidence1_Water_SelectedSignal->Fill(ANNTopProbCalibrated, weight);
+                ANNCalibratedConfidence1_Water_SelectedSignal->Fill(ANNProb, weight);
               }
             }
             //2nd plane
             ANNtgtCode =   getTgtCodeFromCalibrator(universe, 1, true ); //The bool (true) turns on the extended target
+            ANNCalibratedConfidence_SelectedSignal2->Fill(ANNProb2Calibrated, weight);
             if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
             {
               if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
@@ -1360,6 +1868,7 @@ void LoopAndFillMC(
             }
             //3rd plane
             ANNtgtCode =   getTgtCodeFromCalibrator(universe, 2, true ); //The bool (true) turns on the extended target
+            ANNCalibratedConfidence_SelectedSignal3->Fill(ANNProb3Calibrated, weight);
             if (ANNtgtCode == tgtCode) //If signal (tgtCode) and selected (ANNtgtCode) match
             {
               if ((tgtCode == 2026) || (tgtCode == 3026) || (tgtCode == 5026))
@@ -1396,111 +1905,202 @@ void LoopAndFillData( PlotUtils::ChainWrapper* data, std::vector<CVUniverse*> da
     SMSCalibrator& calibrator)
 {
   //calibrator.cacheEvt = -1;
-  std::cout << "Starting data loop...\n";
+  PlotUtils::TargetUtils m_TargetUtils;
+  const int WINDOW_SIZE = 10; // number of samples to average over
+  std::deque<std::pair<int, std::chrono::steady_clock::time_point>> timeWindow;
   std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-  const int nEntries = data->GetEntries();
+
+  std::cout << "Starting data loop...\n";
   //const int nEntries = 10000;
-  int  startNum = 0;
-  int endNum = nEntries;
-  if (nSubruns != 0 )
+  const int nEntries = data->GetEntries();
+  for (int i = 0; i < nEntries; ++i)
   {
-    std::raise(SIGINT);
-    int chunkSize = std::floor(nEntries/nSubruns);
-    startNum = nProcess*chunkSize;
-    if (nProcess == (nSubruns-1)) //The last one, run to the end
+    for (auto universe : data_band)
     {
-      endNum = nEntries; //probably redundant with the same line just above
-    }
-    else
-    {
-      endNum = (nProcess+1)*chunkSize;
-    }
-  }
-  // const int nEntries = 10000;
-  std::cout<<" endNum: "<< endNum << std::endl;
-  for (int i = startNum; i < endNum; ++i)
-  {
-    for (auto universe : data_band) {
-      //std::cout<<"i: " << i << std::endl;
       universe->SetEntry(i);
-      universe->SetCalibrator(&calibrator);
-      if(i%1000==0)
-      { 
-        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        double mselapsed = std::chrono::duration_cast<std::chrono::milliseconds> (now - startTime).count();
-        double msperevent = mselapsed/i;
-        int sleft = (nEntries-i)*msperevent/1000;
-        double selapsed = ((int)mselapsed)/1000;
-        std::cout << i << " / " << nEntries << ". Time Elapsed: " << selapsed <<" Est Remaining: " << sleft <<"          \r" <<std::flush;
+      if (useCalibrator) universe->SetCalibrator(&calibrator);
+      if (i % 1000 == 0 && i > 0)
+      {
+          std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+          // Add current sample to the sliding window
+          timeWindow.push_back({i, now});
+          if (timeWindow.size() > WINDOW_SIZE)
+              timeWindow.pop_front();
+
+          // Overall elapsed time
+          double msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+          double sElapsed   = msElapsed / 1000.0;
+
+          // Dynamic rate: events/sec over the sliding window
+          double eventsPerSec = 0.0;
+          double msRemaining  = 0.0;
+          if (timeWindow.size() >= 2)
+          {
+              auto& oldest = timeWindow.front();
+              double msWindow  = std::chrono::duration_cast<std::chrono::milliseconds>(now - oldest.second).count();
+              int    evWindow  = i - oldest.first;
+              eventsPerSec = (msWindow > 0) ? (eventsPerSec = evWindow / (msWindow / 1000.0)) : 0.0;
+              msRemaining  = (eventsPerSec > 0) ? ((nEntries - i) / eventsPerSec * 1000.0) : 0.0;
+          }
+          else
+          {
+              // Fallback to overall average until window is populated
+              double msPerEvent = msElapsed / i;
+              msRemaining = (nEntries - i) * msPerEvent;
+          }
+
+          int sRemaining = static_cast<int>(msRemaining / 1000.0);
+
+          // Rate indicator: pick a sensible unit
+          std::string rateStr;
+          if (eventsPerSec >= 1000.0)
+              rateStr = std::to_string(static_cast<int>(eventsPerSec / 1000.0)) + "k ev/s";
+          else
+              rateStr = std::to_string(static_cast<int>(eventsPerSec)) + " ev/s";
+
+          std::cout << i << " / " << nEntries
+                    << "  Elapsed: "   << std::fixed << std::setprecision(1) << sElapsed  << "s"
+                    << "  Remaining: " << sRemaining << "s"
+                    << "  Rate: "      << rateStr
+                    << "          \r"  << std::flush;
       }
-      MichelEvent myevent; 
+
+      MichelEvent myevent;
 
       bool hasMLPred=universe->hasMLPred();
       //std::raise(SIGINT);
-      ROOT::Math::XYZVector ANNVtx = universe->GetANNVertex();
+      ROOT::Math::XYZVector ANNVtx(-999, -999, -999);
+      ROOT::Math::XYZVector ANNUncalibratedVtx(-999, -999, -999);
+
+      double WeightedANNZ = -999;
+      double ANNWeightedMinusUnweighted = -999;
+      double ANNUncalibratedProb = -999;
+      double ANNProb = -999;
+      if (hasMLPred)
+      {
+        ANNVtx = universe->GetANNVertex();
+        ANNUncalibratedVtx = universe->GetANNVertex(false);
+        WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
+        ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
+        ANNProb = universe->GetANNProb();
+        ANNUncalibratedProb = universe->GetANNProb(false);
+      }
       //std::cout<<"ANNVtx.Z1() : " << ANNVtx.Z()<< std::endl;
       ROOT::Math::XYZTVector TrackBasedVtx = universe->GetVertex();
-
-      double WeightedANNZ = universe->GetANNSegmentsZPosWeighted();
-      double ANNWeightedMinusUnweighted = WeightedANNZ - ANNVtx.Z();
-
-      double ANNProb = universe->GetANNProb(false);
+      
       double erecoil = universe->GetRecoilE()/pow(10,3);
       double curvsig = 1/universe->GetMuonQPErr();
-
-      PlotUtils::TargetUtils* m_TargetUtils=new PlotUtils::TargetUtils();
+      int nhits = universe->GetInt("slice_n_hits");
 
       if (!michelcuts.isDataSelected(*universe, myevent).all()) continue;   //All cuts except ANN confidence cut
 
+
       if(hasMLPred)
       {
-        ANNZ_vs_Conf_vs_Erecoil_Data->Fill( ANNVtx.Z(), ANNProb, erecoil);
-        ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Fill( WeightedANNZ, ANNProb, erecoil);
 
-        //Calibrated
-        double ANNTopProbCalibrated = universe->GetANNProb();
-        double calibratedZ = universe->GetANNZPos();
-        ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Fill( calibratedZ, ANNTopProbCalibrated, erecoil);
-        ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Fill( universe->GetANNZPosWeightedCalibrator(), ANNTopProbCalibrated, erecoil);
-        ANNWeightedZCalibratedMinusANNZ_Data->Fill( (universe->GetANNZPosWeightedCalibrator()-ANNVtx.Z()));
-        ANNZCalibratedMinusANNZ_Data->Fill( (calibratedZ-ANNVtx.Z()));
-
-        ANNZCalibrated_Data->Fill( calibratedZ);
-        ANNZCalibratedWeighted_Data->Fill( (universe->GetANNZPosWeightedCalibrator()));
-        ANNZ_Data->Fill( (ANNVtx.Z()));
-        //std::cout<<"ANNVtx.Z2() : " << ANNVtx.Z()<< std::endl;
-
-
-
-        if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_Data->Fill( ANNProb, erecoil);
-        if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_Data->Fill( ANNProb, erecoil);
-
-        if (ANNConfCut->passesCut(*universe, myevent)){ //ANN confidence cut
-          ANNWeightedZ_minus_UnweightedZData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterData->Fill( ANNWeightedMinusUnweighted);
-          if (m_TargetUtils->InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerData->Fill( ANNWeightedMinusUnweighted);
-        }
         int multiplicity = universe->GetMultiplicity();
-        std::cout<<"i: " << i << " ANNProb: " << ANNProb << " ANNVtx.Z(): " << ANNVtx.Z() <<std::endl;
-        ANNConfidence_vs_NTracks_Data->Fill(ANNProb, multiplicity);
+        int tgtCode = util::getTgtCode(universe, false, true ); //The second bool (true) turns on the extended target
+        //if (multiplicity == 2)
+        //{
+        //  ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  if (tgtCode == 2026)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 2082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 3026)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 3082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 3006)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 4082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 5026)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 5082)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (tgtCode == 6000)
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //  else if (m_TargetUtils.InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))
+        //  {
+        //    ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_Data->Fill(ANNProb, ANNVtx.Z(), TrackBasedVtx.Z());
+        //  }
+        //}
+
+
+
+        if (m_TargetUtils.InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Iron_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt2Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Iron_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt3Carbon_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tgt4Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Iron_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z(), 850, true))  ANNConf_vs_Ehad_Tgt5Lead_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Water_Data->Fill( ANNProb, erecoil);
+        if (m_TargetUtils.InTracker(ANNVtx.X(), ANNVtx.Y(), ANNVtx.Z()))  ANNConf_vs_Ehad_Tracker_Data->Fill( ANNProb, erecoil);
+
+        double ptmu = universe->GetANNMuonPTGeV();
+        double pzmu = universe->GetANNMuonPzGeV();
+        double bjorkenx = universe->GetBjorkenX();
+
+
+        pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data->Fill(ptmu, erecoil, ANNVtx.Z());
+        pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data->Fill(pzmu, erecoil, ANNVtx.Z());
+        BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data->Fill(bjorkenx, erecoil, ANNVtx.Z());
+
+        ANNZ_NoProbCut_Data->Fill( (ANNVtx.Z()));
+        if (ANNConfCut->passesCut(*universe, myevent)){ //ANN confidence cut
+          //ANNWeightedZ_minus_UnweightedZData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InIron2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2IronData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InLead2VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt2LeadData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InIron3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3IronData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InLead3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3LeadData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InCarbon3VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt3CarbonData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InLead4VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTgt4LeadData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InIron5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5IronData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InLead5VolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ, 850, true))  ANNWeightedZ_minus_UnweightedZTgt5LeadData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InWaterTargetVolMC(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZWaterData->Fill( ANNWeightedMinusUnweighted);
+          //if (m_TargetUtils.InTracker(ANNVtx.X(), ANNVtx.Y(), WeightedANNZ))  ANNWeightedZ_minus_UnweightedZTrackerData->Fill( ANNWeightedMinusUnweighted);
+          //Calibrated
+          ANNZ_vs_Conf_vs_Erecoil_Data->Fill( ANNVtx.Z(), ANNProb, erecoil);
+          //ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Fill( universe->GetANNZPosWeightedCalibrator(), ANNProb, erecoil);
+          //ANNWeightedZCalibratedMinusANNZ_Data->Fill( (universe->GetANNZPosWeightedCalibrator()-ANNVtx.Z()));
+          ANNZMinusANNZUncalibrated_Data->Fill( (ANNVtx.Z() - ANNUncalibratedVtx.Z()));
+
+          pTmu_vs_Erecoil_vs_RecoVtxZ_Data->Fill(ptmu, erecoil, ANNVtx.Z());
+          pZmu_vs_Erecoil_vs_RecoVtxZ_Data->Fill(pzmu, erecoil, ANNVtx.Z());
+          BjorkenX_vs_Erecoil_vs_RecoVtxZ_Data->Fill(bjorkenx, erecoil, ANNVtx.Z());
+
+          ANNZUncalibrated_Data->Fill( ANNUncalibratedVtx.Z());
+          ANNZCalibratedWeighted_Data->Fill( (universe->GetANNZPosWeightedCalibrator()));
+          ANNZ_Data->Fill( (ANNVtx.Z()));
+        }
+        ANNZ_vs_Conf_vs_Erecoil_NoProbCut_Data->Fill( ANNVtx.Z(), ANNProb, erecoil);
+        //std::cout<<"i: " << i << " ANNProb: " << ANNProb << " ANNVtx.Z(): " << ANNVtx.Z() <<std::endl;
+        ANNConfidence_vs_NTracks_vs_NHitsData->Fill(ANNProb, multiplicity, nhits);
+        ANNConfidence_vs_NHitsData->Fill(ANNProb, nhits);
         ANNConfidence_Data->Fill(ANNProb);
-        ANNCalibratedConfidence_Data->Fill(ANNTopProbCalibrated);
+        ANNUnalibratedConfidence_Data->Fill(ANNUncalibratedProb);
       }
       //if (!ANNConfCut->passesCut(*universe, myevent)) continue;   //ANN confidence cut
     }
@@ -1565,7 +2165,7 @@ bool inferRecoTreeNameAndCheckTreeNames(const std::string& mcPlaylistName, const
   return areFilesOK;
 }
 
-std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNum) {
+std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNum, int& numFiles) {
     std::ifstream in(inputFile);
     if (!in.is_open()) {
         std::cerr << "Error opening input file: " << inputFile << std::endl;
@@ -1576,7 +2176,10 @@ std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNu
     std::vector<std::string> lines;
     std::string line;
     while (std::getline(in, line)) {
+      if (line.length()>0)
+      {
         lines.push_back(line);
+      }
     }
     in.close();
 
@@ -1586,8 +2189,9 @@ std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNu
         return "";
     }
 
-    // Split into 10 chunks
+    // Split into chunks
     size_t chunkSize = std::floor(totalLines / numTotal);
+    if (chunkSize < 1) chunkSize = 1;
     std::string outfile = inputFile+"tmp"+std::to_string(thisNum)+".txt";
     std::ofstream out(outfile);
     if (!out.is_open()) {
@@ -1597,13 +2201,108 @@ std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNu
     int start = thisNum * chunkSize;
     int end = (thisNum +1)* chunkSize;
     if (thisNum == numTotal-1 ) end = lines.size();
-    for (size_t j = start; j < end; ++j) {
+    int nFilesTmp = 0;
+    for (size_t j = start; (j < end && j < totalLines); ++j) {
         out << lines[j] << "\n";
+        nFilesTmp++;
     }
+    numFiles = nFilesTmp;
     out.close();
 
     return outfile;
 }
+
+/* 
+// Extracts the filename from a full directory path or xrootd URL
+std::string getBaseName(const std::string& path) {
+    size_t pos = path.find_last_of("/\\");
+    return (pos == std::string::npos) ? path : path.substr(pos + 1);
+}
+
+// Trims whitespace and hidden carriage returns (CRITICAL for shell commands)
+std::string trimLine(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\r\n");
+    if (std::string::npos == first) return "";
+    size_t last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, (last - first + 1));
+}
+
+std::string breakUpInputFileList(std::string inputFile, int numTotal, int thisNum, int& numFiles) {
+    std::ifstream in(inputFile);
+    if (!in.is_open()) {
+        std::cerr << "Error opening input file: " << inputFile << std::endl;
+        return "";
+    }
+
+    // Read and trim all lines into memory
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(in, line)) {
+        std::string trimmedLine = trimLine(line);
+        if (trimmedLine.length() > 0) {
+            lines.push_back(trimmedLine);
+        }
+    }
+    in.close();
+
+    size_t totalLines = lines.size();
+    if (totalLines == 0) {
+        std::cerr << "Input file is empty!" << std::endl;
+        return "";
+    }
+
+    // Determine the local scratch directory for grid jobs
+    const char* scratchDirPtr = std::getenv("_CONDOR_SCRATCH_DIR");
+    std::string scratchDir = scratchDirPtr ? std::string(scratchDirPtr) : "."; // Fallback to current dir if run locally
+
+    // Split into chunks
+    size_t chunkSize = std::floor(totalLines / numTotal);
+    if (chunkSize < 1) chunkSize = 1;
+    
+    std::string outfile = inputFile + "tmp" + std::to_string(thisNum) + ".txt";
+    std::ofstream out(outfile);
+    if (!out.is_open()) {
+        std::cerr << "Error opening output file: " << outfile << std::endl;
+        return "";
+    }
+
+    int start = thisNum * chunkSize;
+    int end = (thisNum + 1) * chunkSize;
+    if (thisNum == numTotal - 1) end = lines.size();
+    
+    int nFilesTmp = 0;
+    
+    for (size_t j = start; (j < end && j < totalLines); ++j) {
+        std::string remotePath = lines[j];
+        std::string baseName = getBaseName(remotePath);
+        std::string localPath = scratchDir + "/" + baseName;
+
+        // Construct the ifdh cp command
+        std::string cmd = "ifdh cp " + remotePath + " " + localPath;
+        std::cout << "Executing: " << cmd << std::endl;
+
+        // Execute the copy
+        int retCode = std::system(cmd.c_str());
+
+        if (retCode == 0) {
+            // Copy succeeded, write the local path to the playlist
+            out << localPath << "\n";
+            std::cout << "Successfully staged file locally: " << localPath << std::endl;
+        } else {
+            // Copy failed, fallback to the remote path so the job doesn't crash entirely
+            std::cerr << "Warning: ifdh cp failed (Return Code: " << retCode << ") for " << remotePath << "\n";
+            std::cerr << "Falling back to streaming remote path directly..." << std::endl;
+            out << remotePath << "\n";
+        }
+        
+        nFilesTmp++;
+    }
+    
+    numFiles = nFilesTmp;
+    out.close();
+
+    return outfile;
+} */
 
 //==============================================================================
 // Main
@@ -1644,12 +2343,15 @@ int main(const int argc, char** argv)
   char* numSubruns = getenv("NumGridSubruns");
   char* numProcess = getenv("PROCESS");
 
+  int nDataFiles = 0;
+  int nMCFiles = 0;
   if (numSubruns != nullptr && numProcess != nullptr)
   {
     nSubruns = std::stoi(numSubruns);
     nProcess = std::stoi(numProcess);
-    //mc_file_list= breakUpInputFileList(mc_file_list, nSubruns , nProcess);
-    //data_file_list= breakUpInputFileList(data_file_list, nSubruns , nProcess);
+    std::cout<<"Processing files in " << numSubruns << " job runs. Currently working on: " << numProcess << "/" << numSubruns << std::endl;
+    mc_file_list= breakUpInputFileList(mc_file_list, nSubruns , nProcess, nMCFiles);
+    data_file_list= breakUpInputFileList(data_file_list, nSubruns , nProcess, nDataFiles);
   }
 
   //const bool is_grid = false; //TODO: Are we going to put this back?  Gonzalo needs it iirc.
@@ -1681,10 +2383,10 @@ int main(const int argc, char** argv)
   SMSCalibrator calibrator = util::loadCalibrator((nupdg == 14), (filledOrEmpty==1));
 
 
-  std::vector<int> testSegments = {199, 200, 198};
-  std::vector<double> testProbs = {0.906584, 0.0906537, 0.00170366};
-  SMSCalibrator::CalibratedProbs cal = calibrator.Top3Calibrated(testSegments, testProbs, -1);
-  std::cout<<"Test Calibrated Probability " << cal.segments[0]<< ":" << cal.probs[0]<< " " << cal.segments[1]<< ":" << cal.probs[1]<< " " << cal.segments[2]<< ":" << cal.probs[2]<< "\n";
+  //std::vector<int> testSegments = {199, 200, 198};
+  //std::vector<double> testProbs = {0.906584, 0.0906537, 0.00170366};
+  //SMSCalibrator::CalibratedProbs cal = calibrator.Top3Calibrated(testSegments, testProbs, -1);
+  //std::cout<<"Test Calibrated Probability " << cal.segments[0]<< ":" << cal.probs[0]<< " " << cal.segments[1]<< ":" << cal.probs[1]<< " " << cal.segments[2]<< ":" << cal.probs[2]<< "\n";
 
   //return 0;
   PlotUtils::MinervaUniverse::RPAMaterials(true); 
@@ -1792,7 +2494,12 @@ int main(const int argc, char** argv)
   {
     MnvTune.emplace_back(new PlotUtils::FSIReweighter<CVUniverse, MichelEvent>(true, true));
   }
-
+  const bool NO_CALIBRATION = (getenv("NO_CALIBRATION") != nullptr);
+  if (NO_CALIBRATION)
+  {
+    std::cout << "Turning off SMS ANN Calibration.\n";
+    useCalibrator = false;
+  }
   std::cout<<"Tune components applied:\n";
   for (auto&& t : MnvTune) std::cout<< "\t"<< t->GetName() <<std::endl;
   //Do we need all this for v 4.3.1? I found it somewhere else but idk if I need it here
@@ -1856,32 +2563,34 @@ int main(const int argc, char** argv)
     if (nSubruns != 0 ) outFileName = "VertexValidations_n"+std::to_string(nProcess)+ ".root";
     TFile* OutDir = TFile::Open(outFileName.c_str(), "RECREATE");
 
+    auto playlistStr = new TNamed("PlaylistUsed", options.m_plist_string);
+    playlistStr->Write();
     TruthZVertex_vs_Erecoil_MC->Write();
+
+    //ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Write();
+    //ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Write();
 
     ANNZ_vs_Conf_vs_Erecoil_Data->Write();
     ANNZ_vs_Conf_vs_Erecoil_MC->Write();
-    ANNWeightedZ_vs_Conf_vs_Erecoil_Data->Write();
-    ANNWeightedZ_vs_Conf_vs_Erecoil_MC->Write();
+    ANNZ_vs_Conf_vs_Erecoil_NoProbCut_Data->Write();
+    ANNZ_vs_Conf_vs_Erecoil_NoProbCut_MC->Write();
+    //ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Write();
+    //ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Write();
+    //ANNWeightedZCalibratedMinusANNZ_Data->Write();
+    //ANNWeightedZCalibratedMinusANNZ_MC->Write();
 
-    ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Write();
-    ANNZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Write();
-    ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_Data->Write();
-    ANNWeightedZCalibrated_vs_ConfCalibrated_vs_Erecoil_MC->Write();
+    ANNZMinusANNZUncalibrated_Data->Write();
+    ANNZMinusANNZUncalibrated_MC->Write();
 
-    ANNWeightedZCalibratedMinusANNZ_Data->Write();
-    ANNWeightedZCalibratedMinusANNZ_MC->Write();
-
-    ANNZCalibratedMinusANNZ_Data->Write();
-    ANNZCalibratedMinusANNZ_MC->Write();
-
-    ANNZCalibrated_Data->Write();
-    ANNZCalibrated_MC->Write();
+    ANNZUncalibrated_Data->Write();
+    ANNZUncalibrated_MC->Write();
     ANNZCalibratedWeighted_Data->Write();
     ANNZCalibratedWeighted_MC->Write();
     ANNZ_Data->Write();
     ANNZ_MC->Write();
+    ANNZ_NoProbCut_Data->Write();
+    ANNZ_NoProbCut_MC->Write();
 
-    ANNZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Write();
     ANNZResidual_vs_Conf_vs_Erecoil->Write();
     ANNZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
     ANNZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
@@ -1894,42 +2603,53 @@ int main(const int argc, char** argv)
     ANNZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
     ANNZResidual_vs_Conf_vs_Erecoil_Water->Write();
 
-    ANNWeightedZCalibratedResidual_vs_ConfCalibrated_vs_Erecoil->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
-    ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
+    ANNUncalibratedZResidual_vs_Conf_vs_Erecoil_Water->Write();
 
-    ANNWeightedZ_minus_UnweightedZMC->Write();
-    ANNWeightedZ_minus_UnweightedZTrackerMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt2IronMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt3IronMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt5IronMC->Write();
-    ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Write();
-    ANNWeightedZ_minus_UnweightedZWaterMC->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tracker->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Iron->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt2Lead->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Iron->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Lead->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt3Carbon->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt4Lead->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Iron->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Tgt5Lead->Write();
+    //ANNWeightedZResidual_vs_Conf_vs_Erecoil_Water->Write();
 
-    ANNWeightedZ_minus_UnweightedZData->Write();
-    ANNWeightedZ_minus_UnweightedZTrackerData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt2IronData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt2LeadData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt3IronData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt3LeadData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt3CarbonData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt4LeadData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt5IronData->Write();
-    ANNWeightedZ_minus_UnweightedZTgt5LeadData->Write();
-    ANNWeightedZ_minus_UnweightedZWaterData->Write();
+    //ANNWeightedZ_minus_UnweightedZMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTrackerMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt2IronMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt2LeadMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt3IronMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt3LeadMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt3CarbonMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt4LeadMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt5IronMC->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt5LeadMC->Write();
+    //ANNWeightedZ_minus_UnweightedZWaterMC->Write();
+
+    //ANNWeightedZ_minus_UnweightedZData->Write();
+    //ANNWeightedZ_minus_UnweightedZTrackerData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt2IronData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt2LeadData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt3IronData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt3LeadData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt3CarbonData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt4LeadData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt5IronData->Write();
+    //ANNWeightedZ_minus_UnweightedZTgt5LeadData->Write();
+    //ANNWeightedZ_minus_UnweightedZWaterData->Write();
 
     ANNConf_vs_Ehad_Tracker_Data->Write();
     ANNConf_vs_Ehad_Tgt2Iron_Data->Write();
@@ -1998,10 +2718,23 @@ int main(const int argc, char** argv)
 
   ANNConfidence_Data->Write();
   ANNConfidence_MC->Write();
-  ANNCalibratedConfidence_Data->Write();
+  ANNUnalibratedConfidence_Data->Write();
 
-  ANNCalibratedConfidence_MC->Write();
+  ANNUnalibratedConfidence_MC->Write();
   
+  ANNCalibratedConfidence_Selected1->Write();
+  ANNCalibratedConfidence_SelectedSignal1->Write();
+  ANNCalibratedConfidence_Signal1->Write();
+
+  ANNCalibratedConfidence_Selected2->Write();
+  ANNCalibratedConfidence_SelectedSignal2->Write();
+  ANNCalibratedConfidence_Signal2->Write();
+
+  ANNCalibratedConfidence_Selected3->Write();
+  ANNCalibratedConfidence_SelectedSignal3->Write();
+  ANNCalibratedConfidence_Signal3->Write();
+
+
   ANNCalibratedConfidence_Iron_Selected->Write();
   ANNCalibratedConfidence1_Iron_Selected->Write();
   ANNCalibratedConfidence2_Iron_Selected->Write();
@@ -2094,10 +2827,141 @@ int main(const int argc, char** argv)
   ANNCalibratedConfidenceRatio3_Water_Signal->Write();
   ANNCalibratedConfidenceRatio3_Water_Selected->Write();
 
+  ANNConfidence_vs_NHitsMC->Write();
+  ANNConfidence_vs_NHitsQE_MC->Write();
+  ANNConfidence_vs_NHitsRES_MC->Write();
+  ANNConfidence_vs_NHitsDIS_MC->Write();
+  ANNConfidence_vs_NHitsCOHPI_MC->Write();
+  ANNConfidence_vs_NHitsAMNUGAMMA_MC->Write();
+  ANNConfidence_vs_NHitsIMD_MC->Write();
+  ANNConfidence_vs_NHitsQENUEEL_MC->Write();
+  ANNConfidence_vs_NHitsQEMEC_MC->Write();
+  ANNConfidence_vs_NHitsQEUnknownInt_MC->Write();
+  ANNConfidence_vs_NHitsData->Write();
 
   // by multiplicity
-  ANNConfidence_vs_NTracks_MC->Write();
-  ANNConfidence_vs_NTracks_Data->Write();
+  ANNConfidence_vs_NTracks_vs_NHitsMC->Write();
+  ANNConfidence_vs_NTracks_vs_NHitsData->Write();
+
+  EmuResidualWithCorrection->Write();
+  EmuResidualWithoutCorrection->Write();
+  EmuResidualWithCorrection_Tracker->Write();
+  EmuResidualWithoutCorrection_Tracker->Write();
+  EmuResidualWithCorrection_Tgt2Iron->Write();
+  EmuResidualWithoutCorrection_Tgt2Iron->Write();
+  EmuResidualWithCorrection_Tgt2Lead->Write();
+  EmuResidualWithoutCorrection_Tgt2Lead->Write();
+  EmuResidualWithCorrection_Tgt3Iron->Write();
+  EmuResidualWithoutCorrection_Tgt3Iron->Write();
+  EmuResidualWithCorrection_Tgt3Carbon->Write();
+  EmuResidualWithoutCorrection_Tgt3Carbon->Write();
+  EmuResidualWithCorrection_Tgt3Lead->Write();
+  EmuResidualWithoutCorrection_Tgt3Lead->Write();
+  EmuResidualWithCorrection_Tgt4Lead->Write();
+  EmuResidualWithoutCorrection_Tgt4Lead->Write();
+  EmuResidualWithCorrection_Tgt5Iron->Write();
+  EmuResidualWithoutCorrection_Tgt5Iron->Write();
+  EmuResidualWithCorrection_Tgt5Lead->Write();
+  EmuResidualWithoutCorrection_Tgt5Lead->Write();
+  EmuResidualWithCorrection_Water->Write();
+  EmuResidualWithoutCorrection_Water->Write();
+  PmuResidualWithCorrection->Write();
+  PmuResidualWithoutCorrection->Write();
+  PmuResidualWithCorrection_Tracker->Write();
+  PmuResidualWithoutCorrection_Tracker->Write();
+  PmuResidualWithCorrection_Tgt2Iron->Write();
+  PmuResidualWithoutCorrection_Tgt2Iron->Write();
+  PmuResidualWithCorrection_Tgt2Lead->Write();
+  PmuResidualWithoutCorrection_Tgt2Lead->Write();
+  PmuResidualWithCorrection_Tgt3Iron->Write();
+  PmuResidualWithoutCorrection_Tgt3Iron->Write();
+  PmuResidualWithCorrection_Tgt3Carbon->Write();
+  PmuResidualWithoutCorrection_Tgt3Carbon->Write();
+  PmuResidualWithCorrection_Tgt3Lead->Write();
+  PmuResidualWithoutCorrection_Tgt3Lead->Write();
+  PmuResidualWithCorrection_Tgt4Lead->Write();
+  PmuResidualWithoutCorrection_Tgt4Lead->Write();
+  PmuResidualWithCorrection_Tgt5Iron->Write();
+  PmuResidualWithoutCorrection_Tgt5Iron->Write();
+  PmuResidualWithCorrection_Tgt5Lead->Write();
+  PmuResidualWithoutCorrection_Tgt5Lead->Write();
+  PmuResidualWithCorrection_Water->Write();
+  PmuResidualWithoutCorrection_Water->Write();
+
+  EmuCorrectionVsUncorrEmu->Write();
+  PmuCorrectionVsUncorrPmu->Write();
+
+  pTmu_vs_Erecoil_vs_RecoVtxZ_Data->Write();
+  pZmu_vs_Erecoil_vs_RecoVtxZ_Data->Write();
+  BjorkenX_vs_Erecoil_vs_RecoVtxZ_Data->Write();
+  pTmu_vs_Erecoil_vs_RecoVtxZ_MC->Write();
+  pZmu_vs_Erecoil_vs_RecoVtxZ_MC->Write();
+  BjorkenX_vs_Erecoil_vs_RecoVtxZ_MC->Write();
+
+  pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data->Write();
+  pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data->Write();
+  BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_Data->Write();
+  pTmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC->Write();
+  pZmu_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC->Write();
+  BjorkenX_vs_Erecoil_vs_RecoVtxZ_NoProbCut_MC->Write();
+
+  NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ->Write();
+  SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ->Write();
+  TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ->Write();
+  NumberCorrectedlyClassifiedInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator->Write();
+  SummedBinnedConfidences_vs_ERecoil_vs_RecoVtxZ_NoCalibrator->Write();
+  TotalNumInConfBins_vs_ERecoil_vs_RecoVtxZ_NoCalibrator->Write();
+
+  ////Track based breakdowns
+  //TBZ_vs_TrueZ_vs_Multiplicity_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Water_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Iron_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt2Lead_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Carbon_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Iron_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt3Lead_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt4Lead_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Iron_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tgt5Lead_MC->Write();
+  //TBZ_vs_TrueZ_vs_Multiplicity_Tracker_MC->Write();
+  ////Track based residuals
+  //TBZResiduals_vs_Multiplicity->Write();
+  //TBZResiduals_vs_Multiplicity_Water->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt2Iron->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt2Lead->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt3Carbon->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt3Iron->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt3Lead->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt4Lead->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt5Iron->Write();
+  //TBZResiduals_vs_Multiplicity_Tgt5Lead->Write();
+  //TBZResiduals_vs_Multiplicity_Tracker->Write();
+
+
+  //Using TB to validate data calibration
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Water_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Iron_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt2Lead_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Carbon_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Iron_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt3Lead_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt4Lead_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Iron_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tgt5Lead_Data->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_MC->Write();
+  //ANNConfidence_vs_ANNZ_vs_TBZ_2Tracks_Tracker_Data->Write();
+
 
     double potMC = options.m_mc_pot ;
     double potData = options.m_data_pot ;
@@ -2112,53 +2976,53 @@ int main(const int argc, char** argv)
     DataPOT->Write();
     OutDir->Close();
 
+    //{
+    //  std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
+    //  TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+    //  ANNWeightedZCalibratedMinusANNZ_Data->SetTitle("Calibrated Z Positions (weighted average) - Uncalibrated most probable position");
+    //  ANNWeightedZCalibratedMinusANNZ_Data->SetYTitle("Percentage of events");
+    //  ANNWeightedZCalibratedMinusANNZ_Data->SetXTitle("Distance (mm)");
+    //  ANNWeightedZCalibratedMinusANNZ_Data->Scale(100/ANNWeightedZCalibratedMinusANNZ_Data->GetEntries());
+    //  ANNWeightedZCalibratedMinusANNZ_Data->SetLineWidth(3);
+    //  ANNWeightedZCalibratedMinusANNZ_Data->SetLineColor(kBlue);
+    //  ANNWeightedZCalibratedMinusANNZ_Data->SetStats(0);
+    //  ANNWeightedZCalibratedMinusANNZ_Data->Draw("HIST");
+    //  ANNWeightedZCalibratedMinusANNZ_MC->SetLineWidth(3);
+    //  ANNWeightedZCalibratedMinusANNZ_MC->Scale(100/ANNWeightedZCalibratedMinusANNZ_MC->GetEntries());
+    //  ANNWeightedZCalibratedMinusANNZ_MC->SetLineColor(kRed);
+    //  ANNWeightedZCalibratedMinusANNZ_MC->Draw("HIST SAME");
+    //  TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+    //  legend->SetBorderSize(0);
+    //  legend->AddEntry(ANNWeightedZCalibratedMinusANNZ_Data,"Data","l");
+    //  legend->AddEntry(ANNWeightedZCalibratedMinusANNZ_MC,"MC","l");
+    //  legend->Draw();
+    //  canvas->SaveAs("WeightedZMinusANNZ.png");
+    //}
     {
-      std::cout<<"potData: " << potData << " potMC " << potMC <<std::endl;
       TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
-      ANNWeightedZCalibratedMinusANNZ_Data->SetTitle("Calibrated Z Positions (weighted average) - Uncalibrated most probable position");
-      ANNWeightedZCalibratedMinusANNZ_Data->SetYTitle("Percentage of events");
-      ANNWeightedZCalibratedMinusANNZ_Data->SetXTitle("Distance (mm)");
-      ANNWeightedZCalibratedMinusANNZ_Data->Scale(100/ANNWeightedZCalibratedMinusANNZ_Data->GetEntries());
-      ANNWeightedZCalibratedMinusANNZ_Data->SetLineWidth(3);
-      ANNWeightedZCalibratedMinusANNZ_Data->SetLineColor(kBlue);
-      ANNWeightedZCalibratedMinusANNZ_Data->SetStats(0);
-      ANNWeightedZCalibratedMinusANNZ_Data->Draw("HIST");
-      ANNWeightedZCalibratedMinusANNZ_MC->SetLineWidth(3);
-      ANNWeightedZCalibratedMinusANNZ_MC->Scale(100/ANNWeightedZCalibratedMinusANNZ_MC->GetEntries());
-      ANNWeightedZCalibratedMinusANNZ_MC->SetLineColor(kRed);
-      ANNWeightedZCalibratedMinusANNZ_MC->Draw("HIST SAME");
+      ANNZMinusANNZUncalibrated_Data->SetTitle("Most probable z position Calibrated - Uncalibrated");
+      ANNZMinusANNZUncalibrated_Data->SetYTitle("Percentage of events");
+      ANNZMinusANNZUncalibrated_Data->SetXTitle("Distance (mm)");
+      ANNZMinusANNZUncalibrated_Data->Scale(100/ANNZMinusANNZUncalibrated_Data->GetEntries());
+      ANNZMinusANNZUncalibrated_Data->SetLineWidth(3);
+      ANNZMinusANNZUncalibrated_Data->SetLineColor(kBlue);
+      ANNZMinusANNZUncalibrated_Data->SetStats(0);
+      ANNZMinusANNZUncalibrated_Data->Draw("HIST");
+      ANNZMinusANNZUncalibrated_MC->SetLineWidth(3);
+      ANNZMinusANNZUncalibrated_MC->Scale(100/ANNZMinusANNZUncalibrated_MC->GetEntries());
+      ANNZMinusANNZUncalibrated_MC->SetLineColor(kRed);
+      ANNZMinusANNZUncalibrated_MC->Draw("HIST SAME");
       TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
       legend->SetBorderSize(0);
-      legend->AddEntry(ANNWeightedZCalibratedMinusANNZ_Data,"Data","l");
-      legend->AddEntry(ANNWeightedZCalibratedMinusANNZ_MC,"MC","l");
-      legend->Draw();
-      canvas->SaveAs("WeightedZMinusANNZ.png");
-    }
-    {
-      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
-      ANNZCalibratedMinusANNZ_Data->SetTitle("Most probable z position Calibrated - Uncalibrated");
-      ANNZCalibratedMinusANNZ_Data->SetYTitle("Percentage of events");
-      ANNZCalibratedMinusANNZ_Data->SetXTitle("Distance (mm)");
-      ANNZCalibratedMinusANNZ_Data->Scale(100/ANNZCalibratedMinusANNZ_Data->GetEntries());
-      ANNZCalibratedMinusANNZ_Data->SetLineWidth(3);
-      ANNZCalibratedMinusANNZ_Data->SetLineColor(kBlue);
-      ANNZCalibratedMinusANNZ_Data->SetStats(0);
-      ANNZCalibratedMinusANNZ_Data->Draw("HIST");
-      ANNZCalibratedMinusANNZ_MC->SetLineWidth(3);
-      ANNZCalibratedMinusANNZ_MC->Scale(100/ANNZCalibratedMinusANNZ_MC->GetEntries());
-      ANNZCalibratedMinusANNZ_MC->SetLineColor(kRed);
-      ANNZCalibratedMinusANNZ_MC->Draw("HIST SAME");
-      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
-      legend->SetBorderSize(0);
-      legend->AddEntry(ANNZCalibratedMinusANNZ_Data,"Data","l");
-      legend->AddEntry(ANNZCalibratedMinusANNZ_MC,"MC","l");
+      legend->AddEntry(ANNZMinusANNZUncalibrated_Data,"Data","l");
+      legend->AddEntry(ANNZMinusANNZUncalibrated_MC,"MC","l");
       legend->Draw();
       canvas->SaveAs("ZMinusANNZ.png");
     }
 
       //TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
-      DrawDataMC(ANNZCalibrated_Data, ANNZCalibrated_MC, "ANNCalibratedZPositions", potMC, potData);
-      DrawDataMC(ANNZCalibrated_Data, ANNZCalibrated_MC, "ANNCalibratedZPositionsZoomed", potMC, potData, true);
+      DrawDataMC(ANNZUncalibrated_Data, ANNZUncalibrated_MC, "ANNCalibratedZPositions", potMC, potData);
+      DrawDataMC(ANNZUncalibrated_Data, ANNZUncalibrated_MC, "ANNCalibratedZPositionsZoomed", potMC, potData, true);
       DrawDataMC(ANNZCalibratedWeighted_Data, ANNZCalibratedWeighted_MC, "ANNCalibratedWeightedZPositions", potMC, potData);
       DrawDataMC(ANNZCalibratedWeighted_Data, ANNZCalibratedWeighted_MC, "ANNCalibratedWeightedZPositionsZoomed", potMC, potData, true);
       DrawDataMC(ANNZ_Data, ANNZ_MC, "ANNUncalibratedZPositions", potMC, potData);
@@ -2477,8 +3341,32 @@ int main(const int argc, char** argv)
       canvas->SaveAs("F1Score.png");
     }
 
-    /* ANNZCalibrated_Data
-    ANNZCalibrated_MC
+    {
+      TCanvas *canvas = new TCanvas("canvas", "canvas", 2000, 1000);
+      ANNConfidence_Data->SetLineColor(1);
+      ANNConfidence_MC->SetLineColor(2);
+      ANNUnalibratedConfidence_Data->SetLineColor(3);
+      ANNUnalibratedConfidence_MC->SetLineColor(4);
+
+      TLegend *legend = new TLegend(0.8,0.7,0.9,0.8);
+      legend->SetBorderSize(0);
+      legend->AddEntry(ANNConfidence_Data,"Data","l");
+      legend->AddEntry(ANNConfidence_MC,"MC","l");
+      legend->AddEntry(ANNUnalibratedConfidence_Data,"Data Unalibrated","l");
+      legend->AddEntry(ANNUnalibratedConfidence_MC,"MC Uncalibrated","l");
+
+      ANNConfidence_Data->Draw("HIST");
+      ANNConfidence_MC->Draw("HIST SAME");
+      ANNUnalibratedConfidence_Data->Draw("HIST SAME");
+      ANNUnalibratedConfidence_MC->Draw("HIST SAME");
+
+      legend->Draw();
+      canvas->SaveAs("Confidence.png");
+
+    }
+
+    /* ANNZUncalibrated_Data
+    ANNZUncalibrated_MC
     ANNZCalibratedWeighted_Data
     ANNZCalibratedWeighted_MC
     ANNZ_Data

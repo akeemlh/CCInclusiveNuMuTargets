@@ -5,7 +5,7 @@ import os
 import sys, argparse, math
 import PlotUtils 
 
-VERBOSITY = False
+VERBOSITY = True
 def merge_rootfile(target_dir, source_files, current_path=""):
     """
     Recursively merges directories, trees, and PlotUtils histograms 
@@ -31,6 +31,7 @@ def merge_rootfile(target_dir, source_files, current_path=""):
 
         obj_name = key.GetName()
         obj_class = obj.ClassName()
+        print("obj_name: ", obj_name, " obj_class: ", obj_class)
 
         # Merge Histograms (including MnvH1D and MnvH2D)
         if "MnvH1D" in obj_class or "MnvH2D" in obj_class or obj.InheritsFrom("TH1"):
@@ -111,23 +112,89 @@ def merge_rootfile(target_dir, source_files, current_path=""):
     target_dir.SaveSelf(True)
     ROOT.TH1.AddDirectory(status)
 
+
+playlist_divs = {"1A" : 20, #10?
+                 "1B" : 5, 
+                 "1C" : 5, 
+                 "1D" : 20, 
+                 "1E" : 15, 
+                 "1F" : 30, #24
+                 "1G" : 25, 
+                 "1L" : 5, 
+                 "1M" : 30, 
+                 "1N" : 15, 
+                 "1O" : 5, 
+                 "1P" : 5, 
+                 "5A" : 10, 
+                 "6A" : 20, 
+                 "6B" : 15, 
+                 "6C" : 15, 
+                 "6D" : 15, 
+                 "6E" : 10, 
+                 "6F" : 20, 
+                 "6G" : 10, 
+                 "6H" : 15, 
+                 "6I" : 10, 
+                 "6I_WaterIN" : 5, 
+                 "6I_WaterOUT" : 5, 
+                 "6J" : 15, 
+                 }
+
+#Double-time
+#playlist_divs = {"1A" : 25, #10?
+#                 "1B" : 10, 
+#                 "1C" : 15, 
+#                 "1D" : 35, 
+#                 "1E" : 30, 
+#                 "1F" : 35, #24
+#                 "1G" : 35, 
+#                 "1L" : 5, 
+#                 "1M" : 50, 
+#                 "1N" : 20, 
+#                 "1O" : 10, 
+#                 "1P" : 15, 
+#                 "5A" : 15, 
+#                 "6A" : 35, 
+#                 "6B" : 25, 
+#                 "6C" : 25, 
+#                 "6D" : 25, 
+#                 "6E" : 25, 
+#                 "6F" : 20, 
+#                 "6G" : 25, 
+#                 "6H" : 39, 
+#                 "6I" : 25, 
+#                 "6I_WaterIN" : 15, 
+#                 "6I_WaterOUT" : 10, 
+#                 "6J" : 25, 
+#                 }
+
 parser = argparse.ArgumentParser( prog='combineSplitRuns',
                 description='automates the submission of runEventLoopTargetsNew to fermigrid')
 parser.add_argument('indir', nargs=1, help="the data input directory")
-parser.add_argument('-n', "--num", nargs=1, help="Number of subruns expected")
+parser.add_argument('-n', "--num", nargs=1, help="Number of subruns expected. Enter -1 to use my preset binnings")
 parser.add_argument('-o', "--outdir", help="Output parent directory")
 parser.add_argument('-f', "--force", action='store_true', help="Overwrite existing files at output directory")
 parser.add_argument('-v', "--verbose", action='store_true', help="Verbose output")
+parser.add_argument('-p', "--playlist", help="Specify single playlist")
+parser.add_argument('-d', "--dry_run", action='store_true', help="Don't actually perform merging")
 args = parser.parse_args()
 
 indir = args.indir[0]
-numSplits = int(args.num[0])
+numSplitsarg = int(args.num[0])
 outdir = args.outdir
 if outdir is not None and outdir[:-1]=="/":
     outdir = outdir[:-1]
+
+if not (os.path.isdir(outdir)):
+    print(f"Could not find target output directory {outdir}, so attempting to make it")
+    os.mkdir(outdir)
+
 bases = []
 force = args.force
+specified_playlist = args.playlist
 VERBOSITY = args.verbose
+dry_run = args.dry_run
+ROOT.EnableImplicitMT()  # Enable threading - NOTE: If files are over slow network (XRootD) it might cause thread contention waiting for data.
 
 for (root, dirs, file) in os.walk(indir):
     for f in file:
@@ -143,6 +210,20 @@ print("Testing:", bases)
 vettedBases = []
 rejectedBases = []
 for base in bases:
+    lastslash = base.rfind("/")
+    print("lastslash: ", lastslash)
+    secondlastslash = base.rfind("/", 0, lastslash)
+    print("secondlastslash: ", secondlastslash)
+    playlist = base[secondlastslash+1:lastslash]
+    #playlist="1L"
+    if specified_playlist is not None:
+        playlist = specified_playlist
+    print("playlist: ", playlist)
+    if numSplitsarg==-1:
+        numSplits=playlist_divs[playlist]
+    else:
+        numSplits = numSplitsarg
+    print("playlist: ", playlist, "numSplits=", numSplits)
     count = 0
     for i in range(numSplits):
         probepath = base + "_n"+str(i)+".root"
@@ -157,12 +238,16 @@ for base in bases:
         rejectedBases.append(base)
 
 print("some files missing from following sets:", rejectedBases)
-
+if dry_run:
+    exit(0)
 for base in vettedBases:
     print("Now working on set: ", base)
     lastslash = base.rfind("/")
     secondlastslash = base.rfind("/", 0, lastslash)
     playlist = base[secondlastslash+1:lastslash]
+    #playlist="1L"
+    if specified_playlist is not None:
+        playlist = specified_playlist
     filebase = base[lastslash+1:]
     """ print(lastslash)
     print(secondlastslash)
@@ -187,6 +272,10 @@ for base in vettedBases:
     print("Saving to %s" % outfile)
     # Create the merger
     filesToMerge = []
+    if numSplitsarg==-1:
+        numSplits=playlist_divs[playlist]
+    else:
+        numSplits = numSplitsarg
     for i in range(numSplits):
         path = base + "_n"+str(i)+".root"
         filesToMerge.append(path)
@@ -225,6 +314,7 @@ for base in vettedBases:
             print(f"Fatal: Could not open source file {sf}")
             sys.exit(1)
         source_files.append(f)
+    print("merging into: ", target_file)
     merge_rootfile(target_file, source_files,)
     # Cleanup
     target_file.Close()
@@ -243,3 +333,5 @@ for base in vettedBases:
         datapot.Write("", ROOT.TObject.kOverwrite)
     f.Close() """
     print(f"Fixing POTs finished")
+
+print("some files missing from following sets:", rejectedBases)

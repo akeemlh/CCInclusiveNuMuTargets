@@ -27,15 +27,12 @@ namespace PlotUtils
       virtual ~COHPionReweighter() = default;
 
       virtual double GetWeight(const UNIVERSE& univ, const EVENT& myevent /*event*/) const override{
-	if( univ.GetInt("mc_intType") == 4){
-	   
- 	    double weight = univ.GetCOHPionWeight();//GetCoherentPiWeight(angle, KE); //PlotUtils::weightCoherentPi().get_combined_weight(angle, KE);
-            return weight;
-	 }
+        if( univ.GetInt("mc_intType") == 4){
+          
+            double weight = univ.GetCOHPionWeight();//GetCoherentPiWeight(angle, KE); //PlotUtils::weightCoherentPi().get_combined_weight(angle, KE);
+                  return weight;
+        }
          else return 1.0;
-
-                
-	
       };
       virtual std::string GetName() const {return "COHPionReweighter"; }
 
@@ -47,4 +44,4 @@ namespace PlotUtils
   };
 }
 
-#endif //DIFFRACTIVE_REWEIGHTER_H
+#endif //COHPion_REWEIGHTER_H

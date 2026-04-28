@@ -85,6 +85,14 @@ add_executable(runEventLoopValidations runEventLoopValidations.cpp)
 target_link_libraries(runEventLoopValidations ${ROOT_LIBRARIES} util MAT MAT-MINERvA UnfoldUtils) #event cuts studies systematics)
 install(TARGETS runEventLoopValidations DESTINATION bin)
 
+add_executable(PreExtractionTargets PreExtractionTargets.cpp)
+target_link_libraries(PreExtractionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS PreExtractionTargets DESTINATION bin)
+
+add_executable(GetPlasticSidebandScaleFactor GetPlasticSidebandScaleFactor.cpp)
+target_link_libraries(GetPlasticSidebandScaleFactor ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS GetPlasticSidebandScaleFactor DESTINATION bin)
+
 add_executable(Extract1DCrossSectionTargets Extract1DCrossSectionTargets.cpp)
 target_link_libraries(Extract1DCrossSectionTargets ${ROOT_LIBRARIES} util MAT UnfoldUtils)
 install(TARGETS Extract1DCrossSectionTargets DESTINATION bin)
@@ -112,6 +120,10 @@ install(TARGETS runXSecLooperTracker DESTINATION bin)
 add_executable(runXSecLooperTargets_ByTarget runXSecLooperTargets_ByTarget.cpp)
 target_link_libraries(runXSecLooperTargets_ByTarget ${ROOT_LIBRARIES} util MAT GENIEXSecExtract)
 install(TARGETS runXSecLooperTargets_ByTarget DESTINATION bin)
+
+add_executable(TransWarpExtractionMod TransWarpExtractionMod.cxx TransWarpExtractionMod.h)
+target_link_libraries(TransWarpExtractionMod ${ROOT_LIBRARIES} util MAT UnfoldUtils)
+install(TARGETS TransWarpExtractionMod DESTINATION bin)
 
 install(FILES backgroundStack.py PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE DESTINATION bin)
 

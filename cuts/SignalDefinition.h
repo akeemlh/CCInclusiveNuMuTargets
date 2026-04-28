@@ -101,7 +101,7 @@ namespace truth
       bool checkConstraint(const UNIVERSE& univ) const override
       {
         int tgtID = univ.GetTruthTargetID();
-        if (tgtID == 1 || tgtID == 2 || tgtID == 3 || tgtID == 5) return (univ.GetTruthTargetDistToDiv() >= fDistCut); //Only perform chech for targets that have this division
+        if (tgtID == 1 || tgtID == 2 || tgtID == 3 || tgtID == 5) return (univ.GetTruthTargetDistToDiv() > fDistCut); //Only perform chech for targets that have this division
         else return true;
       }
     double fDistCut;;

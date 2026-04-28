@@ -1,8 +1,90 @@
 import os, sys, argparse, time, subprocess, re
-memory = 15000
+default_memory = 8000 #15000
 lifetime = 36 #hours
 
 epoch_time = int(time.time())
+
+playlist_divs = {"1A" : 20, #10?
+                 "1B" : 5, 
+                 "1C" : 5, 
+                 "1D" : 20, 
+                 "1E" : 15, 
+                 "1F" : 30, #24
+                 "1G" : 25, 
+                 "1L" : 5, 
+                 "1M" : 30, 
+                 "1N" : 15, 
+                 "1O" : 5, 
+                 "1P" : 5, 
+                 "5A" : 10, 
+                 "6A" : 20, 
+                 "6B" : 15, 
+                 "6C" : 15, 
+                 "6D" : 15, 
+                 "6E" : 10, 
+                 "6F" : 20, 
+                 "6G" : 10, 
+                 "6H" : 15, 
+                 "6I" : 10, 
+                 "6I_WaterIN" : 5, 
+                 "6I_WaterOUT" : 5, 
+                 "6J" : 15, 
+                 }
+
+#Double-time
+#playlist_divs = {"1A" : 25, #10?
+#                 "1B" : 10, 
+#                 "1C" : 15, 
+#                 "1D" : 35, 
+#                 "1E" : 30, 
+#                 "1F" : 35, #24
+#                 "1G" : 35, 
+#                 "1L" : 5, 
+#                 "1M" : 50, 
+#                 "1N" : 20, 
+#                 "1O" : 10, 
+#                 "1P" : 15, 
+#                 "5A" : 15, 
+#                 "6A" : 35, 
+#                 "6B" : 25, 
+#                 "6C" : 25, 
+#                 "6D" : 25, 
+#                 "6E" : 25, 
+#                 "6F" : 20, 
+#                 "6G" : 25, 
+#                 "6H" : 39, 
+#                 "6I" : 25, 
+#                 "6I_WaterIN" : 15, 
+#                 "6I_WaterOUT" : 10, 
+#                 "6J" : 25, 
+#                 }
+
+#playlist_divs = {"1A" : 20, #10?
+#                 "1B" : 10, 
+#                 "1C" : 10, 
+#                 "1D" : 40, 
+#                 "1E" : 40, 
+#                 "1F" : 60, #24
+#                 "1G" : 50, 
+#                 "1L" : 5, 
+#                 "1M" : 80, 
+#                 "1N" : 30, 
+#                 "1O" : 15, 
+#                 "1P" : 20, 
+#                 "5A" : 20, 
+#                 "6A" : 50, 
+#                 "6B" : 40, 
+#                 "6C" : 40, 
+#                 "6D" : 30, 
+#                 "6E" : 30, 
+#                 "6F" : 25, 
+#                 "6G" : 30, 
+#                 "6H" : 40, 
+#                 "6I" : 20, 
+#                 "6I_WaterIN" : 20, 
+#                 "6I_WaterOUT" : 10, 
+#                 "6J" : 15, 
+#                 }
 
 with open(f"failingJobsTracker{epoch_time}.txt", "w") as outfile:
     outfile.write("Failing jobs")
@@ -86,12 +168,16 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--playlists', nargs='*', help="the playlists to run")
     parser.add_argument('--targets', nargs='*', help="the target materials to run")
     parser.add_argument('--petals', nargs='*', help="the petals to run")
+    parser.add_argument('--validation', action='store_true', help="Run validation event loop")
     parser.add_argument('-s', '--skipsys', action='store_true', help="skip systematics? Used in warping studies")
-    parser.add_argument('--no2p2hwarp', action='store_true', help="Turning off LowRecoil2p2hReweighter")
-    parser.add_argument('--amudiswarp', action='store_true', help="Turning on AMUDISReweighter")
-    parser.add_argument('--lowq2warp', action='store_true', help="Turning on LowQ2PiReweighter")
-    parser.add_argument('--susa2p2hwarp', action='store_true', help="Replacing LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter")
-    parser.add_argument('-N', '--NumSubruns', type=int, help="Break down this run into N smaller runs - Runs will then need to be merged (using hadd for example) afterwards. Used to speed up long jobs.") 
+    parser.add_argument('--no2p2hwarp', action='store_true', help="Warp - Turning off LowRecoil2p2hReweighter")
+    parser.add_argument('--amudiswarp', action='store_true', help="Warp - Turning on AMUDISReweighter")
+    parser.add_argument('--lowq2warp', action='store_true', help="Warp - Turning on LowQ2PiReweighter")
+    parser.add_argument('--susa2p2hwarp', action='store_true', help="Warp - Replacing LowRecoil2p2hReweighter with SuSAFromValencia2p2hReweighter")
+    parser.add_argument('--nolowq2piwarp', action='store_true', help="Warp - Turning off LowQ2PiReweighter")
+    parser.add_argument('--maresnomwarp', action='store_true', help="Warp - Setting M_A^RES AND CCResNorm to their GENIE nominal values 1.12 and 1.0, respectively.")
+    parser.add_argument('--nocalibration', action='store_true', help="Warp-ish - Turning off SMS Calibrator.")
+    parser.add_argument('-N', '--NumSubruns', type=int, help="Break down this run into N smaller runs - Runs will then need to be merged (using hadd for example) afterwards. Used to speed up long jobs. Set to -1 to use my prior best guesses (Recommended).") 
     parser.add_argument('-sN', '--specifySubrun', help="Specify which number of subrun to run, used when rerunning failed submissions, in conjuction with the option -N above. This will submit a job broken down by N, as above, but only run the subjob denoted by this value")
     parser.add_argument("-a", "--tarfile", help="Specify the tar archive - can save submission time. Tar using \"tar -cvzf {tarball output path}.tar.gz -C /exp/minerva/app/users/alhart/MAT_AL9/opt/ .\". Otherwise it will tar the current state of my analysis opt folder")
     parser.add_argument('-m', '--mnvTune', help="Specify the tune to apply formatted as 3 digit integer. Eg -m 431 is mnvTune v4.3.1")
@@ -120,6 +206,10 @@ if __name__ == '__main__':
     amudiswarp = args.amudiswarp
     lowq2warp = args.lowq2warp
     susa2p2hwarp=args.susa2p2hwarp
+    nolowq2piwarp=args.nolowq2piwarp
+    maresnomwarp=args.maresnomwarp
+    nocalibration=args.nocalibration
+    validation = args.validation
     tune = 100 #default to mnvtune100
     if args.mnvTune is not None:
         tune = args.mnvTune
@@ -167,8 +257,8 @@ if __name__ == '__main__':
     print("Submitting playlists: ", vettedPlaylists)
     targets = args.targets
     petals = args.petals
-    if not targets and not petals:
-        print("Must supply either list of targets (--targets) , a list of petals (--petals), or both")
+    if not targets and not petals and not validation:
+        print("Must supply either list of targets (--targets) , a list of petals (--petals), or both, or specify that you're doing a validation run with --validation")
         exit(1)
     runTypes = [] #0 for target, 1 for petals
     if targets:
@@ -177,6 +267,9 @@ if __name__ == '__main__':
     if petals:
         print("Running petals: ", " ".join(petals))
         runTypes.append(1)
+    if validation:
+        print("Running validation event loops")
+        runTypes.append(2)
     #exit()
     failingPlaylist = []
     failingTarget = []
@@ -195,11 +288,15 @@ if __name__ == '__main__':
                 print("Submitting target job")
             elif runType == 1:
                 print("Submitting petal job")
+            elif runType == 2:
+                print("Submitting validation job")
             # Create wrapper
             if runType == 0:
                 wrapper_name = "wrapper-EvLoopTargets-"+playlist+"-"+str(epoch_time)+".sh"
             elif runType == 1:
                 wrapper_name = "wrapper-EvLoopTracker-"+playlist+"-"+str(epoch_time)+".sh"
+            elif runType == 2:
+                wrapper_name = "wrapper-EvLoopValidations-"+playlist+"-"+str(epoch_time)+".sh"
             wrapper_path = "/nashome/a/alhart/gridWrappers/"+wrapper_name
             my_wrapper = open(wrapper_path,"w")
             my_wrapper.write("#!/bin/bash\n")
@@ -210,9 +307,12 @@ if __name__ == '__main__':
             my_wrapper.write("echo Setting up environment on $HOSTNAME\n")
             my_wrapper.write("export MINERVA_PREFIX=${INPUT_TAR_DIR_LOCAL}\n")
             my_wrapper.write("echo MINERvA directory: $MINERVA_PREFIX\n")
+            memory = default_memory
             if skipSys:
                 my_wrapper.write("export MNV101_SKIP_SYST=True\n")
                 memory=2000
+            if runType == 2:
+                memory=5000
             if no2p2hwarp:
                 my_wrapper.write("export NO_2P2H_WARP=True\n")
             if amudiswarp:
@@ -221,10 +321,20 @@ if __name__ == '__main__':
                 my_wrapper.write("export LOW_Q2_PION_WARP=True\n")
             if susa2p2hwarp:
                 my_wrapper.write("export SUSA_2P2H_WARP=True\n")
+            if nolowq2piwarp:
+                my_wrapper.write("export NO_LOW_Q2Pi=True\n")
+            if maresnomwarp:
+                my_wrapper.write("export MA_RES_NOMINAL=True\n")
+            if nocalibration:
+                my_wrapper.write("export NO_CALIBRATION=True\n")
             tuneStr ="export MnvTune="+tune+"\n"
             my_wrapper.write(tuneStr)
-            if numOfSubRuns != 0:
+
+            if numOfSubRuns > 0:
                 subrunstr = "export NumGridSubruns="+str(numOfSubRuns)+"\n"
+                my_wrapper.write(subrunstr)
+            elif numOfSubRuns==-1:
+                subrunstr = "export NumGridSubruns="+str(playlist_divs[playlist])+"\n"
                 my_wrapper.write(subrunstr)
             if specifySubrun!= None:
                 subrunstr = "export NumGridSubruns="+str(specifySubrunTotal)+"\n"
@@ -232,9 +342,9 @@ if __name__ == '__main__':
                 subrunstr = "export PROCESS="+str(specifySubrun)+"\n"
                 my_wrapper.write(subrunstr)
             my_wrapper.write("export XRD_NETWORKSTACK=IPv4\n")
-            my_wrapper.write("export XRD_STREAMTIMEOUT=600\n")
-            my_wrapper.write("export XRD_CONNECTIONRETRY=5\n")
-            my_wrapper.write("export XRD_CONNECTIONWINDOW=600\n")
+            #my_wrapper.write("export XRD_STREAMTIMEOUT=600\n")
+            #my_wrapper.write("export XRD_CONNECTIONRETRY=5\n")
+            #my_wrapper.write("export XRD_CONNECTIONWINDOW=600\n")
             #my_wrapper.write("export XRD_DATASERVERTTL=7200\n")
             
             my_wrapper.write("source /cvmfs/larsoft.opensciencegrid.org/spack-v0.22.0-fermi/setup-env.sh\n")
@@ -267,6 +377,8 @@ if __name__ == '__main__':
             elif runType == 1:
                 petalString = " ".join(petals)
                 my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopTracker ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt "+petalString+" \n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
+            elif runType == 2:
+                my_wrapper.write("    ${MINERVA_PREFIX}/bin/runEventLoopValidations ${CONDOR_DIR_INPUT}/"+playlist+"-Data.txt "+"${CONDOR_DIR_INPUT}/"+playlist+"-MC.txt \n") #The "|| exit $?" is so that if this command fails the bash script will also exit which will trigger the condor job retry
             my_wrapper.write("    status=$?\n")
             my_wrapper.write("    if [ $status -eq 0 ]; then\n")
             my_wrapper.write("        echo \"Success on attempt $attempt\"\n")
@@ -283,7 +395,7 @@ if __name__ == '__main__':
 
             my_wrapper.write("echo Running event loop - DONE\n")
             my_wrapper.write("echo Copying files back to persistent\n")
-            my_wrapper.write("ifdh cp ./runEventLoop* "+outdirplaylist+"\n")
+            my_wrapper.write("ifdh cp ./*.root "+outdirplaylist+"\n")
             my_wrapper.write("echo Copying files back to persistent - DONE\n")
             my_wrapper.write("echo SUCCESS\n")
             my_wrapper.close()
@@ -293,8 +405,10 @@ if __name__ == '__main__':
                 tgtStr = "_".join(targets)
             elif runType == 1:
                 tgtStr = "_".join(petals)
+            elif runType == 1:
+                tgtStr = "_Validations_"
             logpath+=tgtStr
-            if numOfSubRuns>0:
+            if numOfSubRuns!=0:
                 logpath+="_'$PROCESS'"
             logpath+=".log"
             #cmd = "jobsub_submit --group=minerva --cmtconfig=x86_64-slc7-gcc49-opt -c has_avx2==True --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest -L %s --expected-lifetime %sh --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always --memory %dMB --disk 15GB --lines=+FERMIHTC_AutoRelease=True --lines=+FERMIHTC_GraceMemory=1024 --lines=+FERMIHTC_GraceLifetime=1800 -f dropbox://%s/%s-Data.txt -f dropbox://%s/%s-MC.txt --tar_file_name dropbox://%s" % ( logpath, lifetime, memory, dataInDir, playlist, mcInDir, playlist, tarballpath )    
@@ -304,9 +418,11 @@ if __name__ == '__main__':
             cmd+= " --singularity-image /cvmfs/singularity.opensciencegrid.org/fermilab/fnal-wn-el9:latest"
             cmd+= f" -L {logpath}"
             cmd+= f" --expected-lifetime {lifetime}h"
-            cmd+= " --resource-provides=usage_model=DEDICATED --role=Analysis --mail_always"
+            #cmd+= " --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC --role=Analysis --mail_always"
+            cmd+= " --resource-provides=usage_model=DEDICATED,OPPORTUNISTIC,OFFSITE --role=Analysis --mail_always"
             cmd+= f" --memory {memory}MB"
             cmd+= f" --disk 15GB"
+            #cmd+= f" --disk 70GB"
             cmd+= " --lines=+FERMIHTC_AutoRelease=True"
             cmd+= " --lines=+FERMIHTC_GraceMemory=1024"
             cmd+= " --lines=+FERMIHTC_GraceLifetime=1800"
@@ -316,8 +432,11 @@ if __name__ == '__main__':
             #cmd+= f" -f /{dataInDir}/{playlist}-Data.txt -f /{mcInDir}/{playlist}-MC.txt"
             #cmd+= f" --tar_file_name /{tarballpath}"
 
-            if numOfSubRuns != 0:
+            if numOfSubRuns > 0:
                 subrunstr = " -N "+str(numOfSubRuns)
+                cmd += subrunstr
+            elif numOfSubRuns==-1:
+                subrunstr = " -N "+str(playlist_divs[playlist])
                 cmd += subrunstr
             cmd+=(" file://" + wrapper_path)
             print(cmd)

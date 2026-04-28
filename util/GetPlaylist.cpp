@@ -18,7 +18,7 @@ namespace
   //TODO: If I ever need more run period metadata, seriously look into a database.
   //TODO: I'm missing LE
   //TODO: Some kind of check on whether a run is in the range of a playlist.
-  std::map<int, std::string> runNumberToPlaylist = {
+  std::map<int, std::string> runNumberToPlaylistMC = {
                                                      //MC from https://cdcvs.fnal.gov/redmine/projects/minerva-sw/wiki/Inextinguishable_Monte_Carlo_Production_Run_Numbers
                                                      //TODO: Deepika says I should get run ranges from here instead: https://cdcvs.fnal.gov/redmine/projects/minerva-sw/wiki/Inextinguishable_Production
                                                      //I've already commented out me1Y and me1Z, so hopefully that's the only major change.
@@ -74,6 +74,8 @@ namespace
                                                      {117020, "minervame1Y"}, //nuke
                                                      {113055, "minervame1Z"}, //tracker
                                                      {117055, "minervame1Z"}, //nuke*/
+                                                   };
+std::map<int, std::string> runNumberToPlaylistData = {
                                                      //Data from https://cdcvs.fnal.gov/redmine/projects/minerva-sw/wiki/Data_Run_Periods
                                                      {6038, "minervame1A"},
                                                      {7000, "minervame2"},
@@ -111,18 +113,32 @@ namespace
                                                    };
 }
 
+
 namespace util
 {
   std::string GetPlaylist(PlotUtils::TreeWrapper& tree, const bool isMC)
   {
-    const int run = tree.GetValue((isMC?"mc":"ev") + std::string("_run"), 0);
+    if (isMC)
+    {
+      const int run = tree.GetValue((isMC?"mc":"ev") + std::string("_run"), 0);
 
-    std::string playlist = "NoSuchPlaylist";
-    const auto found = ::runNumberToPlaylist.upper_bound(run);
-    if(found != ::runNumberToPlaylist.begin()) playlist = std::prev(found)->second;
+      std::string playlist = "NoSuchPlaylist";
+      const auto found = ::runNumberToPlaylistMC.upper_bound(run);
+      if(found != ::runNumberToPlaylistMC.begin()) playlist = std::prev(found)->second;
 
-    std::cout << "Inferring playlist " << playlist << " from run number " << run << ".\n";
+      std::cout << "Inferring MC playlist " << playlist << " from run number " << run << ".\n";
+    
+      return playlist;
+    }
+    else
+    {
+      const int run = tree.GetValue((isMC?"mc":"ev") + std::string("_run"), 0);
 
-    return playlist;
+      std::string playlist = "NoSuchPlaylist";
+      const auto found = ::runNumberToPlaylistData.upper_bound(run);
+      if(found != ::runNumberToPlaylistData.begin()) playlist = std::prev(found)->second;
+
+      std::cout << "Inferring data playlist " << playlist << " from run number " << run << ".\n";
+    }
   }
 }
